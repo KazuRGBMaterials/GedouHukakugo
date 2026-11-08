@@ -1,0 +1,37 @@
+/* FIELD v0.8.0: reversible arcane art direction, inspired by the approved concept board.
+ * Presentation only. Hit areas, movement events, world dimensions and controls are unchanged. */
+:root{--arcane-sky:#11172b;--arcane-violet:#b57ce9;--arcane-ice:#7ed3df;--arcane-gold:#d7b87a;--arcane-ink:#101626;background:#0b0f1e;color:#e8e4ef}
+#app{background:radial-gradient(ellipse at 50% -25%,#322951,#111827 62%,#090e1b);color:#e8e2ef}
+.topbar{background:linear-gradient(103deg,#111628 0%,#1b2037 54%,#281c3f 100%);border-bottom:1px solid #796491;box-shadow:0 7px 27px #050817ad,0 1px 0 #a89ac64d}
+.brand-mark{background:radial-gradient(circle,#493064 0%,#171b30 80%);border:2px solid #aa86c3;color:#e1c2f8;box-shadow:0 0 0 4px #191931,0 0 23px #8e5dd44d;font-family:"Yu Mincho",Georgia,serif}
+.brand h1{color:#f4e9ff;text-shadow:0 0 13px #a782db45;letter-spacing:.1em}
+.brand h1 span{color:#c7b8d8}.brand p{color:#9ec4d0}
+.status{color:#bfe2e5}.status-led{background:#9be3d8;box-shadow:0 0 10px #6ae5e5}
+.game-frame{border:2px solid #8e7ca6;background:#171d35;box-shadow:0 0 0 4px #151c31,0 0 0 5px #4f526e,0 13px 43px #000a}
+.game-frame:after{box-shadow:inset 0 0 90px #1a103e78,inset 0 0 12px #9f88df4d;pointer-events:none}
+.character-hud{border:1px solid #a794be;background:linear-gradient(145deg,#111a2cf2,#211a38ed 80%);box-shadow:0 0 0 3px #191a2a99,inset 0 0 0 1px #5a496f,0 6px 23px #0c0b1dbd}
+.character-hud:before{content:"✦";position:absolute;top:-10px;left:-8px;color:#a7e9f0;font-size:15px;text-shadow:0 0 9px #65dbe8}
+.mage-portrait{border:1px solid #aa8bcc;background-color:#1b1d36;box-shadow:0 0 0 2px #35304c}
+.mage-ident strong{color:#f1e6f5;text-shadow:0 0 9px #aa93df88}
+.mage-ident span{color:#bdb1d0}
+.mage-meter-head{color:#d5cce7}.mage-bar{background:#121a2e;border-color:#68617e}
+.mage-bar i{background:linear-gradient(90deg,#7553ad,#ce9fff)}
+.mage-mp i{background:linear-gradient(90deg,#2c6d9c,#8adbe2)}
+.action-hud{color:#eddafa;border:1px solid #a488c7;background:linear-gradient(135deg,#191a35ef,#30224deb);text-shadow:0 0 12px #b783ec}
+.game-actions button{border:1px solid #9886ae;background:linear-gradient(160deg,#29304a,#131a30);color:#ecdbf5}
+.joystick{border-color:#9a88bd;background:radial-gradient(circle at 50% 48%,#454064e8,#151a33ed 70%);box-shadow:0 0 0 3px #131626,0 0 15px #a87de14d}
+.joystick-ring{border-color:#b9a6d0aa}.joystick-knob{background:linear-gradient(135deg,#c8b3e4,#686184);border-color:#dacfe8;color:#1a1830}
+.joystick-caption{color:#c8bce2}
+.shoulder-btn{background:linear-gradient(145deg,#3d3358,#17192e)!important;border-color:#a78ac7!important}
+.face-y{background:linear-gradient(135deg,#b68a4d,#5e3154)!important}
+.face-x{background:linear-gradient(135deg,#5c67af,#2b3155)!important}
+.face-a{background:linear-gradient(135deg,#397d93,#252f61)!important}
+.face-b{background:linear-gradient(135deg,#9b4c81,#412345)!important}
+.game-menu{background:linear-gradient(155deg,#1b1c35f7,#252039fa);border-color:#a38abc;box-shadow:0 0 25px #251255c2}
+.game-menu .menu-title{color:#d0b6f9}
+.footer{background:linear-gradient(105deg,#12172b,#1d1931);border-top-color:#56456d;color:#c4bcd1}
+.footer strong{color:#e4c9ee}
+.room-panel{border-color:#9c84c6;background:linear-gradient(145deg,#181a34fa,#29203efa)}
+.room-buttons button.primary{background:#74529c;border-color:#b28edb}
+.room-status[data-state="online"]{border-left-color:#91d9e4}
+@media(max-width:740px){.brand h1{letter-spacing:.015em}.character-hud:before{display:none}}
