@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" fill="none" aria-hidden="true"><defs>
+<linearGradient id="blade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46218a" stop-opacity=".12"/><stop offset=".25" stop-color="#c46bff"/><stop offset=".55" stop-color="#f7efff"/><stop offset=".75" stop-color="#92ecff"/><stop offset="1" stop-color="#29cddb" stop-opacity=".2"/></linearGradient>
+<filter id="glow" x="-35%" y="-35%" width="170%" height="170%"><feGaussianBlur stdDeviation="4.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#glow)">
+<path d="M31 189 C101 229 209 160 229 16 C224 124 139 145 77 139 C129 149 176 103 200 64 C192 186 90 233 31 189Z" fill="url(#blade)" opacity=".93"/>
+<path d="M36 188 Q189 235 229 16" stroke="#e6efff" stroke-width="6" stroke-linecap="round" opacity=".94"/>
+<path d="M54 188 Q180 204 217 57" stroke="#a759ff" stroke-width="4" opacity=".8"/>
+<path d="M4 153 Q77 132 120 87M16 193 Q63 174 103 139M71 230 Q151 211 187 170" stroke="#6429b7" stroke-width="5" opacity=".75"/>
+<path d="M10 125L36 116L22 130Z M185 226L209 216L199 231Z M168 17L184 5L177 25Z" fill="#8ff9fc"/>
+</g></svg>
