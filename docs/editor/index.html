@@ -20,6 +20,7 @@
       <button class="quiet" id="undo" title="元に戻す Ctrl+Z">↶ 戻す</button>
       <button class="quiet" id="redo" title="やり直す Ctrl+Y">↷ 進む</button>
       <button class="primary" id="save" title="この端末に保存">保存</button>
+      <button class="primary" id="play-main" title="本編のMAGE・4スキルでこのフィールドを試す">▶ 本編で試す</button>
       <button id="export">↓ JSON</button>
       <button id="import">↑ 読込</button>
       <input type="file" id="file-input" accept=".json,application/json" hidden/>
@@ -47,7 +48,7 @@
       <div class="field-row"><label for="grid-size">間隔</label><select id="grid-size"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></div>
       <div class="separator"></div>
       <button class="wide play" id="play">▶ 試遊モード</button>
-      <p class="aside-note">「試遊」はエディター内の移動・衝突テストです。現在の本編ゲームとは独立しています。</p>
+      <p class="aside-note">「試遊」はエディター内の移動・衝突テスト。「本編で試す」はMAGEと4スキルを使うプレビューで、他端末や正式マップは変更しません。</p>
     </aside>
     <main class="canvas-panel">
       <div class="map-toolbar">

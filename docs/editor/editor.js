@@ -432,6 +432,16 @@ function initEvents(){
   mutate(()=>{map.objects.push(dupe);selection={kind:"object",id:dupe.id}},"複製しました");
  });
  $("save").addEventListener("click",()=>persist(false));
+ $("play-main").addEventListener("click",()=>{
+  // Only this local editor browser can open the opt-in gameplay test map.
+  if(playing)setPlaying(false);
+  if(tool==="path"&&pathDraft)finishPath();
+  try{
+   persist(true);
+   if(localStorage.getItem(STORAGE_KEY)!==JSON.stringify(map))throw Error("保存内容を確認できません");
+   window.open("../?editorMap=1","_blank","noopener");
+  }catch(e){announce("ローカル保存に失敗しました。JSONに書き出してから再試行してください");}
+ });
  $("reload").addEventListener("click",()=>{
   if(!confirm("この端末に保存したマップを再読込します。よろしいですか？"))return;
   map=readLocal();selection=null;past=[];future=[];fit();refreshInfo();render();announce("保存したマップを読み込みました");
