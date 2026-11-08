@@ -60,6 +60,8 @@ ui.name.value=savedName||("MAGE-"+String(Math.floor(Math.random()*90)+10));
 ui.color.value=storage.get("gedo-room-color","0");
 const fragment=(location.hash.match(/room=([A-HJ-NP-Z2-9]{8})/i)||[])[1];
 if(fragment)ui.code.value=fragment.toUpperCase();
+ui.panel.addEventListener("touchmove",event=>event.stopPropagation(),{passive:true});
+window.addEventListener("keydown",event=>{if(event.key==="Escape"&&!ui.panel.hidden)ui.panel.hidden=true;});
 ui.toggle.addEventListener("click",()=>{ui.panel.hidden=!ui.panel.hidden;});
 ui.dismiss.addEventListener("click",()=>{ui.panel.hidden=true;});
 ui.name.addEventListener("change",()=>storage.set("gedo-room-name",ui.name.value.trim().slice(0,16)));
@@ -80,7 +82,7 @@ ui.join.addEventListener("click",()=>{
 ui.leave.addEventListener("click",()=>leaveRoom());
 if(!configured){
   ui.create.disabled=true;ui.join.disabled=true;
-  say("Firebase未設定：現在は1人用です。設定後は各端末から同じルームへ参加できます。","error");
+  say("Firebase未設定：現在は1人用です。設定後は各端末から同じルームへ参加できます。");
 } else {
   say("オンライン接続を準備しています");
   initFirebase().catch(e=>say("Firebaseの読込に失敗："+(e?.message||e),"error"));
