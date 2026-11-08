@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#101a20" />
-  <title>外道不覚悟 | FIELD 0.8.1</title>
+  <title>外道不覚悟 | FIELD 0.8.2</title>
   <style>:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#101a20;color:#e7e6d7;font-synthesis:none;-webkit-text-size-adjust:100%}
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;overscroll-behavior:none}body{touch-action:pan-x pan-y}button{font:inherit}#app{height:100%;height:100dvh;min-height:0;display:flex;flex-direction:column;background:radial-gradient(ellipse at 58% 0%,#203b3e,#101a20 68%)}
 .topbar{height:81px;min-height:81px;padding:12px max(22px,env(safe-area-inset-right)) 12px max(22px,env(safe-area-inset-left));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #304146;gap:12px}
@@ -63,6 +63,45 @@
 html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-overflow-scrolling:auto}
 #app{position:fixed;inset:0;width:100%;overflow:hidden;touch-action:none}
 .game-frame,.control-panel,.joystick,.action-panel{touch-action:none}
+
+/* FIELD v0.8.2: larger physical touch targets for XYAB and L/R.
+   Presentation-only: joystick hit area, pointer IDs and multi-touch handlers untouched. */
+.action-panel{right:18px;bottom:12px;width:202px;gap:7px}
+.shoulder-btn{height:40px;font-size:17px;border-radius:20px}
+.skill-spacer{height:22px}
+.diamond{height:174px}
+.face-btn{width:68px;height:68px;font-size:24px}
+.face-x,.face-b{left:calc(50% - 34px)}
+.face-y,.face-a{top:53px}
+.face-y{left:0}
+.face-a{right:0}
+@media(max-width:740px){
+  .action-panel{right:10px;bottom:9px;width:184px;gap:5px}
+  .shoulder-btn{height:36px;font-size:16px}
+  .skill-spacer{height:16px}
+  .diamond{height:157px}
+  .face-btn{width:62px;height:62px;font-size:22px}
+  .face-x,.face-b{left:calc(50% - 31px)}
+  .face-y,.face-a{top:47px}
+}
+@media(max-width:390px){
+  .action-panel{right:5px;bottom:6px;width:168px;gap:4px}
+  .shoulder-btn{height:34px;font-size:15px}
+  .skill-spacer{height:12px}
+  .diamond{height:146px}
+  .face-btn{width:56px;height:56px;font-size:20px}
+  .face-x,.face-b{left:calc(50% - 28px)}
+  .face-y,.face-a{top:43px}
+}
+@media(max-height:600px){
+  .action-panel{right:6px;bottom:4px;width:168px;gap:4px}
+  .shoulder-btn{height:32px;font-size:15px}
+  .skill-spacer{height:8px}
+  .diamond{height:143px}
+  .face-btn{width:55px;height:55px;font-size:20px}
+  .face-x,.face-b{left:calc(50% - 27.5px)}
+  .face-y,.face-a{top:43px}
+}
 </style>
 <link rel="stylesheet" href="./assets/field-theme.css?v=043" />
 <link rel="stylesheet" href="./assets/multiplayer.css?v=060" />
@@ -71,7 +110,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
 <body>
   <div id="app">
     <header class="topbar">
-      <div class="brand"><div class="brand-mark">外</div><div><h1>外道不覚悟 <span>/ FIELD TEST</span></h1><p>システム001 · 3動作同時入力・空中スキル v0.8.1</p></div></div>
+      <div class="brand"><div class="brand-mark">外</div><div><h1>外道不覚悟 <span>/ FIELD TEST</span></h1><p>システム001 · 操作ボタン拡大 v0.8.2</p></div></div>
       <div class="status"><span class="status-led"></span>LOCAL TEST <span class="status-number" id="position">X: 160 / Y: 520</span></div>
     </header>
     <main class="game-area">
@@ -97,7 +136,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
         </div>
         <div id="action-hud" class="action-hud" aria-live="polite">SKILL 1 · 炎弾</div>
         <div id="action-toast" class="action-toast" role="status" aria-live="polite"></div>
-        <div id="game-menu" class="game-menu" hidden><div class="menu-title">メニュー（仮）</div><p>フィールド操作テスト v0.8.1</p><p>A: 決定 / B: ジャンプ<br>Y: スキル / X: メニュー<br>L・R: スキル切替</p><p>スキル1：炎弾 / 2：斬撃 / 3：レーザー / 4：超高速突撃（方向操作で曲がる）</p><p>ジャンプ中は石壁を通過できます（木・水辺・木箱は通過不可）。</p><p>3動作：スティック移動中にBでジャンプ、空中でYを押すとスキル発動（Bは押しっぱなし不要）。</p><p>PC：矢印キーで移動・2回押しでダッシュ<br>Y/B/X/A = A/Z/S/X、L/R = Q/W</p><p><a href="./editor/" style="display:inline-block;border:1px solid #d3ae74;color:#f4ddae;padding:9px 12px;border-radius:6px;text-decoration:none;background:#23344a;">✎ フィールドエディターを開く</a> <a href="./studio/" style="display:inline-block;border:1px solid #bda0da;color:#e9d8f7;padding:9px 12px;border-radius:6px;text-decoration:none;background:#29213e;">✦ 制作工房を開く</a></p><button id="menu-close" type="button">閉じる</button></div>
+        <div id="game-menu" class="game-menu" hidden><div class="menu-title">メニュー（仮）</div><p>フィールド操作テスト v0.8.2</p><p>A: 決定 / B: ジャンプ<br>Y: スキル / X: メニュー<br>L・R: スキル切替</p><p>スキル1：炎弾 / 2：斬撃 / 3：レーザー / 4：超高速突撃（方向操作で曲がる）</p><p>ジャンプ中は石壁を通過できます（木・水辺・木箱は通過不可）。</p><p>3動作：スティック移動中にBでジャンプ、空中でYを押すとスキル発動（Bは押しっぱなし不要）。</p><p>PC：矢印キーで移動・2回押しでダッシュ<br>Y/B/X/A = A/Z/S/X、L/R = Q/W</p><p><a href="./editor/" style="display:inline-block;border:1px solid #d3ae74;color:#f4ddae;padding:9px 12px;border-radius:6px;text-decoration:none;background:#23344a;">✎ フィールドエディターを開く</a> <a href="./studio/" style="display:inline-block;border:1px solid #bda0da;color:#e9d8f7;padding:9px 12px;border-radius:6px;text-decoration:none;background:#29213e;">✦ 制作工房を開く</a></p><button id="menu-close" type="button">閉じる</button></div>
         <div class="game-actions"><button id="room-toggle" type="button" aria-label="オンラインルーム">🌐 ルーム</button><button id="fullscreen" type="button" aria-label="ゲーム画面を全画面にする" aria-pressed="false">⛶ 全画面</button><button id="reset" type="button">初期位置に戻る <span>↺</span></button></div>
         <div id="room-summary" class="room-summary" aria-live="polite">SOLO / 未接続</div>
         <section id="room-panel" class="room-panel" role="dialog" aria-labelledby="room-title" hidden>
