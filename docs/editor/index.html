@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#111827"/>
+<meta name="description" content="外道不覚悟 FIELD エディター。フィールドを設計し、障害物や道を配置してJSON形式で保存。"/>
+<title>外道不覚悟 | FIELD EDITOR v0.1</title>
+<link rel="stylesheet" href="./style.css?v=1"/>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">外</span>
+      <div><h1>外道不覚悟 <b>FIELD EDITOR</b></h1><p>MAP DESIGN WORKSPACE <span class="version">v0.1</span></p></div>
+    </div>
+    <div class="head-actions">
+      <a class="back-link" href="../index.html" title="現在のゲームへ戻る">↗ ゲームへ</a>
+      <button class="quiet" id="undo" title="元に戻す Ctrl+Z">↶ 戻す</button>
+      <button class="quiet" id="redo" title="やり直す Ctrl+Y">↷ 進む</button>
+      <button class="primary" id="save" title="この端末に保存">保存</button>
+      <button id="export">↓ JSON</button>
+      <button id="import">↑ 読込</button>
+      <input type="file" id="file-input" accept=".json,application/json" hidden/>
+    </div>
+  </header>
+  <div class="workspace">
+    <aside class="tools" aria-label="編集ツール">
+      <h2>編集ツール</h2>
+      <p class="tool-hint">配置して、ドラッグで調整</p>
+      <div class="tool-list" id="tool-list">
+        <button data-tool="select" class="tool active" aria-pressed="true"><span class="tool-symbol">↖</span><span>選択・移動</span><kbd>V</kbd></button>
+        <button data-tool="wall" class="tool" aria-pressed="false"><span class="tool-symbol">▤</span><span>石壁</span><kbd>1</kbd></button>
+        <button data-tool="tree" class="tool" aria-pressed="false"><span class="tool-symbol">♠</span><span>樹木</span><kbd>2</kbd></button>
+        <button data-tool="water" class="tool" aria-pressed="false"><span class="tool-symbol">≈</span><span>水辺</span><kbd>3</kbd></button>
+        <button data-tool="chest" class="tool" aria-pressed="false"><span class="tool-symbol">◇</span><span>宝箱</span><kbd>4</kbd></button>
+        <button data-tool="path" class="tool" aria-pressed="false"><span class="tool-symbol">〰</span><span>道</span><kbd>5</kbd></button>
+        <button data-tool="spawn" class="tool" aria-pressed="false"><span class="tool-symbol">✦</span><span>開始位置</span><kbd>6</kbd></button>
+        <button data-tool="erase" class="tool" aria-pressed="false"><span class="tool-symbol">⌫</span><span>削除</span><kbd>E</kbd></button>
+        <button data-tool="pan" class="tool" aria-pressed="false"><span class="tool-symbol">✋</span><span>画面移動</span><kbd>H</kbd></button>
+      </div>
+      <div class="separator"></div>
+      <h2>表示</h2>
+      <label class="switch-row"><input id="snap" type="checkbox" checked/> グリッド吸着</label>
+      <label class="switch-row"><input id="grid" type="checkbox" checked/> グリッド表示</label>
+      <div class="field-row"><label for="grid-size">間隔</label><select id="grid-size"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></div>
+      <div class="separator"></div>
+      <button class="wide play" id="play">▶ 試遊モード</button>
+      <p class="aside-note">「試遊」はエディター内の移動・衝突テストです。現在の本編ゲームとは独立しています。</p>
+    </aside>
+    <main class="canvas-panel">
+      <div class="map-toolbar">
+        <div class="map-title"><span class="online-dot"></span><strong id="map-caption">古き遺跡への道</strong><span id="dirty-mark"></span></div>
+        <div class="zoom-tools">
+          <button id="zoom-out" title="縮小">−</button>
+          <span id="zoom-value">100%</span>
+          <button id="zoom-in" title="拡大">＋</button>
+          <button id="fit" title="画面内に全体を表示">全体</button>
+        </div>
+      </div>
+      <div id="canvas-holder" class="canvas-holder">
+        <canvas id="map-canvas" aria-label="フィールド編集キャンバス"></canvas>
+        <div class="map-badge" id="mode-caption">編集モード</div>
+        <div id="play-dpad" class="play-dpad" hidden aria-label="試遊用移動ボタン">
+          <button data-dir="up" class="dpad-up" aria-label="上へ">▲</button>
+          <button data-dir="left" class="dpad-left" aria-label="左へ">◀</button>
+          <button data-dir="down" class="dpad-down" aria-label="下へ">▼</button>
+          <button data-dir="right" class="dpad-right" aria-label="右へ">▶</button>
+        </div>
+      </div>
+      <div class="statusbar"><span id="coordinates">X: — / Y: —</span><span id="object-count">0 オブジェクト</span><span id="status-message">選択ツールで編集を開始</span></div>
+    </main>
+    <aside class="inspector">
+      <h2>フィールド設定</h2>
+      <label>マップ名<input id="map-name" maxlength="70" value="古き遺跡への道"/></label>
+      <div class="cols-2">
+        <label>幅<input id="map-width" type="number" min="400" max="6000" step="32" value="1600"/></label>
+        <label>高さ<input id="map-height" type="number" min="300" max="6000" step="32" value="1000"/></label>
+      </div>
+      <div class="separator"></div>
+      <h2>選択中のオブジェクト</h2>
+      <div id="empty-inspector" class="empty">キャンバスで対象を選択してください。<br/>四隅ではなく右下のハンドルでサイズ変更できます。</div>
+      <div id="property-form" hidden>
+        <div class="type-name" id="selected-name">石壁</div>
+        <div class="cols-2">
+          <label>X<input id="prop-x" type="number" step="1" min="0"/></label>
+          <label>Y<input id="prop-y" type="number" step="1" min="0"/></label>
+          <label>幅<input id="prop-w" type="number" step="1" min="8"/></label>
+          <label>高さ<input id="prop-h" type="number" step="1" min="8"/></label>
+        </div>
+        <label class="switch-row"><input id="prop-solid" type="checkbox" checked/> 衝突判定あり</label>
+        <div class="property-actions">
+          <button id="duplicate">複製</button>
+          <button id="delete" class="danger">削除</button>
+        </div>
+      </div>
+      <div id="path-form" hidden>
+        <div class="type-name">道（ポリライン）</div>
+        <label>道の幅<input id="path-width" type="number" min="8" max="260" value="76"/></label>
+        <div class="property-actions"><button id="path-delete" class="danger">道を削除</button></div>
+      </div>
+      <div class="separator"></div>
+      <h2>マップデータ</h2>
+      <div class="data-actions">
+        <button id="reload">保存済みを読込</button>
+        <button id="reset">初期マップに戻す</button>
+      </div>
+      <p class="aside-note">編集内容はこの端末のブラウザに自動保存されます。別PCへ移すときは「↓ JSON」を使ってください。GitHub上の本編マップは自動で変更されません。</p>
+    </aside>
+  </div>
+  <footer>GEDOU FUKAKUGO · FIELD EDITOR <span>PC / iPhone / Tablet</span><span id="last-saved">保存先：この端末</span></footer>
+</div>
+<script type="module" src="./editor.js?v=1"></script>
+</body>
+</html>
