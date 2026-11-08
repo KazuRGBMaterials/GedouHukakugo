@@ -1,0 +1,47 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        "players": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+          "$connection": {
+            ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && ((!data.exists() && newData.exists() && newData.child('owner').val() == auth.uid) || (data.child('owner').val() == auth.uid && (!newData.exists() || newData.child('owner').val() == auth.uid))) && (!data.exists() || !newData.exists() || now - data.child('updatedAt').val() >= 60)",
+            ".validate": "newData.hasChildren(['owner','label','color','x','y','facing','moving','seq','updatedAt']) && newData.numChildren() == 9",
+            "owner": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "label": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+            },
+            "color": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
+            },
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1280"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 800"
+            },
+            "facing": {
+              ".validate": "newData.isString() && newData.val().matches(/^(N|NE|E|SE|S|SW|W|NW)$/)"
+            },
+            "moving": {
+              ".validate": "newData.isBoolean()"
+            },
+            "seq": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 20000"
+            },
+            "$extra": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
