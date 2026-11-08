@@ -19,10 +19,10 @@
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
             },
             "x": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1280"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
             },
             "y": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 800"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
             },
             "facing": {
               ".validate": "newData.isString() && newData.val().matches(/^(N|NE|E|SE|S|SW|W|NW)$/)"

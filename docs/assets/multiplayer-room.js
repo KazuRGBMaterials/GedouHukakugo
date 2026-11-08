@@ -39,12 +39,13 @@ function say(msg,state="idle"){
 }
 function selfState(){
   const p=port.getSelf();
+  const bounds=port.getWorldBounds?.() || {width:1280,height:800};
   return {
     owner:auth.currentUser.uid,
     label:(ui.name.value.trim()||"プレイヤー").slice(0,16),
     color:Number(ui.color.value)||0,
-    x:Math.round(Math.min(1280,Math.max(0,p.x))*10)/10,
-    y:Math.round(Math.min(800,Math.max(0,p.y))*10)/10,
+    x:Math.round(Math.min(bounds.width,Math.max(0,p.x))*10)/10,
+    y:Math.round(Math.min(bounds.height,Math.max(0,p.y))*10)/10,
     facing:["N","NE","E","SE","S","SW","W","NW"].includes(p.facing)?p.facing:"S",
     moving:!!p.moving,
     seq:++sequence,
