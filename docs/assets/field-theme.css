@@ -1,0 +1,43 @@
+/* FIELD v0.4.3 VISUAL THEME — pure presentation; input, collision and game core unchanged */
+:root{font-family:Georgia,"Yu Mincho","Hiragino Mincho ProN",serif;background:#0e1724;color:#f5ead5}
+#app{background:linear-gradient(180deg,#101625 0%,#111c2a 100%)}
+.topbar{background:linear-gradient(105deg,#0b1725,#192137 70%,#17172c);border-bottom:1px solid #6d6b77;height:76px;min-height:76px}
+.brand-mark{color:#d3efe4;background:#142b32;border-color:#6ea6a3;box-shadow:0 0 18px #5b999945}
+.brand h1{font-family:Georgia,"Yu Mincho",serif;font-size:24px;letter-spacing:.07em;color:#f4ead9}
+.brand h1 span{font-family:system-ui,sans-serif;font-size:12px;color:#d4c6ad;letter-spacing:.11em}
+.brand p{color:#b6b8c5;letter-spacing:.14em}
+.status{color:#d0e4d2}.status-led{background:#67ce96;box-shadow:0 0 12px #67ce96}
+.game-area{padding:11px 12px}
+.game-frame{border:2px solid #5c6b78;border-radius:5px;box-shadow:0 0 0 4px #1b2639,0 5px 40px #030a13;background:#244c3f}
+.game-frame:after{box-shadow:inset 0 0 88px #08122077;z-index:1}
+.field-label{display:none}
+.character-hud{position:absolute;top:18px;left:18px;z-index:4;display:flex;align-items:center;gap:12px;width:330px;max-width:calc(100% - 195px);padding:8px 12px;color:#f6ead6;background:linear-gradient(135deg,#101826ef,#22283aef);border:1px solid #8b8c8b;box-shadow:inset 0 0 0 2px #263141,0 5px 18px #081322aa;border-radius:5px;pointer-events:none}
+.mage-portrait{width:48px;height:57px;flex:none;background-color:#111826;background-image:url('./mage-8dir.png?v=043');background-position:4px 0;background-repeat:no-repeat;image-rendering:pixelated;border:1px solid #566e7c}
+.mage-ident{min-width:54px;display:flex;flex-direction:column;gap:5px}.mage-ident strong{font-size:19px;letter-spacing:.08em}.mage-ident span{font-size:13px;color:#c2c1d0}
+.mage-meters{flex:1;display:flex;flex-direction:column;gap:8px;font:11px system-ui,sans-serif}.mage-meter-head{display:flex;justify-content:space-between;white-space:nowrap}.mage-meter-head b{font-weight:500}.mage-bar{height:6px;background:#1a2938;border-radius:5px;border:1px solid #748483;overflow:hidden}.mage-bar i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#3e997e,#82d9a7)}.mage-mp i{background:linear-gradient(90deg,#3b779e,#8cc8e4)}
+.action-hud{top:76px;right:17px;padding:9px 15px;min-width:116px;text-align:center;font-family:Georgia,serif;letter-spacing:.13em;font-weight:bold;color:#d1f3e5;border-color:#829a9c;background:#101f30eb}
+.game-actions button{background:#111b2bdf;color:#f3e5c9;border:1px solid #aaa0a0;box-shadow:0 3px 10px #0006;border-radius:5px}
+.control-panel{left:20px;bottom:17px}
+.joystick{width:137px;height:137px;background:radial-gradient(circle at 38% 32%,#30384bc7,#0a1425e8);border:3px solid #78838c;box-shadow:0 0 0 3px #101829aa,0 5px 16px #030814ad}
+.joystick-knob{width:61px;height:61px;background:linear-gradient(135deg,#aeb5c3,#586475);border-color:#e4e0d3;color:#253444}
+.joystick-ring{border-color:#a7a8a688}
+.joystick-caption{font-family:Georgia,serif;color:#f4e2c5;font-size:12px;letter-spacing:.14em}
+.action-panel{right:20px;bottom:14px;width:192px;gap:9px}
+.action-panel button{font-family:Georgia,serif;letter-spacing:.05em;text-shadow:0 1px 1px #111;color:#f9f2e7}
+.shoulder-btn{height:38px;border:2px solid #737b8b!important;border-radius:18px!important;background:linear-gradient(145deg,#31394b,#151b2c)!important;box-shadow:0 4px 0 #11182c!important}
+.skill-spacer{height:0!important;display:none}
+.diamond{height:173px;position:relative}
+.face-btn{width:70px;height:70px;border:0!important;border-radius:0!important;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:8px 0 4px;line-height:1.05;font-size:22px!important;box-shadow:none!important}
+.face-btn small{font:9px system-ui,sans-serif;letter-spacing:0;white-space:nowrap;margin-top:3px}
+.face-y{top:0;left:61px;background:linear-gradient(135deg,#9b7534,#30242c)!important}
+.face-x{top:50px;left:4px;background:linear-gradient(135deg,#315b8b,#182c43)!important}
+.face-a{top:50px;right:4px;background:linear-gradient(135deg,#4c895d,#1a3936)!important}
+.face-b{bottom:0;left:61px;background:linear-gradient(135deg,#9b414f,#342337)!important}
+.face-btn:active{filter:brightness(1.4)!important}
+.game-menu{background:#172337f5;border:1px solid #b8a78c;color:#f5edda;max-height:80%;overflow:auto}
+.game-menu .menu-title{color:#e3c58d}
+.footer{background:#121928;color:#bfc0cb;border-top:1px solid #37495a;font:11px system-ui,sans-serif;height:40px;min-height:40px}
+.footer strong{color:#eadac1}
+@media(max-width:740px){.topbar{height:56px;min-height:56px}.brand h1{font-size:18px}.brand p{font-size:9px}.game-area{padding:6px}.character-hud{top:9px;left:9px;padding:4px 7px;gap:6px;width:172px;max-width:calc(100% - 128px)}.mage-portrait{width:34px;height:43px;background-size:160px 112px;background-position:2px 0}.mage-ident strong{font-size:14px}.mage-ident span{font-size:10px}.mage-meters{display:none}.game-actions{top:8px;right:7px}.game-actions button{font-size:10px;padding:6px}.action-hud{top:49px;right:7px;font-size:10px;padding:6px 8px;min-width:78px}.control-panel{left:10px;bottom:8px}.joystick{width:112px;height:112px}.joystick-knob{width:54px;height:54px}.joystick-caption{font-size:9px}.action-panel{width:160px;right:5px;bottom:6px;gap:5px}.shoulder-btn{height:27px}.diamond{height:137px}.face-btn{width:55px;height:55px;font-size:18px!important}.face-btn small{font-size:8px}.face-y{left:52px}.face-x{top:40px;left:0}.face-a{top:40px;right:0}.face-b{left:52px}.footer{height:auto;min-height:35px;font-size:9px;gap:5px 10px}}
+@media(max-width:405px){.character-hud{top:6px;left:6px;width:128px;max-width:45%;padding:3px 5px}.mage-portrait{width:28px;height:37px}.mage-ident strong{font-size:12px}.mage-ident span{font-size:9px}.action-panel{width:142px}.diamond{height:121px}.face-btn{width:49px;height:49px}.face-y{left:47px}.face-x,.face-a{top:35px}.face-b{left:47px}.shoulder-btn{height:24px}.joystick{height:100px;width:100px}.joystick-knob{height:46px;width:46px}.action-hud{display:none}}
+@media(max-height:560px){.topbar{height:49px;min-height:49px}.game-area{padding:4px}.character-hud{top:5px;left:5px;padding:2px 5px}.mage-meters{display:none}.action-panel{bottom:4px}.control-panel{bottom:4px}.footer{min-height:25px;padding:3px 8px}.game-actions{top:5px}}
