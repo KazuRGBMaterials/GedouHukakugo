@@ -4,16 +4,16 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <meta name="theme-color" content="#111827"/>
-<meta name="description" content="外道不覚悟 FIELD エディター。フィールドを設計し、障害物や道を配置してJSON形式で保存。"/>
-<title>外道不覚悟 | FIELD EDITOR v0.1 · GEDO STUDIO</title>
-<link rel="stylesheet" href="./style.css?v=1"/>
+<meta name="description" content="外道不覚悟 FIELD エディター。フィールドを設計し、障害物、道、会話オブジェクトを配置してJSON形式で保存。"/>
+<title>外道不覚悟 | FIELD EDITOR v0.2 · GEDO STUDIO</title>
+<link rel="stylesheet" href="./style.css?v=2"/>
 </head>
 <body>
 <div class="shell">
   <header class="topbar">
     <div class="brand">
       <span class="brand-icon">外</span>
-      <div><h1>外道不覚悟 <b>FIELD EDITOR</b></h1><p>MAP DESIGN WORKSPACE <span class="version">v0.1</span></p></div>
+      <div><h1>外道不覚悟 <b>FIELD EDITOR</b></h1><p>MAP DESIGN WORKSPACE <span class="version">v0.2</span></p></div>
     </div>
     <div class="head-actions">
       <a class="back-link" href="../index.html" title="現在のゲームへ戻る">↗ ゲームへ</a>
@@ -37,6 +37,7 @@
         <button data-tool="tree" class="tool" aria-pressed="false"><span class="tool-symbol">♠</span><span>樹木</span><kbd>2</kbd></button>
         <button data-tool="water" class="tool" aria-pressed="false"><span class="tool-symbol">≈</span><span>水辺</span><kbd>3</kbd></button>
         <button data-tool="chest" class="tool" aria-pressed="false"><span class="tool-symbol">◇</span><span>宝箱</span><kbd>4</kbd></button>
+        <button data-tool="actor" class="tool actor-tool" aria-pressed="false" aria-label="会話オブジェクト" title="会話オブジェクト（7）"><span class="tool-symbol">話</span><span>会話オブジェクト</span><kbd>7</kbd></button>
         <button data-tool="path" class="tool" aria-pressed="false"><span class="tool-symbol">〰</span><span>道</span><kbd>5</kbd></button>
         <button data-tool="spawn" class="tool" aria-pressed="false"><span class="tool-symbol">✦</span><span>開始位置</span><kbd>6</kbd></button>
         <button data-tool="erase" class="tool" aria-pressed="false"><span class="tool-symbol">⌫</span><span>削除</span><kbd>E</kbd></button>
@@ -49,7 +50,7 @@
       <div class="field-row"><label for="grid-size">間隔</label><select id="grid-size"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></div>
       <div class="separator"></div>
       <button class="wide play" id="play">▶ 試遊モード</button>
-      <p class="aside-note">「試遊」はエディター内の移動・衝突テスト。「本編で試す」はMAGEと4スキルを使うプレビューで、他端末や正式マップは変更しません。</p>
+      <p class="aside-note">「試遊」はエディター内の移動・衝突テスト。「本編で試す」はMAGEで移動・スキル・会話を試せるプレビューで、他端末や正式マップは変更しません。</p>
     </aside>
     <main class="canvas-panel">
       <div class="map-toolbar">
@@ -85,6 +86,12 @@
       <div id="empty-inspector" class="empty">キャンバスで対象を選択してください。<br/>四隅ではなく右下のハンドルでサイズ変更できます。</div>
       <div id="property-form" hidden>
         <div class="type-name" id="selected-name">石壁</div>
+        <div id="actor-form" hidden>
+          <label>種類<select id="actor-role"><option value="object">置物</option><option value="npc">モブ（NPC）</option><option value="enemy">敵</option></select></label>
+          <label>表示名<input id="actor-name" type="text"/></label>
+          <label>台詞<textarea id="actor-dialogue" rows="4" aria-describedby="actor-dialogue-help"></textarea></label>
+          <p id="actor-dialogue-help">1行が会話1ページです。空欄なら会話は始まりません。</p>
+        </div>
         <div class="cols-2">
           <label>X<input id="prop-x" type="number" step="1" min="0"/></label>
           <label>Y<input id="prop-y" type="number" step="1" min="0"/></label>
@@ -113,6 +120,6 @@
   </div>
   <footer>GEDOU FUKAKUGO · FIELD EDITOR <span>PC / iPhone / Tablet</span><span id="last-saved">保存先：この端末</span></footer>
 </div>
-<script type="module" src="./editor.js?v=1"></script>
+<script type="module" src="./editor.js?v=2"></script>
 </body>
 </html>

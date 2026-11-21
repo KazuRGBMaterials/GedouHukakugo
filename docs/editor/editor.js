@@ -1,9 +1,10 @@
-import {SCHEMA_VERSION,STORAGE_KEY,DEFAULT_SIZE,ALLOWED_TYPES,defaultMap,deepCopy,validateMap,collides,nearestSafeSpawn,newId} from "./map-schema.js";
+import {SCHEMA_VERSION,STORAGE_KEY,DEFAULT_SIZE,ALLOWED_TYPES,defaultMap,deepCopy,validateMap,collides,nearestSafeSpawn,newId} from "./map-schema.js?v=094";
+import { drawFieldObject, FIELD_OBJECT_DIALOGUE_MAX, FIELD_OBJECT_NAME_MAX } from "../assets/field-objects.js?v=094";
 
 const $=id=>document.getElementById(id);
 const canvas=$("map-canvas"),holder=$("canvas-holder"),ctx=canvas.getContext("2d");
 if(!ctx)throw Error("Canvas 2D not available");
-const labels={wall:"石壁",tree:"樹木",water:"水辺",chest:"宝箱",path:"道",spawn:"開始位置"};
+const labels={wall:"石壁",tree:"樹木",water:"水辺",chest:"宝箱",actor:"会話オブジェクト",path:"道",spawn:"開始位置"};
 const colors={wall:"#778781",tree:"#5f925f",water:"#39899c",chest:"#c89a5c"};
 let map,tool="select",selection=null,drag=null,drawDraft=null,pathDraft=null;
 let grid=true,snap=true,gridSize=32,zoom=.6,offsetX=0,offsetY=0,playing=false,player=null;
@@ -57,6 +58,13 @@ function refreshInspector(){
  const sel=getSelected(),object=!!sel&&selection.kind==="object",path=!!sel&&selection.kind==="path";
  $("empty-inspector").hidden=!!sel;
  $("property-form").hidden=!object;$("path-form").hidden=!path;
+ const actor=object&&sel.type==="actor";
+ $("actor-form").hidden=!actor;
+ if(actor){
+   $("actor-role").value=sel.role;
+   $("actor-name").value=sel.name;
+   $("actor-dialogue").value=sel.dialogue;
+ }
  if(object){
    $("selected-name").textContent=labels[sel.type]||sel.type;
    for(const k of ["x","y","w","h"])$("prop-"+k).value=sel[k];
@@ -67,7 +75,7 @@ function refreshInspector(){
 function setTool(next){
  if(playing)return;
  if(tool==="path"&&next!=="path")finishPath();
- if(!["select","wall","tree","water","chest","path","spawn","erase","pan"].includes(next))return;
+ if(!ALLOWED_TYPES.includes(next)&&!["select","path","spawn","erase","pan"].includes(next))return;
  tool=next;
  document.querySelectorAll("[data-tool]").forEach(el=>{
   const active=el.dataset.tool===next;el.classList.toggle("active",active);el.setAttribute("aria-pressed",active?"true":"false");
@@ -141,7 +149,9 @@ function drawPaths(){
 function drawObject(o,selected=false){
  const {x,y,w,h,type}=o;
  ctx.save();
- if(type==="wall"){
+ if(type==="actor"){
+  drawFieldObject(ctx,o);
+ }else if(type==="wall"){
   if(!drawImage("stone",x,y,w,h)){ctx.fillStyle="#7d8b86";ctx.fillRect(x,y,w,h);}
   ctx.fillStyle="#d1d2b755";ctx.fillRect(x,y,w,Math.min(6,h));
  }else if(type==="tree"){
@@ -213,7 +223,7 @@ function addObject(type,x,y,dragSize=null){
  const w=Math.min(map.width,Math.max(8,dragSize?.w||dw));
  const h=Math.min(map.height,Math.max(8,dragSize?.h||dh));
  const px=clamp(snapNum(x),0,map.width-w),py=clamp(snapNum(y),0,map.height-h);
- const object={id:newId("object"),type,x:px,y:py,w,h,solid:true};
+ const object={id:newId("object"),type,x:px,y:py,w,h,solid:type!=="actor"};
  mutate(()=>{map.objects.push(object);selection={kind:"object",id:object.id}},labels[type]+"を配置しました");
 }
 function addPathPoint(p){
@@ -255,7 +265,7 @@ function onDown(e){
   mutate(()=>{map.spawn={x:clamp(snapNum(p.x),16,map.width-16),y:clamp(snapNum(p.y),16,map.height-16)};},"開始位置を移動しました");return;
  }
  if(tool==="erase"){removeSelection(hitTest(p.x,p.y));return;}
- if(tool==="tree"||tool==="chest"){
+ if(tool==="tree"||tool==="chest"||tool==="actor"){
   addObject(tool,p.x,p.y);return;
  }
  if(tool==="wall"||tool==="water"){
@@ -418,6 +428,14 @@ function initEvents(){
   },"フィールドサイズを変更しました"));
  }
  for(const k of ["x","y","w","h"])$("prop-"+k).addEventListener("change",e=>changeProperty(k,e.target.value));
+ $("actor-name").maxLength=FIELD_OBJECT_NAME_MAX;
+ $("actor-dialogue").maxLength=FIELD_OBJECT_DIALOGUE_MAX;
+ for(const key of ["role","name","dialogue"]){
+  $("actor-"+key).addEventListener("change",e=>{
+   const item=getSelected();
+   if(item?.type==="actor")mutate(()=>{item[key]=e.target.value},"会話オブジェクトを更新しました");
+  });
+ }
  $("prop-solid").addEventListener("change",e=>{
   mutate(()=>{const item=getSelected();if(item)item.solid=e.target.checked},"衝突判定を更新しました")
  });
@@ -452,7 +470,9 @@ function initEvents(){
  });
  $("export").addEventListener("click",()=>{
   const safe=validateMap(map);
-  const file=new Blob([JSON.stringify(safe,null,2)+"\n"],{type:"application/json"});
+  const json=JSON.stringify(safe,null,2)+"\n";
+  const pretty=new Blob([json],{type:"application/json"});
+  const file=pretty.size<=2_000_000?pretty:new Blob([JSON.stringify(safe)+"\n"],{type:"application/json"});
   const url=URL.createObjectURL(file),link=document.createElement("a");
   link.href=url;link.download="gedo-field-"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -466,7 +486,8 @@ function initEvents(){
   try{
    const obj=validateMap(JSON.parse(await file.text()));
    if(!confirm("読み込んだマップに切り替えます。よろしいですか？"))return;
-   const before=deepCopy(map);map=obj;selection=null;commit(before,{message:"JSONを読み込みました"});fit();
+   if(playing)setPlaying(false);
+   const before=deepCopy(map);map=obj;selection=null;pathDraft=null;commit(before,{message:"JSONを読み込みました"});fit();
   }catch(err){announce("読込エラー："+(err?.message||"無効なJSON"));}
  });
  window.addEventListener("keydown",e=>{
@@ -486,7 +507,7 @@ function initEvents(){
   if(["delete","backspace"].includes(key)){e.preventDefault();removeSelection();return;}
   if((e.ctrlKey||e.metaKey)&&key==="d"){e.preventDefault();$("duplicate").click();return;}
   if(key===" "){keys.add("space");e.preventDefault();return;}
-  const shortcuts={v:"select","1":"wall","2":"tree","3":"water","4":"chest","5":"path","6":"spawn",e:"erase",h:"pan"};
+  const shortcuts={v:"select","1":"wall","2":"tree","3":"water","4":"chest","5":"path","6":"spawn","7":"actor",e:"erase",h:"pan"};
   if(shortcuts[key])setTool(shortcuts[key]);
  });
  window.addEventListener("keyup",e=>{keys.delete(e.key.toLowerCase());if(e.key===" ")keys.delete("space");});
@@ -496,4 +517,4 @@ function initEvents(){
 map=readLocal();
 initEvents();
 requestAnimationFrame(()=>{fit();refreshInfo();render();requestAnimationFrame(tick)});
-announce("初期マップを読み込みました。石壁などを配置できます。");
+announce("マップを読み込みました。地形や会話オブジェクトを配置できます。");

@@ -1,8 +1,10 @@
 /* FIELD EDITOR v0.1 — pure map model. No browser, canvas, game-engine dependency. */
+import { exampleFieldObjects, fieldObjectDetails } from "../assets/field-objects.js?v=094";
+
 export const SCHEMA_VERSION = 1;
 export const STORAGE_KEY = "gedo-field-editor-autosave-v1";
-export const ALLOWED_TYPES = Object.freeze(["wall","tree","water","chest"]);
-export const DEFAULT_SIZE = Object.freeze({wall:[160,34],tree:[54,55],water:[200,130],chest:[48,48]});
+export const ALLOWED_TYPES = Object.freeze(["wall","tree","water","chest","actor"]);
+export const DEFAULT_SIZE = Object.freeze({wall:[160,34],tree:[54,55],water:[200,130],chest:[48,48],actor:[36,32]});
 const baseObjects=[
  ["wall",225,140,330,34],["wall",225,140,34,205],
  ["wall",580,300,34,245],["wall",580,300,185,34],["wall",963,145,34,310],
@@ -19,7 +21,7 @@ export function defaultMap(){
    schema:"gedo-field-map", version:SCHEMA_VERSION,
    name:"古き遺跡への道", width:1600, height:1000,
    spawn:{x:160,y:520},
-   objects:baseObjects.map(([type,x,y,w,h],i)=>({id:"original-"+i,type,x,y,w,h,solid:true})),
+   objects:[...baseObjects.map(([type,x,y,w,h],i)=>({id:"original-"+i,type,x,y,w,h,solid:true})), ...exampleFieldObjects()],
    paths:[{id:"road-original",width:76,points:[
      {x:95,y:655},{x:275,y:620},{x:325,y:450},
      {x:510,y:420},{x:790,y:455},{x:1180,y:390},
@@ -50,7 +52,9 @@ export function validateMap(input){
   if(!obj(r)||!ALLOWED_TYPES.includes(r.type))throw new Error("オブジェクト"+(i+1)+"の種類が不正です");
   const x=integer(r.x,0,width-8,0),y=integer(r.y,0,height-8,0);
   const w=integer(r.w,8,width-x,48),h=integer(r.h,8,height-y,48);
-  return {id:claim(r.id,"object"),type:r.type,x,y,w,h,solid:r.solid!==false};
+  const common={id:claim(r.id,"object"),type:r.type,x,y,w,h};
+  if(r.type==="actor")return {...common,solid:r.solid===true,...fieldObjectDetails(r)};
+  return {...common,solid:r.solid!==false};
  });
  const paths=input.paths.map((r,i)=>{
   if(!obj(r)||!Array.isArray(r.points)||r.points.length<2||r.points.length>150)throw new Error("道"+(i+1)+"の頂点数が不正です");

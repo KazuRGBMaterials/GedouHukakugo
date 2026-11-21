@@ -107,3 +107,25 @@ body.playing .map-badge{border-color:#7dbf9a;color:#a0f2cf}
 footer{display:none}
 }
 @media(max-width:420px){.head-actions button,.head-actions a{font-size:9px;padding:6px}.inspector{max-height:25dvh}.map-badge{top:5px;left:5px;font-size:9px}}
+
+#actor-form select, #actor-form input, #actor-form textarea {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 5px;
+}
+#actor-form textarea {
+  display: block;
+  padding: 9px;
+  border: 1px solid #52687b;
+  border-radius: 6px;
+  background: #0d1722;
+  color: #ece8dd;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: vertical;
+}
+#actor-form input, #actor-form select { font-size: 16px; }
+#actor-dialogue-help { margin: -6px 0 12px; color: #adbcc9; font-size: 11px; line-height: 1.5; }
+.tool.actor-tool { min-height: 44px; }
+@media (max-width: 760px) { .tool.actor-tool { min-width: 44px; } }
