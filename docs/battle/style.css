@@ -6,6 +6,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+html, body, main, .timeline, .note-content { touch-action: manipulation; }
 body { margin: 0; }
 main { width: min(100% - 28px, 880px); margin: 18px auto 26px; }
 .page-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }

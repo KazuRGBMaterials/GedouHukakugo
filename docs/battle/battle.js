@@ -6,6 +6,7 @@ import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf } from "./grid-rules.js?v=3";
 import { bindBattleGrid } from "./grid-ui.js?v=4";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
+import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
@@ -380,4 +381,5 @@ if (urlParams.get("from") && document.referrer) {
   }
 }
 bindBattleFullscreen(el("battle-main"), el("battle-fullscreen"));
+bindGameTaps(document);
 render();
