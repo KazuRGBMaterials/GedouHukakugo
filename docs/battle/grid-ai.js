@@ -1,4 +1,4 @@
-import { FIRE_RANGE, distance, rangeStep } from "./grid-rules.js?v=2";
+import { distance, fireReaches, rangeStep } from "./grid-rules.js?v=3";
 
 const defaults = { risk: "balanced", waste: "some", style: "power" };
 const risks = ["bold", "balanced", "cautious"];
@@ -29,12 +29,12 @@ export function chooseEnemyAction(view, canChoose) {
   }
 
   function step(sign) {
-    const destination = rangeStep(from, target, sign);
-    if (destination && canChoose("move", destination)) return { id: "move", destination };
+    const destination = rangeStep(from, target, sign, cell => canChoose("move", cell));
+    if (destination) return { id: "move", destination };
     return null;
   }
 
-  if (profile.style === "mage" && gap <= FIRE_RANGE) {
+  if (profile.style === "mage" && fireReaches(from, target)) {
     if (gap === 1 && profile.risk !== "bold") {
       const backingOff = step(1);
       if (backingOff) return backingOff;

@@ -111,7 +111,7 @@ export function withFieldObjects(BaseRenderer, objects, dialogue) {
 export class FieldDialogue {
   constructor(objects, getPlayer, ui) {
     this.entries = objects.map(object => ({ object, pages: dialoguePages(object.dialogue) }))
-      .filter(entry => entry.pages.length);
+      .filter(entry => entry.pages.length || (entry.object.role === "enemy" && ui.encounter));
     this.getPlayer = getPlayer;
     this.ui = ui;
     this.active = null;
@@ -157,8 +157,10 @@ export class FieldDialogue {
     if (this.ui.blocked()) return false;
     if (this.active) {
       this.page++;
-      if (this.page === this.active.pages.length) {
+      if (this.page >= Math.max(1, this.active.pages.length)) {
+        const { object } = this.active;
         this.close();
+        if (object.role === "enemy") this.ui.encounter?.(object);
         return true;
       }
     } else {
@@ -170,9 +172,10 @@ export class FieldDialogue {
     const { object, pages } = this.active;
     this.ui.name.textContent = object.name;
     if (this.page === 0) showFieldPortrait(this.ui.portraitFrame, this.ui.portraitImage, object.portrait);
-    this.ui.text.textContent = pages[this.page];
+    this.ui.text.textContent = pages[this.page] ?? "見張りが立ちはだかった。";
     this.ui.text.scrollTop = 0;
-    this.ui.advance.textContent = this.page + 1 === pages.length ? "会話を終了" : "次へ";
+    this.ui.advance.textContent = this.page + 1 < pages.length ? "次へ"
+      : object.role === "enemy" && this.ui.encounter ? "戦闘へ" : "会話を終了";
     this.ui.panel.hidden = false;
     return true;
   }

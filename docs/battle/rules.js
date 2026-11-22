@@ -1,5 +1,8 @@
-import { MOVE, createGrid, plannedPosition, canStep, prepareFire, attackReaches, resolveMovement } from "./grid-rules.js?v=2";
-import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=1";
+import {
+  MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition,
+  canStep, attackTargets, jumpLanding, resolveMovement
+} from "./grid-rules.js?v=3";
+import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=2";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -16,7 +19,6 @@ export const TIMELINE_SIZE = 12;
 export const SHIFT_STAMINA = 2;
 const advantage = { yellow: "blue", blue: "red", red: "yellow" };
 const enemySequence = ["heavy", "fire", "quick", "guard"];
-const gridEnemySequence = ["heavy", "fire", "move", "quick", "guard"];
 const readableName = { player: "MAGE", enemy: "訓練用の見張り" };
 const maxStamina = 12;
 
@@ -24,13 +26,20 @@ function participant(hp) {
   return { hp, maxHp: hp, stamina: maxStamina, recoveryReserved: 0, actions: [] };
 }
 
-export function createBattle(withGrid = false, enemyProfile) {
+export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
   const battle = {
     tick: 0, phase: "planning", outcome: "", nextId: 1, enemyTurn: 0,
     player: participant(100), enemy: participant(100), events: [], lastHits: { player: null, enemy: null }
   };
-  if (withGrid) battle.grid = createGrid();
-  if (withGrid && enemyProfile) battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
+  if (withGrid) {
+    const players = gridOptions.players === 2 ? 2 : 1;
+    const enemies = gridOptions.enemies === 2 ? 2 : 1;
+    battle.grid = createGrid(players, enemies);
+    battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
+    battle.grid.enemyName = gridOptions.enemyName;
+    if (players === 2) battle.ally = participant(100);
+    if (enemies === 2) battle.enemy2 = participant(100);
+  }
   planEnemy(battle);
   return battle;
 }
@@ -41,10 +50,11 @@ function lastAction(actor) {
 
 export function canReserve(battle, side, commandId, destination) {
   const actor = battle[side];
-  if (battle.phase === "finished") return false;
+  if (!actor?.hp || battle.phase === "finished") return false;
   if (commandId === "move") {
-    if (!battle.grid || (side === "player" && !canStep(plannedPosition(battle), destination, battle.grid.enemy))) return false;
-    if (side === "enemy" && destination && !canStep(battle.grid.enemy, destination, battle.grid.player)) return false;
+    if (!battle.grid) return false;
+    const from = side === "player" ? plannedPosition(battle) : battle.grid[side];
+    if (!canStep(battle, side, from, destination)) return false;
   } else if (!Object.hasOwn(COMMANDS, commandId)) {
     return false;
   }
@@ -61,7 +71,7 @@ export function canReserve(battle, side, commandId, destination) {
   return !command.requires || (previous?.commandId === command.requires && previous.end === start - 1 && previous.status !== "stopped");
 }
 
-export function reserve(battle, side, commandId, destination) {
+export function reserve(battle, side, commandId, destination, targetSide) {
   if (!canReserve(battle, side, commandId, destination)) return false;
   const actor = battle[side];
   const command = commandId === "move" ? MOVE : COMMANDS[commandId];
@@ -75,8 +85,8 @@ export function reserve(battle, side, commandId, destination) {
     requiresId: command.requires ? previous.id : null, status: "pending", shifted: false
   };
   if (commandId === "move" && destination) action.destination = { x: destination.x, y: destination.y };
+  if (battle.grid && command.damage && commandId !== "fire" && targetSide) action.targetSide = targetSide;
   actor.actions.push(action);
-  if (battle.grid && battle.phase === "running" && start === battle.tick + 1) prepareFire(battle.grid, side, action);
   return true;
 }
 
@@ -113,7 +123,6 @@ export function shiftImpact(battle) {
 export function startBattle(battle) {
   if (battle.phase !== "planning") return;
   battle.phase = "running";
-  prepareUpcomingFire(battle);
 }
 
 function activeAction(actor, tick) {
@@ -130,10 +139,16 @@ function recoverySource(action) {
   return null;
 }
 
+function recoveryAmounts(actor) {
+  const committed = Math.min(1, actor.recoveryReserved);
+  const gain = Math.min(1 - committed, maxStamina - actor.stamina);
+  return { committed, gain };
+}
+
 export function nextRecovery(battle) {
   const action = nextAction(battle, "player");
-  const { stamina, recoveryReserved } = battle.player;
-  return { source: recoverySource(action), reserved: recoveryReserved > 0, full: stamina >= maxStamina };
+  const { committed, gain } = recoveryAmounts(battle.player);
+  return { source: recoverySource(action), reserved: committed > 0, full: battle.player.stamina >= maxStamina, committed, gain };
 }
 
 function resolveDependency(battle, side, action) {
@@ -141,24 +156,14 @@ function resolveDependency(battle, side, action) {
   const prerequisite = battle[side].actions.find(item => item.id === action.requiresId);
   if (prerequisite?.status !== "resolved") {
     action.status = "stopped";
-    event(battle, `${readableName[side]}の${COMMANDS[action.commandId].name}は前提が崩れて不発。`);
+    event(battle, `${fighterName(battle, side)}の${COMMANDS[action.commandId].name}は前提が崩れて不発。`);
   }
 }
 
-function prepareUpcomingFire(battle) {
-  if (!battle.grid) return;
-  for (const side of ["player", "enemy"]) prepareFire(battle.grid, side, nextAction(battle, side));
-}
-
-function attackAt(battle, side, action, tick) {
+function attackAt(action, tick) {
   if (!action || action.status !== "pending" || action.impact !== tick) return null;
   const command = COMMANDS[action.commandId];
-  if (!command?.damage) return null;
-  if (battle.grid && !attackReaches(battle.grid, side, action)) {
-    reportGrid(battle, `${readableName[side]}の${command.name}は相手が範囲におらず外れた。`);
-    return null;
-  }
-  return command;
+  return command?.damage ? command : null;
 }
 
 function winsClash(a, b) {
@@ -193,54 +198,172 @@ function reportGrid(battle, message) {
   event(battle, message);
 }
 
+export function fighterName(battle, side) {
+  if (side === "ally") return "味方";
+  const enemy = battle.grid?.enemyName || readableName.enemy;
+  if (side === "enemy2") return `${enemy}2`;
+  if (side === "enemy") return battle.enemy2 ? `${enemy}1` : enemy;
+  return readableName.player;
+}
+
+const allyProfile = makeEnemyProfile({ risk: "balanced", waste: "rarely", style: "hitRun" });
+
 function planEnemy(battle) {
-  if (battle.grid?.enemyProfile) {
-    planGridEnemy(battle);
+  if (battle.grid) {
+    for (const side of gridSides(battle)) {
+      if (side !== "player") planGridActor(battle, side);
+    }
     return;
   }
-  const sequence = battle.grid ? gridEnemySequence : enemySequence;
   while ((lastAction(battle.enemy)?.end ?? 0) < battle.tick + 8) {
-    const action = sequence[battle.enemyTurn % sequence.length];
+    const action = enemySequence[battle.enemyTurn % enemySequence.length];
     if (!reserve(battle, "enemy", action)) break;
     battle.enemyTurn++;
   }
 }
 
-function planGridEnemy(battle) {
-  const { grid, enemy, tick } = battle;
-  if (enemy.actions.length) return;
+function incomingDamageAtNextSlot(battle, side) {
+  let damage = 0;
+  for (const id of opposingSides(battle, side)) {
+    const current = activeAction(battle[id], battle.tick);
+    const attack = attackAt(current, battle.tick + 1);
+    if (attack && attackTargets(battle, id, current).includes(side)) damage += attack.damage;
+  }
+  return damage;
+}
 
-  const current = activeAction(battle.player, tick);
-  const damage = COMMANDS[current?.commandId]?.damage;
-  const incomingDamage = current?.status === "pending" && current.impact === tick + 1
-    && damage && attackReaches(grid, "player", current) ? damage : 0;
-  const canChoose = (id, destination) => canReserve(battle, "enemy", id, destination);
+function planGridActor(battle, side) {
+  const { grid } = battle;
+  const actor = battle[side];
+  if (!actor.hp || actor.actions.length) return;
+
+  const target = targetFor(battle, side);
+  if (!target) return;
+  const canChoose = (id, destination) => canReserve(battle, side, id, destination);
   const choice = chooseEnemyAction({
-    profile: grid.enemyProfile, from: grid.enemy, target: grid.player,
-    previous: grid.previousEnemyAction, turn: battle.enemyTurn, hp: enemy.hp,
-    stamina: enemy.stamina, incomingDamage
+    profile: side === "ally" ? allyProfile : grid.enemyProfile,
+    from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
+    hp: actor.hp, stamina: actor.stamina, incomingDamage: incomingDamageAtNextSlot(battle, side)
   }, canChoose);
-  if (reserve(battle, "enemy", choice.id, choice.destination)) {
-    grid.previousEnemyAction = choice.id;
-    battle.enemyTurn++;
+  if (reserve(battle, side, choice.id, choice.destination, target)) {
+    actor.previousAction = choice.id;
+    actor.decision = (actor.decision ?? 0) + 1;
   }
 }
 
 function recoverStamina(actor) {
   // Recovery first covers the cost of actions already booked after a wait.
-  if (actor.recoveryReserved > 0) actor.recoveryReserved--;
-  else actor.stamina = Math.min(maxStamina, actor.stamina + 1);
+  const { committed, gain } = recoveryAmounts(actor);
+  actor.recoveryReserved -= committed;
+  actor.stamina += gain;
+}
+
+function finishAction(actor, action, tick) {
+  if (action?.status === "pending" && action.impact === tick) action.status = "resolved";
+  if (recoverySource(action)) recoverStamina(actor);
+  const needed = actor.actions.find(item => item.start === tick + 1)?.requiresId;
+  actor.actions = actor.actions.filter(item => item.end > tick || item.id === needed
+    || (item.commandId === "jump" && item === action && item.end === tick));
+}
+
+function resolveGridClashes(battle, sides, attacks, actions) {
+  const stopped = new Set();
+  const wins = new Map();
+  for (const [index, side] of sides.entries()) {
+    const a = attacks.get(side);
+    if (!a) continue;
+    for (const other of sides.slice(index + 1)) {
+      const b = attacks.get(other);
+      if (!a.targets.includes(other) || !b?.targets.includes(side)) continue;
+      if (winsClash(a.command, b.command)) {
+        stopped.add(other);
+        wins.set(side, wins.get(side) ?? new Set());
+        wins.get(side).add(other);
+      } else if (winsClash(b.command, a.command)) {
+        stopped.add(side);
+        wins.set(other, wins.get(other) ?? new Set());
+        wins.get(other).add(side);
+      }
+    }
+  }
+  for (const side of stopped) actions[side].status = "stopped";
+  for (const [side, targets] of wins) {
+    if (!stopped.has(side)) event(battle, `${fighterName(battle, side)}が${[...targets].map(id => fighterName(battle,id)).join("と")}の技を潰した。`);
+  }
+  return { stopped, wins };
+}
+
+function advanceGrid(battle, tick) {
+  const sides = gridSides(battle).filter(side => battle[side].hp > 0);
+  const actions = Object.fromEntries(sides.map(side => [side, activeAction(battle[side], tick)]));
+  const attacks = new Map();
+  for (const side of sides) {
+    const action = actions[side];
+    resolveDependency(battle, side, action);
+    const command = attackAt(action, tick);
+    if (!command) continue;
+    const targets = attackTargets(battle, side, action);
+    if (targets.length) attacks.set(side, { command, targets });
+    else reportGrid(battle, `${fighterName(battle, side)}の${command.name}は相手が範囲におらず外れた。`);
+  }
+
+  const { stopped, wins } = resolveGridClashes(battle, sides, attacks, actions);
+  const hits = [];
+  const landings = new Map();
+  for (const [side, { command, targets }] of attacks) {
+    if (stopped.has(side)) continue;
+    actions[side].performedTarget = targets[0];
+    if (actions[side].commandId === "jumpSlash") {
+      const cell = jumpLanding(battle, side, targets[0]);
+      if (cell) landings.set(side, cell);
+    }
+    for (const target of targets) {
+      const hit = assessHit(command, actions[target], tick, wins.get(side)?.has(target) ?? false);
+      hits.push({ ...hit, tick, from: side, to: target });
+    }
+  }
+
+  battle.grid.roundHits = hits;
+  for (const side of sides) {
+    const actor = battle[side];
+    const action = actions[side];
+    const incoming = hits.filter(hit => hit.to === side);
+    if (incoming.length) battle.lastHits[side] = incoming.reduce((largest, hit) => hit.damage > largest.damage ? hit : largest);
+    for (const { damage, evading } of incoming) {
+      if (damage) {
+        actor.hp = Math.max(0, actor.hp - damage);
+        event(battle, `${fighterName(battle, side)}に ${damage} ダメージ。`);
+        if (action?.commandId === "jump" && action.status === "pending") {
+          action.status = "stopped";
+          event(battle, `${fighterName(battle, side)}のジャンプが中断された。`);
+        }
+      } else if (evading) event(battle, `${fighterName(battle, side)}が攻撃を回避した。`);
+    }
+    finishAction(actor, action, tick);
+  }
+
+  const players = sides.some(side => teamOf(side) === "player" && battle[side].hp > 0);
+  const enemies = sides.some(side => teamOf(side) === "enemy" && battle[side].hp > 0);
+  if (!players || !enemies) {
+    battle.phase = "finished";
+    battle.outcome = players ? "勝利" : enemies ? "敗北" : "相打ち";
+    return;
+  }
+  // Attacks use the positions at the start of the slot. Steps take effect afterwards.
+  resolveMovement(battle, actions, landings, message => reportGrid(battle, message));
+  planEnemy(battle);
 }
 
 export function advanceBattle(battle) {
   if (battle.phase !== "running") return;
   const tick = ++battle.tick;
+  if (battle.grid) return advanceGrid(battle, tick);
   const playerAction = activeAction(battle.player, tick);
   const enemyAction = activeAction(battle.enemy, tick);
   resolveDependency(battle, "player", playerAction);
   resolveDependency(battle, "enemy", enemyAction);
-  const playerAttack = attackAt(battle, "player", playerAction, tick);
-  const enemyAttack = attackAt(battle, "enemy", enemyAction, tick);
+  const playerAttack = attackAt(playerAction, tick);
+  const enemyAttack = attackAt(enemyAction, tick);
   const playerWon = !!(playerAttack && enemyAttack && winsClash(playerAttack, enemyAttack));
   const enemyWon = !!(playerAttack && enemyAttack && winsClash(enemyAttack, playerAttack));
   if (playerWon || enemyWon) {
@@ -270,11 +393,7 @@ export function advanceBattle(battle) {
     } else if (hit?.evading) {
       event(battle, `${readableName[side]}が攻撃を回避した。`);
     }
-    if (action?.status === "pending" && action.impact === tick) action.status = "resolved";
-    if (recoverySource(action)) recoverStamina(actor);
-    const needed = actor.actions.find(item => item.start === tick + 1)?.requiresId;
-    actor.actions = actor.actions.filter(item => item.end > tick || item.id === needed ||
-      (item.commandId === "jump" && item === action && item.end === tick));
+    finishAction(actor, action, tick);
   }
 
   if (!battle.player.hp || !battle.enemy.hp) {
@@ -282,8 +401,5 @@ export function advanceBattle(battle) {
     battle.outcome = !battle.player.hp && !battle.enemy.hp ? "相打ち" : battle.player.hp ? "勝利" : "敗北";
     return;
   }
-  // Attacks use the positions at the start of the slot. Steps become effective for the next slot.
-  if (battle.grid) resolveMovement(battle, playerAction, enemyAction, playerAttack && !enemyWon, message => reportGrid(battle, message));
   planEnemy(battle);
-  prepareUpcomingFire(battle);
 }

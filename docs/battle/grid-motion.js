@@ -1,7 +1,7 @@
-import { GRID_COLUMNS, GRID_ROWS } from "./grid-rules.js?v=2";
-import { nextAction } from "./rules.js?v=5";
+import { GRID_COLUMNS, GRID_ROWS, targetFor } from "./grid-rules.js?v=3";
+import { nextAction } from "./rules.js?v=6";
 
-const sides = ["player", "enemy"];
+const sides = ["player", "ally", "enemy", "enemy2"];
 const thrust = { quick: 9, heavy: 14, jumpSlash: 12 };
 const offset = (from, to) => ({ x: to.x - from.x, y: to.y - from.y });
 const shift = (x, y) => `translate(${x}px,${y}px)`;
@@ -40,7 +40,7 @@ export function bindGridMotion(layer) {
     const node = document.createElement("div");
     const sprite = document.createElement("span");
     const effect = document.createElement("span");
-    node.className = `grid-unit grid-unit-${side}`;
+    node.className = `grid-unit grid-unit-${side}${side === "enemy2" ? " grid-unit-enemy" : ""}`;
     sprite.className = "grid-unit-sprite";
     effect.className = "grid-unit-effect";
     node.append(effect, sprite);
@@ -52,19 +52,29 @@ export function bindGridMotion(layer) {
 
   return (battle, processed) => {
     const reset = currentBattle !== battle;
-    const previous = units.map((unit, index) => reset ? battle.grid[sides[index]] : unit.previous);
+    const previous = Object.fromEntries(units.map((unit, index) => {
+      const side = sides[index];
+      return [side, reset ? battle.grid[side] : unit.previous];
+    }));
     currentBattle = battle;
 
     units.forEach((unit, index) => {
       const { node, sprite } = unit;
       const side = sides[index];
       const cell = battle.grid[side];
+      node.hidden = !cell || ((battle.ally || battle.enemy2) && battle[side].hp === 0);
+      if (!cell) {
+        unit.previous = null;
+        return;
+      }
       const next = battle.phase === "running" ? nextAction(battle, side) : null;
-      const command = processed?.[index];
+      const command = processed?.[side];
       const performed = command?.status === "resolved" && command.impact === battle.tick;
-      const travel = offset(previous[index], cell);
+      const from = previous[side] ?? cell;
+      const travel = offset(from, cell);
       const moved = travel.x !== 0 || travel.y !== 0;
-      const facing = offset(previous[index], previous[1 - index]);
+      const target = command?.performedTarget ?? command?.targetSide ?? targetFor(battle, side);
+      const facing = previous[target] ? offset(from, previous[target]) : { x: 0, y: 1 };
 
       node.style.gridColumn = cell.x + 1;
       node.style.gridRow = cell.y + 1;
@@ -81,8 +91,9 @@ export function bindGridMotion(layer) {
         unit.effect.getAnimations?.().forEach(animation => animation.cancel());
       } else if (processed && !motionPreference?.matches) {
         if (moved) {
-          const x = -travel.x * (layer.clientWidth + 4) / GRID_COLUMNS;
-          const y = -travel.y * (layer.clientHeight + 4) / GRID_ROWS;
+          const gap = Number.parseFloat(window.getComputedStyle?.(layer).gap) || 4;
+          const x = -travel.x * (layer.clientWidth + gap) / GRID_COLUMNS;
+          const y = -travel.y * (layer.clientHeight + gap) / GRID_ROWS;
           const trail = command?.commandId === "jumpSlash"
             ? [shift(x, y - 7), shift(x / 2, y / 2 - 13), shift(0, 0)] : [shift(x, y), shift(0, 0)];
           animate(node, trail, 240);

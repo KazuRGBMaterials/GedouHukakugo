@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101924">
   <title>外道不覚悟 | ベルトライン戦闘 試作</title>
-  <link rel="stylesheet" href="./style.css?v=8">
+  <link rel="stylesheet" href="./style.css?v=9">
 </head>
 <body>
-  <main>
+  <main id="battle-main">
     <header class="page-header">
-      <a href="../">フィールドへ戻る</a>
+      <a id="field-return" href="../">フィールドへ</a>
       <h1 id="battle-title">ベルトライン戦闘</h1>
       <button id="battle-sound" class="sound-toggle" type="button" aria-pressed="true">
         サウンド <span id="battle-sound-state" aria-hidden="true">ON</span>
       </button>
+      <button id="battle-fullscreen" type="button" aria-pressed="false">全画面</button>
     </header>
     <section class="arena" aria-label="戦闘状態">
       <div class="fighter">
@@ -28,24 +29,31 @@
       <div class="fighter enemy">
         <div id="enemy-pose" class="pose" aria-hidden="true"><div class="sprite rival"></div></div>
         <div>
-          <b>訓練用の見張り</b>
+          <b id="battle-enemy-name">訓練用の見張り</b>
           <div id="enemy-resources" class="resources"></div>
           <div id="enemy-cue" class="cue"></div>
         </div>
       </div>
+      <div id="ally-state" class="fighter auxiliary" hidden>
+        <div><b>味方（自動）</b><div id="ally-resources" class="resources"></div><div id="ally-cue" class="cue"></div></div>
+      </div>
+      <div id="enemy2-state" class="fighter enemy auxiliary" hidden>
+        <div><b id="battle-enemy2-name"></b><div id="enemy2-resources" class="resources"></div><div id="enemy2-cue" class="cue"></div></div>
+      </div>
     </section>
     <p id="battle-status" class="battle-status" role="status">コマンドを選んで予約してください。</p>
     <section id="grid-panel" class="grid-panel" aria-label="マス目の戦場" hidden>
+      <div class="grid-topline">
+        <p id="grid-threat" class="grid-threat"></p>
+        <label id="grid-size-label">対戦人数 <select id="grid-size"><option value="1:1">1対1</option><option value="1:2">1対2</option><option value="2:1">2対1</option><option value="2:2">2対2</option></select></label>
+      </div>
       <div class="grid-layout">
         <div class="grid-playfield">
-          <div id="grid-board" class="grid-board" aria-label="戦場 5列3行"></div>
+          <div id="grid-board" class="grid-board" aria-label="戦場 5列5行"></div>
           <div id="grid-units" class="grid-units" aria-hidden="true"></div>
         </div>
         <div class="grid-info">
-          <p id="grid-threat" class="grid-threat"></p>
           <p id="grid-plan"></p>
-          <p>青枠を押すと移動を1枠予約。赤いマスが敵の攻撃範囲です。避けるには★の前の枠までに移動します。</p>
-          <p>通常攻撃と強打は上下左右の隣。火炎は詠唱時のマスを狙います（射程3）。ジャンプ斬りは縦横に3マス先まで。</p>
         </div>
       </div>
       <details class="grid-enemy-settings">
@@ -94,13 +102,15 @@
     </section>
     <section class="timeline" aria-label="行動のタイムライン" tabindex="0">
       <div id="time-axis" class="track" aria-hidden="true"></div>
-      <div class="belt-name">相手の予定</div>
+      <div id="enemy-belt-label" class="belt-name">相手の予定</div>
       <div id="enemy-belt" class="track"></div>
-      <div class="belt-name">自分の予定</div>
+      <div id="enemy2-belt-label" class="belt-name" hidden>敵2</div>
+      <div id="enemy2-belt" class="track" hidden></div>
+      <div class="belt-name">MAGE</div>
       <div id="player-belt" class="track"></div>
+      <div id="ally-belt-label" class="belt-name" hidden>味方</div>
+      <div id="ally-belt" class="track" hidden></div>
     </section>
-    <p class="hint">★は効果が出る枠。黄は青に、青は赤に、赤は黄に有利。</p>
-    <p class="hint">待機は1枠でスタミナが1回復します。回復する分を、待機のあとに続く技の予約に使えます。</p>
     <section aria-label="コマンド入力" id="commands" class="commands"></section>
     <div class="controls">
       <button id="start" class="primary" type="button">戦闘開始</button>
@@ -108,10 +118,17 @@
       <button id="reset" type="button">最初から</button>
     </div>
     <div id="input-status" class="input-status" role="status"></div>
-    <p class="hint battle-links"><a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="./ver1/">ベルトコンベアVER1（保存版）</a></p>
-    <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
+    <details class="battle-notes">
+      <summary>ログ・操作ガイド</summary>
+      <div class="note-content">
+        <p class="hint">★は発動枠。黄は青に、青は赤に、赤は黄に有利。待機1枠でスタミナを1回復できます。</p>
+        <p class="hint" id="grid-instructions" hidden>青枠をタップすると、1枠・スタミナ0.5で移動を予約します。赤いマスは敵の攻撃範囲です。火炎は術者を中心に縦横各2マスと斜め4マスに届き、範囲内の敵側全員に当たります。敵が2人いるときは、敵をタップして近接攻撃の相手を選べます。味方は自動で動きます。</p>
+        <p class="hint battle-links"><a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="./ver1/">ベルトコンベアVER1（保存版）</a></p>
+        <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
+      </div>
+    </details>
   </main>
   <audio id="battle-bgm" src="./battle-loop.wav" preload="none" loop></audio>
-  <script type="module" src="./battle.js?v=7"></script>
+  <script type="module" src="./battle.js?v=8"></script>
 </body>
 </html>

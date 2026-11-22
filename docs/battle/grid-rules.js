@@ -1,25 +1,58 @@
 export const GRID_COLUMNS = 5;
-export const GRID_ROWS = 3;
-export const MOVE = { name: "移動", tc: 1, impact: 1, sc: 0, level: 0 };
-export const FIRE_RANGE = 3;
-const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+export const GRID_ROWS = 5;
+export const MOVE = { name: "移動", tc: 1, impact: 1, sc: 0.5, level: 0 };
+const cardinal = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const fireOffsets = [
+  ...cardinal, ...cardinal.map(([x, y]) => [2 * x, 2 * y]),
+  [-1, -1], [1, -1], [-1, 1], [1, 1]
+];
 
 export const cellName = ({ x, y }) => `${"ABCDE"[x]}${y + 1}`;
 const sameCell = (a, b) => a.x === b.x && a.y === b.y;
 export const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const inside = ({ x, y }) => Number.isInteger(x) && Number.isInteger(y)
   && x >= 0 && x < GRID_COLUMNS && y >= 0 && y < GRID_ROWS;
-const neighbors = ({ x, y }) => directions.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter(inside);
-const otherSide = side => side === "player" ? "enemy" : "player";
+const cellsAround = ({ x, y }, offsets) => offsets.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter(inside);
 
-export function createGrid() {
-  return { player: { x: 1, y: 1 }, enemy: { x: 2, y: 1 }, notice: "" };
+export const teamOf = side => side === "player" || side === "ally" ? "player" : "enemy";
+export const gridSides = battle => ["player", ...(battle.ally ? ["ally"] : []), "enemy", ...(battle.enemy2 ? ["enemy2"] : [])];
+export const opposingSides = (battle, side) => gridSides(battle).filter(id => teamOf(id) !== teamOf(side) && battle[id].hp > 0);
+
+export function createGrid(players, enemies) {
+  return {
+    player: { x: 1, y: 2 }, enemy: { x: 2, y: 2 },
+    ...(players === 2 && { ally: { x: 1, y: 3 } }),
+    ...(enemies === 2 && { enemy2: { x: 2, y: 3 } }),
+    notice: "", roundHits: []
+  };
 }
 
-function jumpLanding(from, target) {
+export function targetFor(battle, side, requested, from = battle.grid[side]) {
+  const available = opposingSides(battle, side);
+  if (available.includes(requested)) return requested;
+  return available.reduce((closest, id) =>
+    !closest || distance(battle.grid[id], from) < distance(battle.grid[closest], from) ? id : closest, null);
+}
+
+function clearCell(battle, side, to) {
+  return !gridSides(battle).some(id => id !== side && battle[id].hp > 0 && sameCell(battle.grid[id], to));
+}
+
+export function canStep(battle, side, from, to) {
+  return to && inside(to) && distance(from, to) === 1 && clearCell(battle, side, to);
+}
+
+export function rangeStep(from, target, sign, legal) {
   const gap = distance(from, target);
-  if (gap < 2 || gap > 3 || (from.x !== target.x && from.y !== target.y)) return null;
-  return { x: target.x - Math.sign(target.x - from.x), y: target.y - Math.sign(target.y - from.y) };
+  return cellsAround(from, cardinal).find(cell => distance(cell, target) === gap + sign && legal(cell));
+}
+
+export function jumpLanding(battle, side, target, from = battle.grid[side]) {
+  const to = battle.grid[target];
+  const gap = distance(from, to);
+  if (gap < 2 || gap > 3 || (from.x !== to.x && from.y !== to.y)) return null;
+  const landing = { x: to.x - Math.sign(to.x - from.x), y: to.y - Math.sign(to.y - from.y) };
+  return clearCell(battle, side, landing) ? landing : null;
 }
 
 export function plannedPosition(battle) {
@@ -27,72 +60,63 @@ export function plannedPosition(battle) {
   for (const action of battle.player.actions) {
     if (action.status !== "pending" || action.impact <= battle.tick) continue;
     if (action.commandId === "move") position = action.destination;
-    if (action.commandId === "jumpSlash") position = jumpLanding(position, battle.grid.enemy) ?? position;
+    if (action.commandId === "jumpSlash") {
+      const target = targetFor(battle, "player", action.targetSide, position);
+      if (target) position = jumpLanding(battle, "player", target, position) ?? position;
+    }
   }
   return position;
 }
 
-export function canStep(from, to, occupied) {
-  return to && inside(to) && !sameCell(to, occupied) && distance(from, to) === 1;
+export function fireCells(from) {
+  return cellsAround(from, fireOffsets);
 }
 
-export function prepareFire(grid, side, action) {
-  if (action?.commandId === "fire" && action.status === "pending" && !action.targetCell) {
-    // Positions are replaced on movement, so the cell stays locked through impact and shifts.
-    action.targetCell = grid[otherSide(side)];
-  }
+export function fireReaches(from, to) {
+  return fireCells(from).some(cell => sameCell(cell, to));
 }
 
-export function attackReaches(grid, side, action) {
-  const from = grid[side];
-  const target = grid[otherSide(side)];
+export function attackTargets(battle, side, action) {
+  const from = battle.grid[side];
   if (action.commandId === "fire") {
-    return sameCell(action.targetCell, target) && distance(from, action.targetCell) <= FIRE_RANGE;
+    return opposingSides(battle, side).filter(id => fireReaches(from, battle.grid[id]));
   }
-  if (action.commandId === "jumpSlash" && jumpLanding(from, target)) return true;
-  return distance(from, target) === 1;
+  const target = targetFor(battle, side, action.targetSide);
+  if (!target) return [];
+  if (distance(from, battle.grid[target]) === 1) return [target];
+  return action.commandId === "jumpSlash" && jumpLanding(battle, side, target) ? [target] : [];
 }
 
-export function rangeStep(from, target, sign) {
-  const gap = distance(from, target);
-  return neighbors(from).find(candidate => distance(candidate, target) === gap + sign
-    && !sameCell(candidate, target));
-}
-
-export function resolveMovement(battle, playerAction, enemyAction, jumpHit, report) {
+export function resolveMovement(battle, actions, landings, report) {
   const { grid, tick } = battle;
-  let playerTo;
-  let enemyTo;
-  if (battle.player.hp && playerAction?.impact === tick) {
-    if (playerAction.commandId === "move") {
-      if (canStep(grid.player, playerAction.destination, grid.enemy)) playerTo = playerAction.destination;
-      else report(`MAGEは${cellName(playerAction.destination)}に移動できなかった。`);
+  const desired = new Map();
+  for (const id of gridSides(battle)) {
+    const action = actions[id];
+    if (!battle[id].hp || action?.impact !== tick) continue;
+    if (landings.has(id)) desired.set(id, landings.get(id));
+    if (action.commandId !== "move") continue;
+    const to = action.destination;
+    if (canStep(battle, id, grid[id], to)) desired.set(id, to);
+    else report(`${cellName(to)}へ移動できなかった。`);
+  }
+
+  const claims = [...desired.values()].map(cellName);
+  const shared = new Set(claims.filter((label, index) => claims.indexOf(label) !== index));
+  for (const label of shared) report(`${label}で移動先が重なり、その場に残った。`);
+  for (const [id, cell] of desired) {
+    if (!shared.has(cellName(cell))) grid[id] = cell;
+  }
+}
+
+export function enemyThreats(battle) {
+  if (battle.phase === "finished") return [];
+  const { grid, tick } = battle;
+  return opposingSides(battle, "player").flatMap(side => {
+    const action = battle[side].actions.find(item => item.status === "pending" && item.start <= tick + 1 && item.impact > tick);
+    if (action?.commandId === "fire") return [{ side, action, cells: fireCells(grid[side]) }];
+    if (action?.commandId === "heavy" || action?.commandId === "quick") {
+      return [{ side, action, cells: cellsAround(grid[side], cardinal) }];
     }
-    if (playerAction.commandId === "jumpSlash" && jumpHit) playerTo = jumpLanding(grid.player, grid.enemy);
-  }
-  if (battle.enemy.hp && enemyAction?.commandId === "move" && enemyAction.impact === tick) {
-    const destination = enemyAction.destination ?? rangeStep(grid.enemy, grid.player, -1);
-    if (canStep(grid.enemy, destination, grid.player)) enemyTo = destination;
-  }
-  if (playerTo && enemyTo && sameCell(playerTo, enemyTo)) {
-    report(`${cellName(playerTo)}で移動先が重なったため、双方ともその場に残った。`);
-    return;
-  }
-  if (playerTo) grid.player = playerTo;
-  if (enemyTo) grid.enemy = enemyTo;
-}
-
-export function enemyThreat(battle) {
-  if (battle.phase === "finished") return null;
-  const { grid, tick } = battle;
-  const action = battle.enemy.actions.find(item => item.status === "pending" && item.start <= tick + 1 && item.impact > tick);
-  if (!action) return null;
-  if (action.commandId === "fire") {
-    const target = action.targetCell ?? grid.player;
-    return { action, cells: distance(grid.enemy, target) <= FIRE_RANGE ? [target] : [] };
-  }
-  if (action.commandId === "heavy" || action.commandId === "quick") {
-    return { action, cells: neighbors(grid.enemy) };
-  }
-  return null;
+    return [];
+  });
 }
