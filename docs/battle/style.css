@@ -10,6 +10,9 @@ main { width: min(100% - 28px, 880px); margin: 18px auto 26px; }
 .page-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
 .page-header a { color: #a9ded8; font-size: .9rem; padding: 8px 0; }
 h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
+.sound-toggle { margin-left: auto; white-space: nowrap; }
+.sound-toggle[aria-pressed="true"] span { color: #a8ead3; }
+.sound-toggle[aria-pressed="false"] span { color: #bbcdd7; }
 .arena {
   display: flex;
   justify-content: space-between;
@@ -99,6 +102,7 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .blue { color: #badbff; border-color: #648eaf; }
 .red { color: #ffc6c2; border-color: #a86466; }
 .beat.yellow, .beat.blue, .beat.red { border: 1px solid; border-radius: 3px; }
+.version-link { color: #a9ded8; }
 .hint, .input-status { color: #c4d3df; margin: 8px 0; font-size: .82rem; }
 .commands, .controls { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
 button {
