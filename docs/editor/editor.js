@@ -1,5 +1,6 @@
-import {SCHEMA_VERSION,STORAGE_KEY,DEFAULT_SIZE,ALLOWED_TYPES,defaultMap,deepCopy,validateMap,collides,nearestSafeSpawn,newId} from "./map-schema.js?v=094";
-import { drawFieldObject, FIELD_OBJECT_DIALOGUE_MAX, FIELD_OBJECT_NAME_MAX } from "../assets/field-objects.js?v=094";
+import {SCHEMA_VERSION,STORAGE_KEY,MAP_FILE_MAX_BYTES,DEFAULT_SIZE,ALLOWED_TYPES,defaultMap,deepCopy,validateMap,collides,nearestSafeSpawn,newId} from "./map-schema.js?v=095";
+import { drawFieldObject, FIELD_OBJECT_DIALOGUE_MAX, FIELD_OBJECT_NAME_MAX, showFieldPortrait } from "../assets/field-objects.js?v=095";
+import { readPortraitFile } from "./portrait-file.js?v=1";
 
 const $=id=>document.getElementById(id);
 const canvas=$("map-canvas"),holder=$("canvas-holder"),ctx=canvas.getContext("2d");
@@ -33,7 +34,13 @@ function refreshInfo(){
  refreshInspector();
 }
 function commit(before,{message=""}={}){
- if(JSON.stringify(before)===JSON.stringify(map)){render();return false;}
+ const json=JSON.stringify(map);
+ if(JSON.stringify(before)===json){render();return false;}
+ if(new Blob([json,"\n"]).size>MAP_FILE_MAX_BYTES){
+  map=before;refreshInfo();render();
+  announce("マップJSONは2MBまでです。顔画像や配置数を減らしてください");
+  return false;
+ }
  past.push(before);if(past.length>70)past.shift();
  future=[];dirty=true;
  persist(true);refreshInfo();render();if(message)announce(message);
@@ -64,6 +71,8 @@ function refreshInspector(){
    $("actor-role").value=sel.role;
    $("actor-name").value=sel.name;
    $("actor-dialogue").value=sel.dialogue;
+   $("actor-portrait-controls").hidden=!sel.portrait;
+   showFieldPortrait($("actor-portrait-frame"),$("actor-portrait-image"),sel.portrait);
  }
  if(object){
    $("selected-name").textContent=labels[sel.type]||sel.type;
@@ -393,6 +402,32 @@ function tick(now){
  lastTime=now;requestAnimationFrame(tick);
 }
 function initEvents(){
+ let portraitRequest=0;
+ const portraitInput=$("actor-portrait-file");
+ const portraitFrame=$("actor-portrait-frame");
+ $("actor-portrait-image").addEventListener("error",()=>{portraitFrame.hidden=true;});
+ portraitInput.addEventListener("change",async()=>{
+  const file=portraitInput.files?.[0];
+  portraitInput.value="";
+  const item=getSelected();
+  if(!file||item?.type!=="actor"||playing)return;
+  const request=++portraitRequest;
+  const targetMap=map;
+  announce("顔画像を読み込んでいます");
+  try{
+   const portrait=await readPortraitFile(file);
+   if(request!==portraitRequest||map!==targetMap||getSelected()!==item||playing)return;
+   mutate(()=>{item.portrait=portrait;},"顔画像を設定しました");
+  }catch(error){
+   if(request===portraitRequest&&getSelected()===item)announce("顔画像の読込失敗："+error.message);
+  }
+ });
+ $("actor-portrait-clear").addEventListener("click",()=>{
+  const item=getSelected();
+  if(item?.type!=="actor")return;
+  portraitRequest++;
+  mutate(()=>{delete item.portrait;},"顔画像を外しました");
+ });
  document.querySelectorAll("[data-tool]").forEach(el=>el.addEventListener("click",()=>setTool(el.dataset.tool)));
  canvas.addEventListener("pointerdown",onDown);
  canvas.addEventListener("pointermove",onMove);
@@ -472,7 +507,7 @@ function initEvents(){
   const safe=validateMap(map);
   const json=JSON.stringify(safe,null,2)+"\n";
   const pretty=new Blob([json],{type:"application/json"});
-  const file=pretty.size<=2_000_000?pretty:new Blob([JSON.stringify(safe)+"\n"],{type:"application/json"});
+  const file=pretty.size<=MAP_FILE_MAX_BYTES?pretty:new Blob([JSON.stringify(safe)+"\n"],{type:"application/json"});
   const url=URL.createObjectURL(file),link=document.createElement("a");
   link.href=url;link.download="gedo-field-"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -482,7 +517,7 @@ function initEvents(){
  $("file-input").addEventListener("change",async e=>{
   const file=e.target.files?.[0];e.target.value="";
   if(!file)return;
-  if(file.size>2_000_000){announce("2MB以下のJSONを選択してください");return;}
+  if(file.size>MAP_FILE_MAX_BYTES){announce("2MB以下のJSONを選択してください");return;}
   try{
    const obj=validateMap(JSON.parse(await file.text()));
    if(!confirm("読み込んだマップに切り替えます。よろしいですか？"))return;

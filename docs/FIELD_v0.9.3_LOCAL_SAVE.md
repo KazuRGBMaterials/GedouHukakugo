@@ -1,31 +1,17 @@
-# FIELD v0.9.3 — あーちゃん王国方式の手動セーブ・起動時自動ロード
+# FIELD v0.9.3 手動セーブと起動時の自動ロード
 
 導入日：2026-11-14（JST）
 
-## 依頼と出典（実装を直接確認済み）
-ユーザー依頼：「娘の作っているあーちゃん王国のセーブ機能をパクってください。」
+Xメニューで保存したプレイヤーの状態をブラウザのlocalStorageに記録し、起動時に自動で復元する。
 
-参照元：別GitHubリポジトリ `KazuRGBMaterials/aki` の `docs/index.html`（2026-11-14確認、blob `282b18be9e5ac922ccce7aa03cd2dfd12ea30b9c`）。
-元ゲーム名：**あーちゃんの王国**。
-
-元コードは `#save` ボタンのクリック時に以下の形で保存し、起動時に自動読込する：
-
-```js
-localStorage.setItem('aki-kingdom', JSON.stringify({
-  x, y, wood, stone, meat, hp, friend, wolf, items
-}));
-```
-
-起動時は `JSON.parse(localStorage.getItem('aki-kingdom') || 'null')` を読んでプレイヤー状態やアイテム配置を復元する。端末内に保存する方式であり、オンライン同期やサーバーへの保存はない。元ゲームには変更せず、**保存・再開という仕組みを外道不覚悟用に実装**する。
-
-## FIELD側のv0.9.3仕様
+## FIELD v0.9.3 の保存仕様
 - Xメニューに「💾 セーブする」「セーブ削除」を追加。
 - 「セーブする」を押した瞬間のMAGEの **X座標、Y座標、向き（8方向）、選択スキル（1〜4）** を記録し、完了をゲーム内に通知。
 - ゲーム再訪・ブラウザ再読込時に自動的に保存位置、向き、スキル、HUD表示を復元。「💾 つづきから！」と通知。
 - **手動セーブ方式**。移動するたびの自動保存はしない。ゲームを閉じる前にセーブすること。
 - 端末内の `localStorage` のみ。別端末・別ブラウザ・Safariプライベートブラウズとの同期はない。ブラウザのサイトデータ削除等でセーブは失われ得る。
 - 保存キーは、本編が `gedo-field-save-v1`、エディターの `?editorMap=1` 試遊が `gedo-field-editor-preview-save-v1`。
-- **元ゲームの `aki-kingdom` キー・リポジトリ・マップエディターの保存キーには一切触れない。**
+- 本編とエディター試遊は別のキーで保存する。マップ自体の保存キーも独立している。
 - マップの幅・高さ・障害物・道データをもとに生成する指紋を記録し、マップ更新時には古いセーブ位置を無理に使用しない。
 - 保存・読込時にマップ外、障害物内部、非数値の座標、形式の壊れたセーブを拒否。エラーや非対応ブラウザでもゲームは初期位置から起動する。
 - 「セーブ削除」は確認ダイアログあり。削除後は現在のゲーム画面を動かさず、次回起動時だけ初期位置になる。
@@ -34,7 +20,7 @@ localStorage.setItem('aki-kingdom', JSON.stringify({
 
 ## DI設計・変更範囲
 `docs/index.html` 内に2モジュールを追加：
-- `/src/save/LocalFieldSaveRepository.ts`：元のJSON/localStorage設計をモデル別の保存ポートとして独立。チェック、マップ指紋、読込、保存、削除。
+- `/src/save/LocalFieldSaveRepository.ts`：FIELDのJSONをlocalStorageに保存するポート。チェック、マップ指紋、読込、保存、削除。
 - `/src/save/SaveControls.ts`：ゲームメニューのイベント、起動時復元、通知、スキルHUD同期を担当。
 
 既存45モジュール中変更したのは **`/src/main.ts` のDI接続のみ**（従来43→45モジュール）。GameEngine、ActionState、4スキル、移動・ジャンプ、音響、マルチプレイヤー、Firebase、フィールドエディターは変更しない。
@@ -53,4 +39,3 @@ localStorage.setItem('aki-kingdom', JSON.stringify({
 5. 初期状態から開始したければ、Xメニューの「セーブ削除」で削除し、ページを再読込する。
 
 公開サイト：`https://kazurgbmaterials.github.io/GedouHukakugo/`
-元作品：`https://kazurgbmaterials.github.io/aki/`

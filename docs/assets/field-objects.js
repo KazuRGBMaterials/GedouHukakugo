@@ -1,6 +1,30 @@
 export const FIELD_OBJECT_LABELS = Object.freeze({ object: "置物", npc: "モブ（NPC）", enemy: "敵" });
 export const FIELD_OBJECT_NAME_MAX = 40;
 export const FIELD_OBJECT_DIALOGUE_MAX = 600;
+export const FIELD_PORTRAIT_MAX_LENGTH = 64_000;
+
+const SAMPLE_PORTRAIT = "builtin:sample-guide";
+const portraitPattern = /^data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
+const guideSprite = new URL("./mage-8dir.png", import.meta.url).href;
+
+function validPortrait(value) {
+  if (value === SAMPLE_PORTRAIT) return value;
+  if (typeof value !== "string" || value.length > FIELD_PORTRAIT_MAX_LENGTH) return "";
+  const match = portraitPattern.exec(value);
+  return match && match[0] === value && match[1].length % 4 === 0 ? value : "";
+}
+
+export function showFieldPortrait(frame, image, portrait) {
+  const value = validPortrait(portrait);
+  frame.hidden = !value;
+  frame.classList.toggle("is-sample", value === SAMPLE_PORTRAIT);
+  if (!value) {
+    image.removeAttribute("src");
+    return;
+  }
+  const source = value === SAMPLE_PORTRAIT ? guideSprite : value;
+  if (image.getAttribute("src") !== source) image.setAttribute("src", source);
+}
 
 const colors = { object: "#e6bf74", npc: "#87e0d1", enemy: "#f4a0ac" };
 const talkReach = 52;
@@ -13,13 +37,14 @@ export function fieldObjectDetails(value) {
   const dialogue = typeof value.dialogue === "string"
     ? value.dialogue.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").slice(0, FIELD_OBJECT_DIALOGUE_MAX)
     : "";
-  return { role, name: name || FIELD_OBJECT_LABELS[role], dialogue };
+  const portrait = validPortrait(value.portrait);
+  return { role, name: name || FIELD_OBJECT_LABELS[role], dialogue, ...(portrait && { portrait }) };
 }
 
 export function exampleFieldObjects() {
   return [
     { id: "sample-guide", type: "actor", x: 208, y: 504, w: 36, h: 32, solid: false,
-      role: "npc", name: "道案内（サンプル）", dialogue: "この先に、古い遺跡があります。\n道をたどれば、入口が見えてきます。" },
+      role: "npc", name: "道案内（サンプル）", portrait: SAMPLE_PORTRAIT, dialogue: "この先に、古い遺跡があります。\n道をたどれば、入口が見えてきます。" },
     { id: "sample-sentry", type: "actor", x: 322, y: 419, w: 36, h: 32, solid: false,
       role: "enemy", name: "見張り（サンプル）", dialogue: "……ここを通るつもりか？" }
   ];
@@ -94,6 +119,7 @@ export class FieldDialogue {
     this.page = 0;
     ui.advance.addEventListener("click", () => this.confirm());
     ui.close.addEventListener("click", () => this.close());
+    ui.portraitImage.addEventListener("error", () => { ui.portraitFrame.hidden = true; });
   }
 
   nearest() {
@@ -143,6 +169,7 @@ export class FieldDialogue {
     this.showHint(null);
     const { object, pages } = this.active;
     this.ui.name.textContent = object.name;
+    if (this.page === 0) showFieldPortrait(this.ui.portraitFrame, this.ui.portraitImage, object.portrait);
     this.ui.text.textContent = pages[this.page];
     this.ui.text.scrollTop = 0;
     this.ui.advance.textContent = this.page + 1 === pages.length ? "会話を終了" : "次へ";
@@ -154,6 +181,7 @@ export class FieldDialogue {
     if (!this.active) return false;
     this.active = null;
     this.ui.panel.hidden = true;
+    showFieldPortrait(this.ui.portraitFrame, this.ui.portraitImage, null);
     return true;
   }
 }

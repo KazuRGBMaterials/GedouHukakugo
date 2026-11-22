@@ -1,7 +1,8 @@
 /* FIELD EDITOR v0.1 — pure map model. No browser, canvas, game-engine dependency. */
-import { exampleFieldObjects, fieldObjectDetails } from "../assets/field-objects.js?v=094";
+import { exampleFieldObjects, fieldObjectDetails } from "../assets/field-objects.js?v=095";
 
 export const SCHEMA_VERSION = 1;
+export const MAP_FILE_MAX_BYTES = 2_000_000;
 export const STORAGE_KEY = "gedo-field-editor-autosave-v1";
 export const ALLOWED_TYPES = Object.freeze(["wall","tree","water","chest","actor"]);
 export const DEFAULT_SIZE = Object.freeze({wall:[160,34],tree:[54,55],water:[200,130],chest:[48,48],actor:[36,32]});

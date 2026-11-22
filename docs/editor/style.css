@@ -129,3 +129,15 @@ footer{display:none}
 #actor-dialogue-help { margin: -6px 0 12px; color: #adbcc9; font-size: 11px; line-height: 1.5; }
 .tool.actor-tool { min-height: 44px; }
 @media (max-width: 760px) { .tool.actor-tool { min-width: 44px; } }
+
+#actor-portrait-file { padding: 7px; }
+#actor-portrait-help { margin: -6px 0 10px; color: #adbcc9; font-size: 11px; line-height: 1.5; }
+#actor-portrait-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+  --portrait-size: 56px;
+}
+#actor-portrait-controls[hidden] { display: none; }
+#actor-portrait-clear { min-height: 44px; }
