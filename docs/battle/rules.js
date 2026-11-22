@@ -23,7 +23,7 @@ function participant(hp) {
 export function createBattle() {
   const battle = {
     tick: 0, phase: "planning", outcome: "", nextId: 1, enemyTurn: 0,
-    player: participant(100), enemy: participant(100), events: []
+    player: participant(100), enemy: participant(100), events: [], lastHits: { player: null, enemy: null }
   };
   planEnemy(battle);
   return battle;
@@ -103,6 +103,22 @@ function activeAction(actor, tick) {
   return actor.actions.find(action => action.start <= tick && tick <= action.end);
 }
 
+export function nextAction(battle, side) {
+  return activeAction(battle[side], battle.tick + 1);
+}
+
+function recoverySource(action) {
+  if (!action) return "空き枠";
+  if (action.commandId === "guard" || action.commandId === "wait") return COMMANDS[action.commandId].name;
+  return null;
+}
+
+export function nextRecovery(battle) {
+  const action = nextAction(battle, "player");
+  const { stamina, recoveryReserved } = battle.player;
+  return { source: recoverySource(action), reserved: recoveryReserved > 0, full: stamina >= maxStamina };
+}
+
 function resolveDependency(battle, side, action) {
   if (!action?.requiresId || action.start !== battle.tick || action.status !== "pending") return;
   const prerequisite = battle[side].actions.find(item => item.id === action.requiresId);
@@ -129,14 +145,15 @@ function colorMultiplier(attack, targetCommand) {
   return 1;
 }
 
-function hitAmount(attack, targetAction, tick, clashWin) {
-  if (!attack) return 0;
-  const targetCommand = targetAction && COMMANDS[targetAction.commandId];
-  const guarding = targetAction?.commandId === "guard";
+function assessHit(attack, targetAction, tick, clashWin) {
+  if (!attack) return null;
+  const target = targetAction ? COMMANDS[targetAction.commandId] : null;
+  const guardFactor = targetAction?.commandId === "guard" ? .45 : 1;
   const evading = targetAction?.commandId === "dodge" && targetAction.impact === tick;
-  if (evading) return 0;
-  const multiplier = clashWin ? 2 : colorMultiplier(attack, targetCommand);
-  return Math.round(attack.damage * multiplier * (guarding ? .45 : 1));
+  const multiplier = clashWin ? 2 : colorMultiplier(attack, target);
+  const damage = evading ? 0 : Math.round(attack.damage * multiplier * guardFactor);
+  return { attack, target, afterImpact: !!targetAction && tick > targetAction.impact,
+    clashWin, evading, multiplier, guardFactor, damage };
 }
 
 function event(battle, message) {
@@ -179,12 +196,13 @@ export function advanceBattle(battle) {
 
   const effects = [
     { side: "player", actor: battle.player, action: playerAction,
-      damage: hitAmount(playerWon ? null : enemyAttack, playerAction, tick, enemyWon), incoming: !!enemyAttack && !playerWon },
+      hit: assessHit(playerWon ? null : enemyAttack, playerAction, tick, enemyWon) },
     { side: "enemy", actor: battle.enemy, action: enemyAction,
-      damage: hitAmount(enemyWon ? null : playerAttack, enemyAction, tick, playerWon), incoming: !!playerAttack && !enemyWon }
+      hit: assessHit(enemyWon ? null : playerAttack, enemyAction, tick, playerWon) }
   ];
-
-  for (const { side, actor, action, damage, incoming } of effects) {
+  for (const { side, actor, action, hit } of effects) {
+    if (hit) battle.lastHits[side] = { tick, ...hit };
+    const damage = hit?.damage;
     if (damage) {
       actor.hp = Math.max(0, actor.hp - damage);
       event(battle, `${readableName[side]}に ${damage} ダメージ。`);
@@ -192,11 +210,11 @@ export function advanceBattle(battle) {
         action.status = "stopped";
         event(battle, `${readableName[side]}のジャンプが中断された。`);
       }
-    } else if (incoming && action?.commandId === "dodge" && action.impact === tick) {
+    } else if (hit?.evading) {
       event(battle, `${readableName[side]}が攻撃を回避した。`);
     }
     if (action?.status === "pending" && action.impact === tick) action.status = "resolved";
-    if (!action || action.commandId === "guard" || action.commandId === "wait") recoverStamina(actor);
+    if (recoverySource(action)) recoverStamina(actor);
     const needed = actor.actions.find(item => item.start === tick + 1)?.requiresId;
     actor.actions = actor.actions.filter(item => item.end > tick || item.id === needed ||
       (item.commandId === "jump" && item === action && item.end === tick));

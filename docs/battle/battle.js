@@ -1,15 +1,19 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
-  canShiftImpact, shiftImpact, startBattle, advanceBattle
-} from "./rules.js?v=2";
+  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle
+} from "./rules.js?v=3";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
+const colorNames = { yellow: "黄", blue: "青", red: "赤" };
+const windups = { quick: "踏み込み", heavy: "振りかぶり", fire: "詠唱中", jumpSlash: "空中で構え" };
+const names = { player: "MAGE", enemy: "見張り" };
 const planningSeconds = 8;
 let battle = createBattle();
 let preparation = planningSeconds;
 let planningTimer = null;
 let battleTimer = null;
+const displayedHits = {};
 const buttons = new Map();
 
 for (const [id, command] of Object.entries(COMMANDS)) {
@@ -71,7 +75,8 @@ function makeTrack(actor, tick) {
     const first = time === action.start;
     const impact = time === action.impact;
     const text = (first ? labels[action.commandId] : "") + (impact ? "★" : "");
-    const node = slot(`beat ${COMMANDS[action.commandId].color ?? ""}${impact ? " strike" : ""}`, text || "–");
+    const strikeClass = impact ? i === 0 ? " strike imminent" : " strike" : "";
+    const node = slot(`beat ${COMMANDS[action.commandId].color ?? ""}${strikeClass}`, text || "–");
     node.title = `${time}枠目 ${COMMANDS[action.commandId].name}${impact ? " インパクト" : ""}`;
     return node;
   });
@@ -82,9 +87,94 @@ function resources(actor) {
   return `HP ${actor.hp}/${actor.maxHp} · スタミナ ${actor.stamina}${reserved}`;
 }
 
+function commandName(command) {
+  return command.color ? `${command.name}（${colorNames[command.color]}）` : command.name;
+}
+
+function renderFighter(side) {
+  const pose = el(`${side}-pose`);
+  const cue = el(`${side}-cue`);
+  const action = battle.phase === "finished" ? null : nextAction(battle, side);
+  const command = action && COMMANDS[action.commandId];
+  const untilImpact = action ? action.impact - battle.tick : 0;
+
+  let stage = "idle";
+  let message = battle.phase === "finished" ? "戦闘終了" : "次の枠は空き";
+  if (command) {
+    if (action.status === "stopped") {
+      message = `技が中断された · ${command.name}`;
+    } else if (!command.damage) {
+      message = `次の枠 · ${command.name}`;
+    } else if (untilImpact > 1) {
+      stage = "windup";
+      message = `${commandName(command)} · ${windups[action.commandId]} · ★まであと${untilImpact}枠`;
+    } else if (untilImpact === 1) {
+      stage = "strike";
+      message = `次の枠で★ · ${commandName(command)}（${action.impact}枠目）`;
+    } else {
+      stage = "recovery";
+      message = `技の戻り中 · ${commandName(command)}`;
+    }
+  }
+
+  pose.dataset.stage = stage;
+  pose.dataset.move = action?.commandId ?? "";
+  pose.dataset.color = command?.color ?? "";
+  cue.className = `cue ${command?.color ?? ""}`;
+  cue.textContent = message;
+}
+
+function renderImpact(side) {
+  const hit = battle.lastHits[side];
+  if (displayedHits[side] === hit) return;
+  displayedHits[side] = hit;
+  const panel = el(`${side}-impact`);
+  if (!hit) {
+    panel.textContent = side === "player" ? "まだ攻撃を受けていません。" : "";
+    return;
+  }
+
+  const heading = slot("impact-time", `${hit.tick}枠目 · ${side === "player" ? "受けた攻撃" : "仕掛けた攻撃"}`);
+  const target = hit.target ? `${commandName(hit.target)}${hit.afterImpact ? "の戻り中" : "中"}` : "空き枠";
+  const attacker = side === "player" ? names.enemy : names.player;
+  const row = slot("impact-row", `${attacker}の${commandName(hit.attack)} → ${names[side]}（${target}） · `);
+  if (hit.evading) {
+    row.append("回避成功");
+  } else {
+    const reason = hit.clashWin ? "同時発動で技を潰した" : hit.guardFactor < 1 ? "防御"
+      : hit.multiplier > 1 ? "色相性で増加" : hit.multiplier < 1 ? "色相性で軽減" : "等倍";
+    const factors = [hit.multiplier, hit.guardFactor].filter(factor => factor !== 1);
+    const calculation = factors.length ? `（${hit.attack.damage} × ${factors.join(" × ")}）` : "";
+    const damage = document.createElement("strong");
+    damage.textContent = `${hit.damage}ダメージ`;
+    row.append(damage, `${calculation} · ${reason}`);
+  }
+  panel.replaceChildren(heading, row);
+}
+
+function renderRecovery() {
+  const cue = el("stamina-cue");
+  const { source, reserved, full } = nextRecovery(battle);
+  cue.className = "stamina-cue";
+  if (battle.phase === "finished") {
+    cue.textContent = "戦闘終了";
+  } else if (!source) {
+    cue.textContent = `${battle.tick + 1}枠目 · 行動中のため回復なし`;
+  } else {
+    const recovery = reserved ? "+1を予約済みの技に充当" : full ? "満タン" : "スタミナ +1";
+    cue.textContent = `${battle.tick + 1}枠目 · ${source} · ${recovery}`;
+    if (reserved || !full) cue.className += " recovering";
+  }
+}
+
 function render() {
   el("player-resources").textContent = resources(battle.player);
   el("enemy-resources").textContent = resources(battle.enemy);
+  renderFighter("player");
+  renderFighter("enemy");
+  renderImpact("player");
+  renderImpact("enemy");
+  renderRecovery();
   const status = battle.phase === "finished" ? battle.outcome : battle.phase === "planning"
     ? planningTimer === null ? "コマンドを選んで初手を予約してください。" : `初手の入力 残り ${preparation} 秒`
     : `戦闘中 · ${battle.tick} 枠経過`;

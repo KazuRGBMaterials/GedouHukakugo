@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101924">
   <title>外道不覚悟 | ベルトライン戦闘 試作</title>
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=3">
 </head>
 <body>
   <main>
@@ -15,15 +15,34 @@
     </header>
     <section class="arena" aria-label="戦闘状態">
       <div class="fighter">
-        <div class="sprite mage" aria-hidden="true"></div>
-        <div><b>MAGE</b><div id="player-resources" class="resources"></div></div>
+        <div id="player-pose" class="pose" aria-hidden="true"><div class="sprite"></div></div>
+        <div>
+          <b>MAGE</b>
+          <div id="player-resources" class="resources"></div>
+          <div id="player-cue" class="cue"></div>
+        </div>
       </div>
       <div class="fighter enemy">
-        <div class="sprite rival" aria-hidden="true"></div>
-        <div><b>訓練用の見張り</b><div id="enemy-resources" class="resources"></div></div>
+        <div id="enemy-pose" class="pose" aria-hidden="true"><div class="sprite rival"></div></div>
+        <div>
+          <b>訓練用の見張り</b>
+          <div id="enemy-resources" class="resources"></div>
+          <div id="enemy-cue" class="cue"></div>
+        </div>
       </div>
     </section>
     <p id="battle-status" class="battle-status" role="status">コマンドを選んで予約してください。</p>
+    <section class="feedback" aria-label="攻防とスタミナ">
+      <div>
+        <b class="feedback-label">直近の攻防</b>
+        <div id="player-impact" class="impact-result incoming" aria-live="polite"></div>
+        <div id="enemy-impact" class="impact-result"></div>
+      </div>
+      <div>
+        <b class="feedback-label">次のスタミナ回復</b>
+        <p id="stamina-cue" class="stamina-cue"></p>
+      </div>
+    </section>
     <section class="timeline" aria-label="行動のタイムライン" tabindex="0">
       <div id="time-axis" class="track" aria-hidden="true"></div>
       <div class="belt-name">相手の予定</div>
@@ -42,6 +61,6 @@
     <div id="input-status" class="input-status" role="status"></div>
     <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
   </main>
-  <script type="module" src="./battle.js?v=2"></script>
+  <script type="module" src="./battle.js?v=3"></script>
 </body>
 </html>
