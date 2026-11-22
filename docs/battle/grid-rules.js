@@ -1,12 +1,12 @@
 export const GRID_COLUMNS = 5;
 export const GRID_ROWS = 3;
 export const MOVE = { name: "移動", tc: 1, impact: 1, sc: 0, level: 0 };
-const FIRE_RANGE = 3;
+export const FIRE_RANGE = 3;
 const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
 export const cellName = ({ x, y }) => `${"ABCDE"[x]}${y + 1}`;
 const sameCell = (a, b) => a.x === b.x && a.y === b.y;
-const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+export const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const inside = ({ x, y }) => Number.isInteger(x) && Number.isInteger(y)
   && x >= 0 && x < GRID_COLUMNS && y >= 0 && y < GRID_ROWS;
 const neighbors = ({ x, y }) => directions.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter(inside);
@@ -53,10 +53,10 @@ export function attackReaches(grid, side, action) {
   return distance(from, target) === 1;
 }
 
-function pursue(from, target) {
+export function rangeStep(from, target, sign) {
   const gap = distance(from, target);
-  return neighbors(from).sort((a, b) => distance(a, target) - distance(b, target))
-    .find(candidate => distance(candidate, target) > 0 && distance(candidate, target) < gap);
+  return neighbors(from).find(candidate => distance(candidate, target) === gap + sign
+    && !sameCell(candidate, target));
 }
 
 export function resolveMovement(battle, playerAction, enemyAction, jumpHit, report) {
@@ -71,7 +71,8 @@ export function resolveMovement(battle, playerAction, enemyAction, jumpHit, repo
     if (playerAction.commandId === "jumpSlash" && jumpHit) playerTo = jumpLanding(grid.player, grid.enemy);
   }
   if (battle.enemy.hp && enemyAction?.commandId === "move" && enemyAction.impact === tick) {
-    enemyTo = pursue(grid.enemy, grid.player);
+    const destination = enemyAction.destination ?? rangeStep(grid.enemy, grid.player, -1);
+    if (canStep(grid.enemy, destination, grid.player)) enemyTo = destination;
   }
   if (playerTo && enemyTo && sameCell(playerTo, enemyTo)) {
     report(`${cellName(playerTo)}で移動先が重なったため、双方ともその場に残った。`);

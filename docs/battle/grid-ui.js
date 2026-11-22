@@ -1,11 +1,13 @@
-import { GRID_COLUMNS, GRID_ROWS, cellName, enemyThreat, plannedPosition } from "./grid-rules.js?v=1";
-import { COMMANDS, canReserve } from "./rules.js?v=4";
+import { GRID_COLUMNS, GRID_ROWS, cellName, enemyThreat, plannedPosition } from "./grid-rules.js?v=2";
+import { COMMANDS, canReserve } from "./rules.js?v=5";
+import { bindGridMotion } from "./grid-motion.js?v=2";
 
 export function bindBattleGrid(onMove) {
   const board = document.getElementById("grid-board");
   const cue = document.getElementById("grid-threat");
   const plan = document.getElementById("grid-plan");
   const result = document.getElementById("grid-result");
+  const renderMotion = bindGridMotion(document.getElementById("grid-units"));
   const cells = [];
 
   for (let y = 0; y < GRID_ROWS; y++) {
@@ -20,7 +22,7 @@ export function bindBattleGrid(onMove) {
     }
   }
 
-  return battle => {
+  return (battle, processed) => {
     const threat = enemyThreat(battle);
     const danger = new Set(threat?.cells.map(cellName));
     const playerCell = cellName(battle.grid.player);
@@ -49,5 +51,6 @@ export function bindBattleGrid(onMove) {
     }
     plan.textContent = plannedCell === playerCell ? `現在地 ${playerCell}` : `現在地 ${playerCell} → 行動後の予定 ${plannedCell}`;
     result.textContent = battle.grid.notice;
+    renderMotion(battle, processed);
   };
 }

@@ -114,7 +114,59 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
   background: #152130;
 }
 .grid-layout { display: grid; grid-template-columns: minmax(250px, 340px) 1fr; gap: 12px; align-items: start; }
-.grid-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.grid-playfield { position: relative; }
+.grid-board, .grid-units { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.grid-board { grid-auto-rows: 57px; }
+.grid-units {
+  position: absolute;
+  inset: 0;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  pointer-events: none;
+}
+.grid-unit {
+  position: relative;
+  justify-self: center;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  margin-top: -10px;
+}
+.grid-unit-sprite {
+  --unit-tint: brightness(1);
+  position: relative;
+  width: 30px;
+  height: 42px;
+  background: url("../assets/mage-8dir.png") 0 0 / 120px 84px no-repeat;
+  image-rendering: pixelated;
+  filter: var(--unit-tint) drop-shadow(0 1px 2px #05070c);
+}
+.grid-unit-enemy .grid-unit-sprite { --unit-tint: sepia(.62) hue-rotate(315deg) saturate(1.8); }
+.grid-unit[data-stance="fire"] .grid-unit-sprite { filter: var(--unit-tint) drop-shadow(0 0 5px #ff8855); }
+.grid-unit[data-stance="heavy"] .grid-unit-sprite { filter: var(--unit-tint) drop-shadow(0 0 5px #95beff); }
+.grid-unit[data-stance="jump"] .grid-unit-sprite,
+.grid-unit[data-stance="jumpSlash"] .grid-unit-sprite { transform: translateY(-8px); }
+.grid-unit-down { opacity: .47; }
+.grid-unit-down .grid-unit-sprite { transform: rotate(70deg) scale(.8); }
+.grid-unit-effect {
+  position: absolute;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  opacity: 0;
+}
+.grid-unit:is([data-acting="quick"], [data-acting="heavy"], [data-acting="jumpSlash"]) .grid-unit-effect {
+  margin-left: 8px;
+  width: 38px;
+  height: 14px;
+  border-top: 3px solid #fff1ab;
+  filter: drop-shadow(0 0 3px #ffcb75);
+  transform-origin: 40% center;
+}
+.grid-unit:is([data-acting="heavy"], [data-acting="jumpSlash"]) .grid-unit-effect { border-color: #bee4ff; }
+.grid-unit[data-acting="fire"] .grid-unit-effect { background: radial-gradient(circle, #fff0a0, #f56436 45%, transparent 72%); }
+.grid-unit[data-acting="guard"] .grid-unit-effect { border: 2px solid #bdf8fb; box-shadow: inset 0 0 8px #bdf8fb77; }
+.grid-unit[data-acting="dodge"] .grid-unit-effect { border: 1px dashed #d6f9ff; }
 .grid-cell {
   border-color: #4c6274;
   border-radius: 4px;
@@ -127,6 +179,7 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .grid-cell.grid-danger { background: #673738; color: #fff0e0; border-color: #dd856b; }
 .grid-cell.grid-player { color: #e6ffff; font-weight: 800; box-shadow: inset 0 -4px #80ded2; }
 .grid-cell.grid-enemy { color: #ffdfb8; font-weight: 800; box-shadow: inset 0 -4px #f2a666; }
+.grid-cell:is(.grid-player, .grid-enemy) { display: grid; place-items: end center; padding-bottom: 5px; line-height: 1.1; }
 .grid-cell:not(:disabled) { outline: 2px solid #85d8ee; outline-offset: -3px; }
 .grid-cell:focus-visible { outline: 3px solid #fff3b9; outline-offset: -3px; }
 .grid-cell.grid-booked { border: 2px dashed #85d8ee; color: #e1f8ff; }
@@ -134,6 +187,20 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .grid-info p { margin: 0 0 5px; }
 .grid-info p:last-child { margin-bottom: 0; }
 .grid-threat { color: #ffd0ac; font-weight: 750; }
+.grid-enemy-settings { margin-top: 10px; font-size: .85rem; color: #d8e5ef; }
+.grid-enemy-settings summary { cursor: pointer; width: fit-content; padding: 5px 0; color: #a9ded8; }
+.grid-personality { display: flex; flex-wrap: wrap; gap: 8px 12px; border: 0; padding: 4px 0; margin: 0; }
+.grid-personality label { display: grid; gap: 3px; }
+.grid-personality select {
+  min-height: 44px;
+  color: inherit;
+  font: inherit;
+  border: 1px solid #5f7890;
+  border-radius: 5px;
+  background: #26384a;
+  padding: 5px 8px;
+}
+#grid-profile-hint { margin: 4px 0 0; font-size: .78rem; color: #bacbd9; }
 .grid-result, .grid-defeat { font-size: .85rem; line-height: 1.45; margin: 7px 0 0; }
 .grid-result:empty { display: none; }
 .grid-defeat { color: #fee2a9; }

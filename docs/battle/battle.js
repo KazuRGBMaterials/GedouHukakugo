@@ -1,10 +1,10 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle
-} from "./rules.js?v=4";
+} from "./rules.js?v=5";
 import { createBattleAudio } from "./audio.js?v=1";
-import { cellName } from "./grid-rules.js?v=1";
-import { bindBattleGrid } from "./grid-ui.js?v=1";
+import { cellName } from "./grid-rules.js?v=2";
+import { bindBattleGrid } from "./grid-ui.js?v=3";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
@@ -15,7 +15,10 @@ const warnings = { heavy: "heavyWarning", fire: "fireWarning" };
 const outcomeSounds = { 勝利: "victory", 敗北: "defeat", 相打ち: "draw" };
 const planningSeconds = 8;
 const gridMode = new URLSearchParams(window.location.search).get("grid") === "1";
-let battle = createBattle(gridMode);
+const profileFields = gridMode ? {
+  risk: el("grid-risk"), waste: el("grid-waste"), style: el("grid-style")
+} : null;
+let battle = newBattle();
 let preparation = planningSeconds;
 let planningTimer = null;
 let battleTimer = null;
@@ -32,6 +35,21 @@ if (gridMode) {
   el("battle-title").textContent = "ベルトライン戦闘・マス目試作";
   document.body.classList.add("grid-mode");
   renderGrid = bindBattleGrid(position => queue("move", position));
+  for (const field of Object.values(profileFields)) field.addEventListener("change", () => {
+    if (!canChooseProfile()) return;
+    battle = newBattle();
+    render();
+  });
+}
+
+function newBattle() {
+  if (!profileFields) return createBattle();
+  const { risk, waste, style } = profileFields;
+  return createBattle(true, { risk: risk.value, waste: waste.value, style: style.value });
+}
+
+function canChooseProfile() {
+  return battle.phase === "planning" && battle.player.actions.length === 0;
 }
 
 for (const [id, command] of Object.entries(COMMANDS)) {
@@ -102,6 +120,7 @@ function playImpact() {
 
 function stepBattle() {
   const recovery = nextRecovery(battle);
+  const processed = renderGrid ? [nextAction(battle, "player"), nextAction(battle, "enemy")] : null;
   advanceBattle(battle);
   const received = battle.lastHits.player;
   if (gridMode && received?.tick === battle.tick && received.damage > (largestHit?.damage ?? 0)) largestHit = received;
@@ -114,7 +133,7 @@ function stepBattle() {
     if (recovery.source === "待機" && (!recovery.full || recovery.reserved)) audio.play("recover", impacted ? .28 : 0);
     playEnemyWarning(impacted ? .28 : 0);
   }
-  render();
+  render(processed);
 }
 
 function slot(className, text) {
@@ -247,7 +266,7 @@ function renderGridAdvice() {
   el("grid-defeat-tip").textContent = `${tick}枠目に${during}${commandName(attack)}を受け、最大${damage}ダメージ。 ${retry}`;
 }
 
-function render() {
+function render(processed) {
   el("player-resources").textContent = resources(battle.player);
   el("enemy-resources").textContent = resources(battle.enemy);
   renderFighter("player");
@@ -261,8 +280,13 @@ function render() {
   el("battle-status").textContent = gridMode && battle.phase === "planning"
     ? "技や移動を予約し、準備ができたら「戦闘開始」。" : status;
   if (renderGrid) {
-    renderGrid(battle);
+    renderGrid(battle, processed);
     renderGridAdvice();
+    const editable = canChooseProfile();
+    el("grid-personality").disabled = !editable;
+    el("grid-profile-hint").textContent = editable
+      ? "最初の行動を予約する前に選べます。"
+      : "敵の性格を選び直すには「最初から」を押してください。";
   }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
   el("enemy-belt").replaceChildren(...makeTrack(battle.enemy, battle.tick));
@@ -305,7 +329,7 @@ el("reset").addEventListener("click", () => {
   audio.setMusic(false);
   audio.stopEffects();
   preparation = planningSeconds;
-  battle = createBattle(gridMode);
+  battle = newBattle();
   largestHit = null;
   el("input-status").textContent = "";
   render();

@@ -1,4 +1,5 @@
-import { MOVE, createGrid, plannedPosition, canStep, prepareFire, attackReaches, resolveMovement } from "./grid-rules.js?v=1";
+import { MOVE, createGrid, plannedPosition, canStep, prepareFire, attackReaches, resolveMovement } from "./grid-rules.js?v=2";
+import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=1";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -23,12 +24,13 @@ function participant(hp) {
   return { hp, maxHp: hp, stamina: maxStamina, recoveryReserved: 0, actions: [] };
 }
 
-export function createBattle(withGrid = false) {
+export function createBattle(withGrid = false, enemyProfile) {
   const battle = {
     tick: 0, phase: "planning", outcome: "", nextId: 1, enemyTurn: 0,
     player: participant(100), enemy: participant(100), events: [], lastHits: { player: null, enemy: null }
   };
   if (withGrid) battle.grid = createGrid();
+  if (withGrid && enemyProfile) battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
   planEnemy(battle);
   return battle;
 }
@@ -42,6 +44,7 @@ export function canReserve(battle, side, commandId, destination) {
   if (battle.phase === "finished") return false;
   if (commandId === "move") {
     if (!battle.grid || (side === "player" && !canStep(plannedPosition(battle), destination, battle.grid.enemy))) return false;
+    if (side === "enemy" && destination && !canStep(battle.grid.enemy, destination, battle.grid.player)) return false;
   } else if (!Object.hasOwn(COMMANDS, commandId)) {
     return false;
   }
@@ -191,10 +194,34 @@ function reportGrid(battle, message) {
 }
 
 function planEnemy(battle) {
+  if (battle.grid?.enemyProfile) {
+    planGridEnemy(battle);
+    return;
+  }
   const sequence = battle.grid ? gridEnemySequence : enemySequence;
   while ((lastAction(battle.enemy)?.end ?? 0) < battle.tick + 8) {
     const action = sequence[battle.enemyTurn % sequence.length];
     if (!reserve(battle, "enemy", action)) break;
+    battle.enemyTurn++;
+  }
+}
+
+function planGridEnemy(battle) {
+  const { grid, enemy, tick } = battle;
+  if (enemy.actions.length) return;
+
+  const current = activeAction(battle.player, tick);
+  const damage = COMMANDS[current?.commandId]?.damage;
+  const incomingDamage = current?.status === "pending" && current.impact === tick + 1
+    && damage && attackReaches(grid, "player", current) ? damage : 0;
+  const canChoose = (id, destination) => canReserve(battle, "enemy", id, destination);
+  const choice = chooseEnemyAction({
+    profile: grid.enemyProfile, from: grid.enemy, target: grid.player,
+    previous: grid.previousEnemyAction, turn: battle.enemyTurn, hp: enemy.hp,
+    stamina: enemy.stamina, incomingDamage
+  }, canChoose);
+  if (reserve(battle, "enemy", choice.id, choice.destination)) {
+    grid.previousEnemyAction = choice.id;
     battle.enemyTurn++;
   }
 }
