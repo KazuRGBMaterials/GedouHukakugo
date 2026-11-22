@@ -103,6 +103,42 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .red { color: #ffc6c2; border-color: #a86466; }
 .beat.yellow, .beat.blue, .beat.red { border: 1px solid; border-radius: 3px; }
 .version-link { color: #a9ded8; }
+.battle-links { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.grid-mode .arena { min-height: 0; }
+.grid-mode .pose { display: none; }
+.grid-panel {
+  margin: 0 0 9px;
+  padding: 10px;
+  border: 1px solid #526577;
+  border-radius: 8px;
+  background: #152130;
+}
+.grid-layout { display: grid; grid-template-columns: minmax(250px, 340px) 1fr; gap: 12px; align-items: start; }
+.grid-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.grid-cell {
+  border-color: #4c6274;
+  border-radius: 4px;
+  color: #b4c6d6;
+  background: #243447;
+  font-size: .75rem;
+  padding: 4px 1px;
+}
+.grid-cell:disabled { opacity: 1; }
+.grid-cell.grid-danger { background: #673738; color: #fff0e0; border-color: #dd856b; }
+.grid-cell.grid-player { color: #e6ffff; font-weight: 800; box-shadow: inset 0 -4px #80ded2; }
+.grid-cell.grid-enemy { color: #ffdfb8; font-weight: 800; box-shadow: inset 0 -4px #f2a666; }
+.grid-cell:not(:disabled) { outline: 2px solid #85d8ee; outline-offset: -3px; }
+.grid-cell:focus-visible { outline: 3px solid #fff3b9; outline-offset: -3px; }
+.grid-cell.grid-booked { border: 2px dashed #85d8ee; color: #e1f8ff; }
+.grid-info { font-size: .82rem; line-height: 1.45; color: #c8d7e4; }
+.grid-info p { margin: 0 0 5px; }
+.grid-info p:last-child { margin-bottom: 0; }
+.grid-threat { color: #ffd0ac; font-weight: 750; }
+.grid-result, .grid-defeat { font-size: .85rem; line-height: 1.45; margin: 7px 0 0; }
+.grid-result:empty { display: none; }
+.grid-defeat { color: #fee2a9; }
+.grid-defeat p { margin: 3px 0 0; }
+.beat.movement-slot { background: #264251; color: #b9ecfa; }
 .hint, .input-status { color: #c4d3df; margin: 8px 0; font-size: .82rem; }
 .commands, .controls { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
 button {
@@ -130,6 +166,7 @@ button.primary { background: #386055; border-color: #9bd0b9; }
   .enemy .pose { order: 0; }
   .pose { flex-basis: 61px; height: 61px; }
   .feedback { grid-template-columns: 1fr; }
+  .grid-layout { grid-template-columns: 1fr; gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

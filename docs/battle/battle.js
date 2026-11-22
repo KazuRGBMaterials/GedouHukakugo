@@ -1,8 +1,10 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle
-} from "./rules.js?v=3";
+} from "./rules.js?v=4";
 import { createBattleAudio } from "./audio.js?v=1";
+import { cellName } from "./grid-rules.js?v=1";
+import { bindBattleGrid } from "./grid-ui.js?v=1";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
@@ -12,13 +14,25 @@ const names = { player: "MAGE", enemy: "見張り" };
 const warnings = { heavy: "heavyWarning", fire: "fireWarning" };
 const outcomeSounds = { 勝利: "victory", 敗北: "defeat", 相打ち: "draw" };
 const planningSeconds = 8;
-let battle = createBattle();
+const gridMode = new URLSearchParams(window.location.search).get("grid") === "1";
+let battle = createBattle(gridMode);
 let preparation = planningSeconds;
 let planningTimer = null;
 let battleTimer = null;
+let largestHit = null;
 const displayedHits = {};
 const buttons = new Map();
 const audio = createBattleAudio(el("battle-bgm"));
+let renderGrid;
+if (gridMode) {
+  el("grid-panel").hidden = false;
+  el("grid-link").href = "./";
+  el("grid-link").textContent = "通常のベルトライン戦闘";
+  document.title = "外道不覚悟 | ベルトライン戦闘 マス目試作";
+  el("battle-title").textContent = "ベルトライン戦闘・マス目試作";
+  document.body.classList.add("grid-mode");
+  renderGrid = bindBattleGrid(position => queue("move", position));
+}
 
 for (const [id, command] of Object.entries(COMMANDS)) {
   const button = document.createElement("button");
@@ -30,22 +44,26 @@ for (const [id, command] of Object.entries(COMMANDS)) {
     : `TC ${command.tc} · IMP ${command.impact} · SC ${command.sc} · LV ${command.level}`;
   button.append(data);
   if (command.requires) button.title = "直前にジャンプを予約してください";
-  button.addEventListener("click", () => {
-    if (!reserve(battle, "player", id)) return;
-    audio.unlock();
-    el("input-status").textContent = `${command.name}を予約。`;
-    if (battle.phase === "planning" && planningTimer === null) {
-      audio.setMusic(true);
+  button.addEventListener("click", () => queue(id));
+  buttons.set(id, button);
+  el("commands").append(button);
+}
+
+function queue(id, destination) {
+  if (!reserve(battle, "player", id, destination)) return;
+  audio.unlock();
+  el("input-status").textContent = destination ? `${cellName(destination)}への移動を予約。` : `${COMMANDS[id].name}を予約。`;
+  if (battle.phase === "planning") {
+    audio.setMusic(true);
+    if (!gridMode && planningTimer === null) {
       planningTimer = setInterval(() => {
         preparation--;
         if (preparation <= 0) launch();
         else render();
       }, 1000);
     }
-    render();
-  });
-  buttons.set(id, button);
-  el("commands").append(button);
+  }
+  render();
 }
 
 function launch() {
@@ -56,7 +74,7 @@ function launch() {
   audio.setMusic(true);
   audio.play("start");
   playEnemyWarning(.26);
-  battleTimer = setInterval(stepBattle, 1000);
+  battleTimer = setInterval(stepBattle, gridMode ? 1600 : 1000);
   render();
 }
 
@@ -85,6 +103,8 @@ function playImpact() {
 function stepBattle() {
   const recovery = nextRecovery(battle);
   advanceBattle(battle);
+  const received = battle.lastHits.player;
+  if (gridMode && received?.tick === battle.tick && received.damage > (largestHit?.damage ?? 0)) largestHit = received;
   const impacted = playImpact();
   if (battle.phase === "finished") {
     clearInterval(battleTimer);
@@ -109,6 +129,10 @@ function makeTrack(actor, tick) {
     const time = tick + i + 1;
     const action = actor.actions.find(item => item.start <= time && item.end >= time && item.status !== "stopped");
     if (!action) return slot("beat", "·");
+    if (action.commandId === "move") {
+      const text = action.destination ? `→${cellName(action.destination)}` : "追跡";
+      return slot("beat movement-slot", text);
+    }
     if (action.commandId === "wait") {
       const node = slot("beat", "待機 +1");
       node.title = `${time}枠目 待機でスタミナを1回復`;
@@ -142,7 +166,9 @@ function renderFighter(side) {
 
   let stage = "idle";
   let message = battle.phase === "finished" ? "戦闘終了" : "次の枠は空き";
-  if (command) {
+  if (action?.commandId === "move") {
+    message = action.destination ? `次の枠 · ${cellName(action.destination)}へ移動` : "次の枠 · 追跡";
+  } else if (command) {
     if (action.status === "stopped") {
       message = `技が中断された · ${command.name}`;
     } else if (!command.damage) {
@@ -209,6 +235,18 @@ function renderRecovery() {
   }
 }
 
+function renderGridAdvice() {
+  const panel = el("grid-defeat");
+  panel.hidden = battle.outcome !== "敗北" || !largestHit;
+  if (panel.hidden) return;
+  const { tick, damage, target, attack, guardFactor, afterImpact } = largestHit;
+  const retry = guardFactor < 1
+    ? `その攻撃が届くマスから、${tick - 1}枠目までに離れる手を試してみましょう。`
+    : `${tick}枠目に間合いを保って「防御」するか、${tick - 1}枠目までに範囲外へ移動してみましょう。`;
+  const during = target ? `${commandName(target)}${afterImpact ? "の戻り中" : "中"}に` : "";
+  el("grid-defeat-tip").textContent = `${tick}枠目に${during}${commandName(attack)}を受け、最大${damage}ダメージ。 ${retry}`;
+}
+
 function render() {
   el("player-resources").textContent = resources(battle.player);
   el("enemy-resources").textContent = resources(battle.enemy);
@@ -220,7 +258,12 @@ function render() {
   const status = battle.phase === "finished" ? battle.outcome : battle.phase === "planning"
     ? planningTimer === null ? "コマンドを選んで初手を予約してください。" : `初手の入力 残り ${preparation} 秒`
     : `戦闘中 · ${battle.tick} 枠経過`;
-  el("battle-status").textContent = status;
+  el("battle-status").textContent = gridMode && battle.phase === "planning"
+    ? "技や移動を予約し、準備ができたら「戦闘開始」。" : status;
+  if (renderGrid) {
+    renderGrid(battle);
+    renderGridAdvice();
+  }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
   el("enemy-belt").replaceChildren(...makeTrack(battle.enemy, battle.tick));
   el("player-belt").replaceChildren(...makeTrack(battle.player, battle.tick));
@@ -262,7 +305,8 @@ el("reset").addEventListener("click", () => {
   audio.setMusic(false);
   audio.stopEffects();
   preparation = planningSeconds;
-  battle = createBattle();
+  battle = createBattle(gridMode);
+  largestHit = null;
   el("input-status").textContent = "";
   render();
 });

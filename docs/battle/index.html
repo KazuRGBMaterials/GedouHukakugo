@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101924">
   <title>外道不覚悟 | ベルトライン戦闘 試作</title>
-  <link rel="stylesheet" href="./style.css?v=5">
+  <link rel="stylesheet" href="./style.css?v=6">
 </head>
 <body>
   <main>
     <header class="page-header">
       <a href="../">フィールドへ戻る</a>
-      <h1>ベルトライン戦闘</h1>
+      <h1 id="battle-title">ベルトライン戦闘</h1>
       <button id="battle-sound" class="sound-toggle" type="button" aria-pressed="true">
         サウンド <span id="battle-sound-state" aria-hidden="true">ON</span>
       </button>
@@ -35,6 +35,22 @@
       </div>
     </section>
     <p id="battle-status" class="battle-status" role="status">コマンドを選んで予約してください。</p>
+    <section id="grid-panel" class="grid-panel" aria-label="マス目の戦場" hidden>
+      <div class="grid-layout">
+        <div id="grid-board" class="grid-board" aria-label="戦場 5列3行"></div>
+        <div class="grid-info">
+          <p id="grid-threat" class="grid-threat"></p>
+          <p id="grid-plan"></p>
+          <p>青枠を押すと移動を1枠予約。赤いマスが敵の攻撃範囲です。避けるには★の前の枠までに移動します。</p>
+          <p>通常攻撃と強打は上下左右の隣。火炎は詠唱時のマスを狙います（射程3）。ジャンプ斬りは縦横に3マス先まで。</p>
+        </div>
+      </div>
+      <p id="grid-result" class="grid-result"></p>
+      <aside id="grid-defeat" class="grid-defeat" aria-label="次の一戦へのアドバイス" hidden>
+        <b>次の一戦へのアドバイス</b>
+        <p id="grid-defeat-tip"></p>
+      </aside>
+    </section>
     <section class="feedback" aria-label="攻防とスタミナ">
       <div>
         <b class="feedback-label">直近の攻防</b>
@@ -62,10 +78,10 @@
       <button id="reset" type="button">最初から</button>
     </div>
     <div id="input-status" class="input-status" role="status"></div>
-    <p class="hint"><a class="version-link" href="./ver1/">ベルトコンベアVER1（保存版）</a></p>
+    <p class="hint battle-links"><a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="./ver1/">ベルトコンベアVER1（保存版）</a></p>
     <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
   </main>
   <audio id="battle-bgm" src="./battle-loop.wav" preload="none" loop></audio>
-  <script type="module" src="./battle.js?v=4"></script>
+  <script type="module" src="./battle.js?v=5"></script>
 </body>
 </html>
