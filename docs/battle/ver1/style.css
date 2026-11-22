@@ -69,6 +69,19 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .resources { color: #bbdbe5; font-size: .83rem; overflow-wrap: anywhere; }
 .cue { color: #d1dce6; font-size: .86rem; font-weight: 700; margin-top: 4px; overflow-wrap: anywhere; }
 .battle-status { color: #fee2a9; font-weight: 700; margin: 12px 0; font-size: .97rem; }
+.defeat-advice {
+  margin: 0 0 9px;
+  padding: 10px 12px;
+  border: 1px solid #9c7952;
+  border-radius: 8px;
+  background: #302821;
+  font-size: .9rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.defeat-advice h2 { margin: 0 0 5px; color: #fee2a9; font-size: .95rem; }
+.defeat-advice p { margin: 4px 0 0; }
+.defeat-advice p:last-child { font-weight: 700; }
 .feedback {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);

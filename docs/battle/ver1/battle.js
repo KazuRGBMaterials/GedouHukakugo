@@ -16,6 +16,7 @@ let battle = createBattle();
 let preparation = planningSeconds;
 let planningTimer = null;
 let battleTimer = null;
+let largestHit = null;
 const displayedHits = {};
 const buttons = new Map();
 const audio = createBattleAudio(el("battle-bgm"));
@@ -85,6 +86,8 @@ function playImpact() {
 function stepBattle() {
   const recovery = nextRecovery(battle);
   advanceBattle(battle);
+  const received = battle.lastHits.player;
+  if (received?.tick === battle.tick && received.damage > (largestHit?.damage ?? 0)) largestHit = received;
   const impacted = playImpact();
   if (battle.phase === "finished") {
     clearInterval(battleTimer);
@@ -209,6 +212,29 @@ function renderRecovery() {
   }
 }
 
+function renderDefeatAdvice() {
+  const panel = el("defeat-advice");
+  panel.hidden = battle.outcome !== "敗北" || !largestHit;
+  if (panel.hidden) return;
+
+  const { attack, target, tick, damage, afterImpact, clashWin, multiplier, guardFactor } = largestHit;
+  const timing = target ? `${commandName(target)}${afterImpact ? "の戻り中" : "中"}に` : "空き枠で";
+  const reason = clashWin ? "同時に技を出した際、相手に技を潰されました。"
+    : multiplier > 1 ? "色の相性でダメージが増えました。" : "";
+  el("defeat-summary").textContent = `最も大きかった被弾は${tick}枠目。${timing}${commandName(attack)}を受けて${damage}ダメージ。${reason}`;
+
+  let tip;
+  if (target === COMMANDS.quick && afterImpact) {
+    tip = `この通常攻撃を1回分減らし、${tick - 1}枠目に「待機」、${tick}枠目に「防御」を入れてみましょう。`;
+  } else if (guardFactor < 1 || target === COMMANDS.dodge) {
+    const dodgeStart = tick - COMMANDS.dodge.impact + 1;
+    tip = `スタミナを${COMMANDS.dodge.sc}残して、${dodgeStart}枠目から「回避」を入れてみましょう。回避の★が${tick}枠目に重なれば、ダメージを受けずに済みます。`;
+  } else {
+    tip = `相手の★が出る${tick}枠目に「防御」を予約してみましょう。先に入れた技が重なるときは、その手前を「待機」で調整できます。`;
+  }
+  el("defeat-tip").textContent = tip;
+}
+
 function render() {
   el("player-resources").textContent = resources(battle.player);
   el("enemy-resources").textContent = resources(battle.enemy);
@@ -221,6 +247,7 @@ function render() {
     ? planningTimer === null ? "コマンドを選んで初手を予約してください。" : `初手の入力 残り ${preparation} 秒`
     : `戦闘中 · ${battle.tick} 枠経過`;
   el("battle-status").textContent = status;
+  renderDefeatAdvice();
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
   el("enemy-belt").replaceChildren(...makeTrack(battle.enemy, battle.tick));
   el("player-belt").replaceChildren(...makeTrack(battle.player, battle.tick));
@@ -263,6 +290,7 @@ el("reset").addEventListener("click", () => {
   audio.stopEffects();
   preparation = planningSeconds;
   battle = createBattle();
+  largestHit = null;
   el("input-status").textContent = "";
   render();
 });
