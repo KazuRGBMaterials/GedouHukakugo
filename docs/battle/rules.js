@@ -5,7 +5,8 @@ export const COMMANDS = Object.freeze({
   guard: { name: "防御", tc: 1, impact: 1, sc: 1, level: 0 },
   dodge: { name: "回避", tc: 2, impact: 2, sc: 3, level: 1 },
   jump: { name: "ジャンプ", tc: 2, impact: 2, sc: 1, level: 0 },
-  jumpSlash: { name: "ジャンプ斬り", tc: 3, impact: 2, sc: 3, level: 2, color: "blue", damage: 24, requires: "jump" }
+  jumpSlash: { name: "ジャンプ斬り", tc: 3, impact: 2, sc: 3, level: 2, color: "blue", damage: 24, requires: "jump" },
+  wait: { name: "待機", tc: 1, impact: 1, sc: 0, level: 0 }
 });
 
 export const TIMELINE_SIZE = 12;
@@ -16,7 +17,7 @@ const readableName = { player: "MAGE", enemy: "訓練用の見張り" };
 const maxStamina = 12;
 
 function participant(hp) {
-  return { hp, maxHp: hp, stamina: maxStamina, actions: [] };
+  return { hp, maxHp: hp, stamina: maxStamina, recoveryReserved: 0, actions: [] };
 }
 
 export function createBattle() {
@@ -35,7 +36,13 @@ function lastAction(actor) {
 export function canReserve(battle, side, commandId) {
   const actor = battle[side];
   const command = COMMANDS[commandId];
-  if (!Object.hasOwn(COMMANDS, commandId) || battle.phase === "finished" || actor.stamina < command.sc) return false;
+  if (!Object.hasOwn(COMMANDS, commandId) || battle.phase === "finished") return false;
+  if (actor.stamina < command.sc) {
+    const scheduledRecovery = actor.actions.filter(action =>
+      action.commandId === "wait" && action.impact > battle.tick && action.status === "pending"
+    ).length;
+    if (actor.stamina + scheduledRecovery - actor.recoveryReserved < command.sc) return false;
+  }
   const previous = lastAction(actor);
   const start = Math.max(battle.tick + 1, (previous?.end ?? battle.tick) + 1);
   if (start + command.tc - 1 > battle.tick + TIMELINE_SIZE) return false;
@@ -48,7 +55,9 @@ export function reserve(battle, side, commandId) {
   const command = COMMANDS[commandId];
   const previous = lastAction(actor);
   const start = Math.max(battle.tick + 1, (previous?.end ?? battle.tick) + 1);
-  actor.stamina -= command.sc;
+  const immediateCost = Math.min(actor.stamina, command.sc);
+  actor.stamina -= immediateCost;
+  actor.recoveryReserved += command.sc - immediateCost;
   actor.actions.push({
     id: battle.nextId++, commandId, start, impact: start + command.impact - 1, end: start + command.tc - 1,
     requiresId: command.requires ? previous.id : null, status: "pending", shifted: false
@@ -143,6 +152,12 @@ function planEnemy(battle) {
   }
 }
 
+function recoverStamina(actor) {
+  // Recovery first covers the cost of actions already booked after a wait.
+  if (actor.recoveryReserved > 0) actor.recoveryReserved--;
+  else actor.stamina = Math.min(maxStamina, actor.stamina + 1);
+}
+
 export function advanceBattle(battle) {
   if (battle.phase !== "running") return;
   const tick = ++battle.tick;
@@ -181,7 +196,7 @@ export function advanceBattle(battle) {
       event(battle, `${readableName[side]}が攻撃を回避した。`);
     }
     if (action?.status === "pending" && action.impact === tick) action.status = "resolved";
-    if (!action || action.commandId === "guard") actor.stamina = Math.min(maxStamina, actor.stamina + 1);
+    if (!action || action.commandId === "guard" || action.commandId === "wait") recoverStamina(actor);
     const needed = actor.actions.find(item => item.start === tick + 1)?.requiresId;
     actor.actions = actor.actions.filter(item => item.end > tick || item.id === needed ||
       (item.commandId === "jump" && item === action && item.end === tick));

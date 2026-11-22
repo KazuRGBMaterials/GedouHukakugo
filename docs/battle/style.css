@@ -21,7 +21,7 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
   border: 1px solid #526577;
   border-radius: 9px;
 }
-.fighter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.fighter { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .fighter.enemy { justify-content: flex-end; text-align: right; }
 .sprite {
   flex: 0 0 50px;
@@ -31,7 +31,7 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
   image-rendering: pixelated;
 }
 .rival { order: 1; filter: sepia(.65) hue-rotate(308deg) saturate(1.7); transform: scaleX(-1); }
-.resources { color: #bbdbe5; font-size: .83rem; white-space: nowrap; }
+.resources { color: #bbdbe5; font-size: .83rem; overflow-wrap: anywhere; }
 .battle-status { color: #fee2a9; font-weight: 700; margin: 12px 0; font-size: .97rem; }
 .timeline { overflow-x: auto; padding: 9px; border: 1px solid #415568; border-radius: 8px; background: #152130; }
 .track {

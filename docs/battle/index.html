@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101924">
   <title>外道不覚悟 | ベルトライン戦闘 試作</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=2">
 </head>
 <body>
   <main>
@@ -32,6 +32,7 @@
       <div id="player-belt" class="track"></div>
     </section>
     <p class="hint">★は効果が出る枠。黄は青に、青は赤に、赤は黄に有利。</p>
+    <p class="hint">待機は1枠でスタミナが1回復します。回復する分を、待機のあとに続く技の予約に使えます。</p>
     <section aria-label="コマンド入力" id="commands" class="commands"></section>
     <div class="controls">
       <button id="start" class="primary" type="button">戦闘開始</button>
@@ -41,6 +42,6 @@
     <div id="input-status" class="input-status" role="status"></div>
     <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
   </main>
-  <script type="module" src="./battle.js"></script>
+  <script type="module" src="./battle.js?v=2"></script>
 </body>
 </html>
