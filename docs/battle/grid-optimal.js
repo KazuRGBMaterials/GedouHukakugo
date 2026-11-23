@@ -1,4 +1,4 @@
-import { distance, adjacent8, fireReaches, jumpLandingCandidates } from "./grid-rules.js?v=7";
+import { distance, adjacent8, fireReaches } from "./grid-rules.js?v=7";
 
 // Bounded deterministic two-ply planning. Uses only revealed positions and queued
 // actions, obeys the same command, range, stamina and timing rules as everyone else.
@@ -7,7 +7,6 @@ const CARDINAL = [[1,0],[-1,0],[0,1],[0,-1]];
 const ADV = { yellow:"blue", blue:"red", red:"yellow" };
 const ATTACKS = new Set(["quick","heavy","fire","jumpSlash"]);
 const eq = (a,b) => a && b && a.x===b.x && a.y===b.y;
-const clamp = (x,min,max) => Math.max(min,Math.min(max,x));
 const byId = (a,b) => a.id.localeCompare(b.id);
 
 const actionAt = (unit,tick) => (unit.actions||[]).find(a =>
@@ -49,7 +48,6 @@ function damageToTarget(cmd,at,from,target,view){
   const targetPos=projected(target,at,nowTick);
   if(!isInRange(cmd,from,targetPos,board))return 0;
   if(cmd==="jumpSlash"){
-    if(!jumpLandingCandidates) return 0;
     const spaces=CARDINAL.concat([[1,1],[1,-1],[-1,1],[-1,-1]])
       .map(([dx,dy])=>({x:targetPos.x+dx,y:targetPos.y+dy}));
     const units=[...comrades,...opponents];
@@ -67,7 +65,7 @@ function damageToTarget(cmd,at,from,target,view){
   if(clash && winsClash(targetCmd,commands[cmd]))return 0;
   const multiplier=clash && winsClash(commands[cmd],targetCmd)?2:
     damageMultiplier(commands[cmd],targetCmd);
-  const guard=status?.commandId==="guard"?.45:1;
+  const guard = status?.commandId === "guard" ? .45 : 1;
   const hit=commands[cmd].damage * multiplier * guard;
   const uncertainty=at<=nowTick+2?1:at<=nowTick+4?.9:.78;
   // Avoid dumping 80+ damage into a target that comrades are already finishing.

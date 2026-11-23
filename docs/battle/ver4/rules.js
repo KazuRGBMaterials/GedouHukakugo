@@ -17,6 +17,8 @@ export const COMMANDS = Object.freeze({
   wait: { name: "待機", tc: 1, impact: 1, sc: 0, level: 0 }
 });
 
+// Share actual command data with the tactical evaluator, including movement.
+const OPTIMAL_COMMANDS = Object.freeze({ ...COMMANDS, move: MOVE });
 export const TIMELINE_SIZE = 12;
 export const SHIFT_STAMINA = 2;
 const advantage = { yellow: "blue", blue: "red", red: "yellow" };
@@ -320,7 +322,7 @@ function planGridActor(battle, side) {
         tactic: grid.enemyTactics, side, board: grid, from: grid[side],
         hp: actor.hp, stamina: actor.stamina, turn: actor.decision ?? 0,
         previous: actor.previousAction, nextStart, nowTick: battle.tick,
-        commands: COMMANDS, ownActions: actor.actions, opponents,
+        commands: OPTIMAL_COMMANDS, ownActions: actor.actions, opponents,
         comrades: gridSides(battle).filter(id => teamOf(id) === "enemy" && battle[id].hp > 0)
           .map(id => ({id,at:grid[id],hp:battle[id].hp,maxHp:battle[id].maxHp,actions:battle[id].actions}))
       }, canChoose)
