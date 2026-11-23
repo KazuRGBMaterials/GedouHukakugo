@@ -1,4 +1,5 @@
 import { distance, adjacent8, fireReaches, rangeStep } from "./grid-rules.js?v=7";
+import { chooseOptimalEnemyAction } from "./grid-optimal.js?v=1";
 
 // Strategy layer for the enemy team. It only issues existing, legal commands.
 // In particular, "protect" redirects a hit only when the front defender is guarding.
@@ -8,7 +9,8 @@ export const ENEMY_TACTICS = Object.freeze({
   focus: "集団集中攻撃",
   ruthless: "卑劣漢",
   bait: "仲間を囮にする",
-  protect: "敵を引き受け仲間を庇う"
+  protect: "敵を引き受け仲間を庇う",
+  optimal: "最強"
 });
 const cardinal = [[1,0],[-1,0],[0,1],[0,-1]];
 const offensive = new Set(["quick","heavy","jumpSlash","fire"]);
@@ -72,6 +74,7 @@ export function chooseEnemyTactic(view,canChoose) {
   const targets=live(opponents);
   const friends=live(comrades).sort(byId);
   if (!targets.length || tactic==="standard" || !ENEMY_TACTICS[tactic])return null;
+  if (tactic==="optimal") return chooseOptimalEnemyAction(view,canChoose);
 
   // Each fighter seeks a vulnerable/isolated kill in reach; targets need not match.
   if (tactic==="isolate") {

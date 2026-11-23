@@ -2,8 +2,8 @@ import {
   GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition,
   gridSides, teamOf, jumpLandingCandidates, jumpLanding, targetFor
 } from "./grid-rules.js?v=7";
-import { COMMANDS, canReserve, isManual, editableAttack } from "./rules.js?v=14";
-import { bindGridMotion } from "./grid-motion.js?v=10";
+import { COMMANDS, canReserve, isManual, editableAttack } from "./rules.js?v=15";
+import { bindGridMotion } from "./grid-motion.js?v=11";
 import { terrainAt } from "./grid-terrain.js?v=2";
 
 const shortNames = {

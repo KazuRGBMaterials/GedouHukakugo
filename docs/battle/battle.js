@@ -2,10 +2,10 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
-} from "./rules.js?v=14";
+} from "./rules.js?v=15";
 import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
-import { bindBattleGrid } from "./grid-ui.js?v=14";
+import { bindBattleGrid } from "./grid-ui.js?v=15";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
@@ -466,7 +466,8 @@ function render(processed) {
       bait: teamCount < 2 ? "囮戦術は敵2人以上で成立。1人なら通常の追撃に切り替わります。"
         : "囮戦術：先頭の敵が攻撃を引き受け、仲間が隙を突きます。",
       protect: teamCount < 2 ? "庇う戦術は敵2人以上で成立。1人なら通常の追撃に切り替わります。"
-        : "庇う戦術：先頭の敵が仲間へ接近し、防御中なら隣の味方への単体攻撃を1回肩代わりします。"
+        : "庇う戦術：先頭の敵が仲間へ接近し、防御中なら隣の味方への単体攻撃を1回肩代わりします。",
+      optimal: "最強：確定済みの行動・技相性・位置・仲間の予約・スタミナを読み、2手先まで候補を評価。未入力の行動は予知できません。" 
     };
     el("grid-tactics-hint").textContent = hints[teamTactics] || hints.standard;
     el("grid-profile-hint").textContent = battle.grid.enemyType === "hellor"

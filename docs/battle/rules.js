@@ -4,7 +4,7 @@ import {
 } from "./grid-rules.js?v=7";
 import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=5";
 import { chooseHellorAction } from "./hellor-ai.js?v=1";
-import { ENEMY_TACTICS, chooseEnemyTactic } from "./grid-tactics.js?v=1";
+import { ENEMY_TACTICS, chooseEnemyTactic } from "./grid-tactics.js?v=2";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -314,7 +314,8 @@ function planGridActor(battle, side) {
     ? chooseEnemyTactic({
         tactic: grid.enemyTactics, side, board: grid, from: grid[side],
         hp: actor.hp, stamina: actor.stamina, turn: actor.decision ?? 0,
-        previous: actor.previousAction, nextStart, opponents,
+        previous: actor.previousAction, nextStart, nowTick: battle.tick,
+        commands: COMMANDS, ownActions: actor.actions, opponents,
         comrades: gridSides(battle).filter(id => teamOf(id) === "enemy" && battle[id].hp > 0)
           .map(id => ({id,at:grid[id],hp:battle[id].hp,maxHp:battle[id].maxHp,actions:battle[id].actions}))
       }, canChoose)
