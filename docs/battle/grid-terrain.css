@@ -1,4 +1,4 @@
-/* Scenery only: the board is still the original 5x5 button grid. */
+/* Scenery only: the battlefield buttons and collision rules remain independent of terrain. */
 .grid-board {
   background: #1b2924;
   box-shadow: 0 0 0 2px #587c73;

@@ -1,7 +1,7 @@
-import { GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition, gridSides, teamOf } from "./grid-rules.js?v=5";
-import { COMMANDS, canReserve, isManual } from "./rules.js?v=8";
-import { bindGridMotion } from "./grid-motion.js?v=5";
-import { terrainAt } from "./grid-terrain.js?v=1";
+import { GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition, gridSides, teamOf } from "./grid-rules.js?v=6";
+import { COMMANDS, canReserve, isManual } from "./rules.js?v=9";
+import { bindGridMotion } from "./grid-motion.js?v=6";
+import { terrainAt } from "./grid-terrain.js?v=2";
 
 const shortNames = {
   player: "MAGE", ally: "味方", ally2: "味方2", ally3: "味方3",
@@ -15,10 +15,20 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
   const result = document.getElementById("grid-result");
   const renderMotion = bindGridMotion(document.getElementById("grid-units"));
   const terrainPicker = document.getElementById("grid-terrain");
+  const playfield = document.getElementById("grid-playfield");
   const cells = [];
+  let currentColumns = 0;
+  let currentRows = 0;
 
-  for (let y = 0; y < GRID_ROWS; y++) {
-    for (let x = 0; x < GRID_COLUMNS; x++) {
+  function buildCells(columns, rows) {
+    cells.length = 0;
+    board.replaceChildren();
+    playfield.style.setProperty("--grid-columns", columns);
+    playfield.style.setProperty("--grid-rows", rows);
+    playfield.dataset.expanded = String(columns > GRID_COLUMNS || rows > GRID_ROWS);
+    board.setAttribute("aria-label", `戦場 ${columns}列 ${rows}行`);
+    for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < columns; x++) {
       const button = document.createElement("button");
       const label = cellName({ x, y });
       const coord = document.createElement("span");
@@ -41,9 +51,15 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
       cells.push(cell);
       board.append(button);
     }
+    }
+    currentColumns = columns;
+    currentRows = rows;
   }
 
   return (battle, processed, controlled, selected) => {
+    const columns = battle.grid.columns ?? GRID_COLUMNS;
+    const rows = battle.grid.rows ?? GRID_ROWS;
+    if (columns !== currentColumns || rows !== currentRows) buildCells(columns, rows);
     const scene = terrainPicker?.value ?? "mixed";
     board.dataset.terrain = scene;
     const threats = enemyThreats(battle);
