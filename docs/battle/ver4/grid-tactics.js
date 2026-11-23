@@ -160,8 +160,10 @@ export function chooseEnemyTactic(view,canChoose) {
       }
       if (nearby && targets.some(t=>attacking(t,atRisk.id,nextStart))
           && canChoose("guard"))return {id:"guard",target:target.id};
-      if (nearby && targets.some(t=>aboutToAttack(t,nextStart))
-          && turn%2===0 && canChoose("guard"))return {id:"guard",target:target.id};
+      // Hold a visible guard when a nearby protected ally faces melee pressure,
+      // even before the player commits an attack. This keeps "cover" observable.
+      if (nearby && targets.some(t=>distance(t.at,atRisk.at)<=2)
+          && turn%3===0 && canChoose("guard"))return {id:"guard",target:target.id};
     }
     return pressure(view,target,canChoose,{preferQuick:side!==defender.id});
   }
