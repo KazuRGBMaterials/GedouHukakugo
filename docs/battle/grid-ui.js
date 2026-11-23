@@ -2,7 +2,7 @@ import {
   GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition,
   gridSides, teamOf, jumpLandingCandidates, jumpLanding, targetFor
 } from "./grid-rules.js?v=7";
-import { COMMANDS, canReserve, isManual, editableAttack } from "./rules.js?v=10";
+import { COMMANDS, canReserve, isManual, editableAttack } from "./rules.js?v=11";
 import { bindGridMotion } from "./grid-motion.js?v=7";
 import { terrainAt } from "./grid-terrain.js?v=2";
 
@@ -19,6 +19,7 @@ export function bindBattleGrid({ onMove, onTarget, onSelect, onLanding }) {
   const renderMotion = bindGridMotion(document.getElementById("grid-units"));
   const terrainPicker = document.getElementById("grid-terrain");
   const playfield = document.getElementById("grid-playfield");
+  const viewport = document.getElementById("grid-viewport");
   const cells = [];
   let currentColumns = 0;
   let currentRows = 0;
@@ -29,6 +30,7 @@ export function bindBattleGrid({ onMove, onTarget, onSelect, onLanding }) {
     playfield.style.setProperty("--grid-columns", columns);
     playfield.style.setProperty("--grid-rows", rows);
     playfield.style.setProperty("--grid-min-width", `${columns * 46 + (columns - 1) * 4}px`);
+    viewport.style.setProperty("--grid-target-width", `${columns * 56 + (columns - 1) * 4}px`);
     playfield.dataset.expanded = String(columns > GRID_COLUMNS || rows > GRID_ROWS);
     board.setAttribute("aria-label", `戦場 ${columns}列 ${rows}行`);
     for (let y = 0; y < rows; y++) {

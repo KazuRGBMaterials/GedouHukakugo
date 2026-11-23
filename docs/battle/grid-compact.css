@@ -1,0 +1,299 @@
+/* VER4 compact cockpit. Layout-only: attack ranges and timings remain in rules.js. */
+.grid-mode .grid-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.grid-mode .grid-viewport {
+  --grid-target-width: 340px;
+  width: min(100%, var(--grid-target-width));
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+}
+.grid-mode .grid-info {
+  width: 100%;
+  min-width: 0;
+  line-height: 1.25;
+}
+.grid-mode .grid-info #grid-plan {
+  overflow-wrap: anywhere;
+}
+.grid-mode .grid-size-controls select {
+  min-width: 3.2rem;
+  min-height: 44px;
+  border: 1px solid #7399a9;
+  border-radius: 5px;
+  padding: 4px 5px;
+  color: #eaf0ef;
+  background: #26384a;
+  font: inherit;
+  text-align: center;
+}
+.grid-mode .grid-size-controls select:disabled { opacity: .48; }
+.grid-mode .grid-topline { justify-content: flex-start; align-items: center; gap: 4px 9px; }
+.grid-mode .grid-topline #grid-threat {
+  flex-basis: 100%;
+  order: 3;
+  font-size: .72rem;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grid-mode #battle-status { margin-block: 3px; }
+.grid-mode .grid-panel { padding: 5px 7px; margin-bottom: 3px; }
+.grid-mode .grid-enemy-settings { margin-top: 2px; }
+.grid-mode .grid-enemy-settings summary { padding: 2px 0; }
+.grid-mode #grid-profile-hint { margin: 1px 0; font-size: .65rem; }
+.grid-mode .grid-result { margin: 1px 0; font-size: .7rem; line-height: 1.15; }
+.grid-mode .feedback { gap: 3px; margin-bottom: 3px; }
+.grid-mode .feedback > div { padding: 3px 5px; }
+.grid-mode .feedback-label { font-size: .65rem; margin: 0; }
+.grid-mode .impact-result, .grid-mode .stamina-cue { font-size: .69rem; line-height: 1.2; }
+.grid-mode .timeline { margin: 1px 0; padding: 3px 4px; }
+.grid-mode .commands { margin: 3px 0; }
+.grid-mode .controls { margin: 2px 0; }
+.grid-mode .input-status { min-height: 0; margin: 1px 0; }
+.grid-mode .battle-notes summary { padding: 1px 0; }
+
+/* On an iPhone in landscape, two panes stay within the viewport.
+   The battlefield and full eight-actor timeline scroll independently. */
+@media (max-height: 600px) and (orientation: landscape) and (pointer: coarse) {
+  html:has(body.grid-mode), body.grid-mode { height: 100%; overflow: hidden; }
+  body.grid-mode main {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: max(2px, env(safe-area-inset-top))
+             max(5px, env(safe-area-inset-right))
+             max(2px, env(safe-area-inset-bottom))
+             max(5px, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr);
+    grid-template-rows: 27px auto 15px 30px minmax(12px, 1fr) auto auto 14px 17px;
+    gap: 2px 5px;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  body.grid-mode .page-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+    gap: 2px 6px;
+    flex-wrap: nowrap;
+  }
+  body.grid-mode .page-header h1 {
+    font-size: .7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.grid-mode .page-header button { min-height: 26px; padding: 1px 5px; }
+  body.grid-mode .grid-panel {
+    grid-column: 1;
+    grid-row: 2 / -1;
+    margin: 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 3px;
+    gap: 2px;
+  }
+  body.grid-mode .grid-topline {
+    flex: 0 0 auto;
+    margin: 0;
+    gap: 2px 4px;
+  }
+  body.grid-mode .grid-topline label,
+  body.grid-mode .grid-topline select,
+  body.grid-mode .grid-size-controls { font-size: .63rem; }
+  body.grid-mode .grid-topline select { min-height: 25px; padding: 1px 3px; }
+  body.grid-mode .grid-size-controls select { min-height: 29px; min-width: 33px; padding: 1px 2px; }
+  body.grid-mode .grid-topline #grid-threat {
+    flex-basis: 100%;
+    font-size: .62rem;
+    line-height: 1;
+  }
+  body.grid-mode .grid-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  body.grid-mode .grid-viewport {
+    flex: 1 1 auto;
+    height: auto;
+    max-height: none;
+    min-height: 40px;
+    overflow: auto;
+  }
+  body.grid-mode .grid-info {
+    flex: 0 0 auto;
+    max-height: 26px;
+    overflow-y: auto;
+    font-size: .61rem;
+  }
+  body.grid-mode .grid-enemy-settings {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: .61rem;
+  }
+  body.grid-mode .grid-enemy-settings summary {
+    min-height: 20px;
+    padding: 0;
+  }
+  body.grid-mode .grid-enemy-settings[open] {
+    max-height: 75px;
+    overflow-y: auto;
+  }
+  body.grid-mode .grid-result {
+    flex: 0 0 auto;
+    max-height: 19px;
+    overflow: hidden;
+    font-size: .59rem;
+  }
+  body.grid-mode .grid-defeat { max-height: 30px; overflow-y: auto; font-size: .59rem; }
+
+  body.grid-mode .arena {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px 3px;
+    min-height: 0;
+    max-height: 79px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 2px;
+    align-items: start;
+  }
+  body.grid-mode .fighter { min-width: 0; display: block; text-align: left; font-size: .62rem; }
+  body.grid-mode .fighter.enemy { text-align: left; }
+  body.grid-mode .fighter b,
+  body.grid-mode .fighter .resources {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .56rem;
+    line-height: 1.15;
+  }
+  body.grid-mode .fighter .cue { display: none; }
+  body.grid-mode .party-control { margin: 0; gap: 2px; }
+  body.grid-mode .party-control button {
+    min-height: 27px;
+    padding: 2px 2px;
+    min-width: 0;
+    font-size: .56rem;
+  }
+  body.grid-mode .party-control .party-select { flex: 1 1 auto; }
+  body.grid-mode .party-control .party-mode { flex: 0 0 auto; }
+
+  body.grid-mode .battle-status {
+    grid-column: 2;
+    grid-row: 3;
+    height: 15px;
+    margin: 0;
+    line-height: 1;
+    font-size: .63rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  body.grid-mode .feedback {
+    grid-column: 2;
+    grid-row: 4;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 2px;
+    margin: 0;
+    max-height: 30px;
+    overflow-y: auto;
+  }
+  body.grid-mode .feedback > div { min-width: 0; padding: 1px 3px; }
+  body.grid-mode .feedback-label { display: none; }
+  body.grid-mode .impact-result,
+  body.grid-mode .stamina-cue { font-size: .58rem; line-height: 1.12; }
+
+  body.grid-mode .timeline {
+    grid-column: 2;
+    grid-row: 5;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 1px 3px;
+    margin: 0;
+    gap: 0 2px;
+  }
+  body.grid-mode .timeline .track { min-height: 13px; }
+  body.grid-mode .timeline .beat,
+  body.grid-mode .timeline .beat-number { font-size: .51rem; line-height: 12px; }
+  body.grid-mode .timeline .belt-name { padding: 0; font-size: .55rem; }
+  body.grid-mode .commands {
+    grid-column: 2;
+    grid-row: 6;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    margin: 0;
+  }
+  body.grid-mode .commands button {
+    min-height: 38px;
+    font-size: .65rem;
+    line-height: 1;
+    padding: 1px 2px;
+  }
+  body.grid-mode .commands button small { font-size: .51rem; }
+  body.grid-mode .controls {
+    grid-column: 2;
+    grid-row: 7;
+    display: flex;
+    gap: 2px;
+    margin: 0;
+  }
+  body.grid-mode .controls button {
+    min-height: 32px;
+    padding: 1px 3px;
+    font-size: .61rem;
+  }
+  body.grid-mode .input-status {
+    grid-column: 2;
+    grid-row: 8;
+    font-size: .59rem;
+    line-height: 14px;
+    max-height: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+  }
+  body.grid-mode .battle-notes {
+    grid-column: 2;
+    grid-row: 9;
+    font-size: .62rem;
+    line-height: 17px;
+    height: 17px;
+  }
+  body.grid-mode .battle-notes summary { padding: 0; }
+  body.grid-mode .battle-notes[open] .note-content { z-index: 21; }
+}
+
+/* Portrait still uses a vertical flow; text blocks are compact, while
+   optional logs and advanced enemy settings stay collapsible. */
+@media (max-width: 600px) and (orientation: portrait) {
+  body.grid-mode .grid-panel { padding: 3px 5px; margin-bottom: 2px; }
+  body.grid-mode .arena { margin-top: 2px; padding: 3px; }
+  body.grid-mode .battle-status { margin: 2px 0; }
+  body.grid-mode .timeline { margin: 1px 0; }
+  body.grid-mode .feedback { margin: 2px 0; }
+  body.grid-mode .grid-viewport { max-height: 34dvh; }
+}
