@@ -1,5 +1,7 @@
 export const GRID_COLUMNS = 5;
 export const GRID_ROWS = 5;
+export const PARTY_SIDES = ["player", "ally", "ally2", "ally3"];
+export const FOE_SIDES = ["enemy", "enemy2", "enemy3", "enemy4"];
 export const MOVE = { name: "移動", tc: 1, impact: 1, sc: 0.5, level: 0 };
 const cardinal = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 const fireOffsets = [
@@ -14,17 +16,28 @@ const inside = ({ x, y }) => Number.isInteger(x) && Number.isInteger(y)
   && x >= 0 && x < GRID_COLUMNS && y >= 0 && y < GRID_ROWS;
 const cellsAround = ({ x, y }, offsets) => offsets.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter(inside);
 
-export const teamOf = side => side === "player" || side === "ally" ? "player" : "enemy";
-export const gridSides = battle => ["player", ...(battle.ally ? ["ally"] : []), "enemy", ...(battle.enemy2 ? ["enemy2"] : [])];
+export const teamOf = side => PARTY_SIDES.includes(side) ? "player" : "enemy";
+export const gridSides = battle => [...PARTY_SIDES, ...FOE_SIDES].filter(side => Boolean(battle[side]));
 export const opposingSides = (battle, side) => gridSides(battle).filter(id => teamOf(id) !== teamOf(side) && battle[id].hp > 0);
 
 export function createGrid(players, enemies) {
-  return {
-    player: { x: 1, y: 2 }, enemy: { x: 2, y: 2 },
-    ...(players === 2 && { ally: { x: 1, y: 3 } }),
-    ...(enemies === 2 && { enemy2: { x: 2, y: 3 } }),
-    notice: "", roundHits: []
-  };
+  const grid = { notice: "", roundHits: [] };
+  if (players <= 2 && enemies <= 2) {
+    // Preserve the VER2 starting positions for all original matchups.
+    grid.player = { x: 1, y: 2 };
+    grid.enemy = { x: 2, y: 2 };
+    if (players === 2) grid.ally = { x: 1, y: 3 };
+    if (enemies === 2) grid.enemy2 = { x: 2, y: 3 };
+    return grid;
+  }
+  // Give larger teams separate columns so eight actors can all occupy distinct cells.
+  for (const [sides, count, x] of [[PARTY_SIDES, players, 1], [FOE_SIDES, enemies, 3]]) {
+    const firstRow = Math.floor((GRID_ROWS - count) / 2);
+    for (let index = 0; index < count; index++) {
+      grid[sides[index]] = { x, y: firstRow + index };
+    }
+  }
+  return grid;
 }
 
 export function targetFor(battle, side, requested, from = battle.grid[side]) {

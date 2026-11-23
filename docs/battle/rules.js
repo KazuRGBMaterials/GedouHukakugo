@@ -1,7 +1,7 @@
 import {
-  MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition,
+  MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition, PARTY_SIDES, FOE_SIDES,
   canStep, attackTargets, jumpLanding, resolveMovement
-} from "./grid-rules.js?v=4";
+} from "./grid-rules.js?v=5";
 import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=3";
 
 export const COMMANDS = Object.freeze({
@@ -32,15 +32,17 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     player: participant(100), enemy: participant(100), events: [], lastHits: { player: null, enemy: null }
   };
   if (withGrid) {
-    const players = gridOptions.players === 2 ? 2 : 1;
-    const enemies = gridOptions.enemies === 2 ? 2 : 1;
+    const players = Math.min(4, Math.max(1, Math.trunc(Number(gridOptions.players) || 1)));
+    const enemies = Math.min(4, Math.max(1, Math.trunc(Number(gridOptions.enemies) || 1)));
     battle.grid = createGrid(players, enemies);
     battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
     battle.grid.enemyName = gridOptions.enemyName;
-    if (players === 2) battle.ally = participant(100);
-    if (enemies === 2) battle.enemy2 = participant(100);
+    for (const side of PARTY_SIDES.slice(1, players)) battle[side] = participant(100);
+    for (const side of FOE_SIDES.slice(1, enemies)) battle[side] = participant(100);
     battle.player.automatic = gridOptions.automatic?.player === true;
-    if (battle.ally) battle.ally.automatic = gridOptions.automatic?.ally !== false;
+    for (const side of PARTY_SIDES.slice(1, players)) {
+      battle[side].automatic = gridOptions.automatic?.[side] !== false;
+    }
   }
   planEnemy(battle);
   return battle;
@@ -215,11 +217,12 @@ function reportGrid(battle, message) {
 }
 
 export function fighterName(battle, side) {
-  if (side === "ally") return "味方";
+  if (side === "player") return readableName.player;
+  if (PARTY_SIDES.includes(side)) return side === "ally" ? "味方" : `味方${side.slice(4)}`;
   const enemy = battle.grid?.enemyName || readableName.enemy;
-  if (side === "enemy2") return `${enemy}2`;
-  if (side === "enemy") return battle.enemy2 ? `${enemy}1` : enemy;
-  return readableName.player;
+  if (!FOE_SIDES.includes(side)) return side;
+  const index = side === "enemy" ? 1 : Number(side.slice(5));
+  return battle.enemy2 ? `${enemy}${index}` : enemy;
 }
 
 const allyProfile = makeEnemyProfile({ risk: "balanced", waste: "rarely", style: "hitRun" });
