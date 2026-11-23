@@ -2,10 +2,10 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
-} from "./rules.js?v=12";
+} from "./rules.js?v=13";
 import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
-import { bindBattleGrid } from "./grid-ui.js?v=12";
+import { bindBattleGrid } from "./grid-ui.js?v=13";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "./assets/game-taps.js?v=1";
 
@@ -148,7 +148,9 @@ function newBattle() {
   rowsField.value = rows;
   return createBattle(true, { risk: risk.value, waste: waste.value, style: style.value },
     { players, enemies, enemyName: enemyChoiceField.value === "hellor" ? "ヘルオル"
-      : enemyChoiceField.value === "encounter" ? enemyName : undefined, automatic, columns, rows });
+      : enemyChoiceField.value === "encounter" ? enemyName : undefined,
+      enemyType: enemyChoiceField.value === "hellor" ? "hellor" : "default",
+      automatic, columns, rows });
 }
 
 function canChooseProfile() {
@@ -431,6 +433,7 @@ function render(processed) {
     if (battle[side]) el(`battle-${side}-name`).textContent = fighterName(battle, side);
   }
   document.body.classList.toggle("large-party", sides.length >= 6);
+  document.body.classList.toggle("hellor-mode", battle.grid?.enemyType === "hellor");
   renderImpact("player");
   renderImpact("enemy");
   renderRecovery();
@@ -445,13 +448,14 @@ function render(processed) {
     renderParty();
     renderGridAdvice();
     const editable = canChooseProfile();
-    el("grid-personality").disabled = !editable;
+    el("grid-personality").disabled = !editable || battle.grid.enemyType === "hellor";
     sizeField.disabled = !editable;
     enemyChoiceField.disabled = !editable;
     columnsField.disabled = !editable;
     rowsField.disabled = !editable;
-    el("grid-profile-hint").textContent = editable
-      ? "人数・マス目・敵の種類・性格は最初の予約前に変更できます。"
+    el("grid-profile-hint").textContent = battle.grid.enemyType === "hellor"
+      ? "ヘルオル：弱った相手を狙い、予約済みの攻撃を見て防御・回避し、隙を突く。性格設定は無効。"
+      : editable ? "人数・マス目・敵の種類・性格は最初の予約前に変更できます。"
       : "人数・マス目・敵の種類・性格を変えるには「最初から」を押してください。";
   }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
