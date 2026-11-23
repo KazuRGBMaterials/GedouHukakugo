@@ -2,10 +2,10 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
-} from "./rules.js?v=13";
+} from "./rules.js?v=14";
 import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
-import { bindBattleGrid } from "./grid-ui.js?v=13";
+import { bindBattleGrid } from "./grid-ui.js?v=14";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
@@ -21,6 +21,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const gridMode = urlParams.get("grid") === "1";
 const enemyName = urlParams.get("encounter")?.trim().slice(0, 40);
 const enemyChoiceField = gridMode ? el("grid-enemy") : null;
+const tacticsField = gridMode ? el("grid-tactics") : null;
 if (enemyChoiceField && enemyName) {
   if (enemyName === "ヘルオル") {
     enemyChoiceField.value = "hellor";
@@ -129,7 +130,7 @@ if (gridMode) {
       render();
     });
   }
-  for (const field of [sizeField, enemyChoiceField, columnsField, rowsField, ...Object.values(profileFields)]) field.addEventListener("change", () => {
+  for (const field of [sizeField, enemyChoiceField, tacticsField, columnsField, rowsField, ...Object.values(profileFields)]) field.addEventListener("change", () => {
     if (!canChooseProfile()) return;
     battle = newBattle();
     controlled = "player";
@@ -150,6 +151,7 @@ function newBattle() {
     { players, enemies, enemyName: enemyChoiceField.value === "hellor" ? "ヘルオル"
       : enemyChoiceField.value === "encounter" ? enemyName : undefined,
       enemyType: enemyChoiceField.value === "hellor" ? "hellor" : "default",
+      enemyTactics: tacticsField.value,
       automatic, columns, rows });
 }
 
@@ -451,12 +453,26 @@ function render(processed) {
     el("grid-personality").disabled = !editable || battle.grid.enemyType === "hellor";
     sizeField.disabled = !editable;
     enemyChoiceField.disabled = !editable;
+    tacticsField.disabled = !editable;
     columnsField.disabled = !editable;
     rowsField.disabled = !editable;
+    const teamTactics = battle.grid.enemyTactics;
+    const teamCount = FOE_SIDES.filter(id => !!battle[id]).length;
+    const hints = {
+      standard: "標準：これまでと同じ敵AIです。",
+      isolate: "各個撃破：倒しやすい相手を見極め、確実に仕留めます。",
+      focus: "集団集中：敵チームが同じ相手を狙い、攻撃のタイミングも合わせようとします。",
+      ruthless: "卑劣漢：弱った相手と無防備な相手を狙い、防御と奇襲を使い分けます。",
+      bait: teamCount < 2 ? "囮戦術は敵2人以上で成立。1人なら通常の追撃に切り替わります。"
+        : "囮戦術：先頭の敵が攻撃を引き受け、仲間が隙を突きます。",
+      protect: teamCount < 2 ? "庇う戦術は敵2人以上で成立。1人なら通常の追撃に切り替わります。"
+        : "庇う戦術：先頭の敵が仲間へ接近し、防御中なら隣の味方への単体攻撃を1回肩代わりします。"
+    };
+    el("grid-tactics-hint").textContent = hints[teamTactics] || hints.standard;
     el("grid-profile-hint").textContent = battle.grid.enemyType === "hellor"
       ? "ヘルオル：弱った相手を狙い、予約済みの攻撃を見て防御・回避し、隙を突く。性格設定は無効。"
-      : editable ? "人数・マス目・敵の種類・性格は最初の予約前に変更できます。"
-      : "人数・マス目・敵の種類・性格を変えるには「最初から」を押してください。";
+      : editable ? "人数・マス目・敵の種類・性格・戦術は最初の予約前に変更できます。"
+      : "人数・マス目・敵の種類・性格・戦術を変えるには「最初から」を押してください。";
   }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
   const manual = isManual(battle, controlled);

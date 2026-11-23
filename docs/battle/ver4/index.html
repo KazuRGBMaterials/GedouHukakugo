@@ -104,7 +104,20 @@
         </div>
       </div>
       <details class="grid-enemy-settings">
-        <summary>敵の性格</summary>
+        <summary>敵の性格・戦術</summary>
+        <div class="grid-personality" role="group" aria-label="敵チームの戦術">
+          <label for="grid-tactics">敵チームの戦術
+            <select id="grid-tactics">
+              <option value="standard" selected>従来のAI（初期値）</option>
+              <option value="isolate">各個撃破重視</option>
+              <option value="focus">集団集中攻撃</option>
+              <option value="ruthless">卑劣漢</option>
+              <option value="bait">仲間を囮にする</option>
+              <option value="protect">敵を引き受け仲間を庇う</option>
+            </select>
+          </label>
+        </div>
+        <p id="grid-tactics-hint" class="grid-info">敵チーム全員へ適用します。戦闘前に選択してください。</p>
         <fieldset id="grid-personality" class="grid-personality" aria-label="敵の性格">
           <label for="grid-risk">攻め方
             <select id="grid-risk">
@@ -177,6 +190,6 @@
     </details>
   </main>
   <audio id="battle-bgm" src="./battle-loop.wav" preload="none" loop></audio>
-  <script type="module" src="./battle.js?v=18"></script>
+  <script type="module" src="./battle.js?v=19"></script>
 </body>
 </html>

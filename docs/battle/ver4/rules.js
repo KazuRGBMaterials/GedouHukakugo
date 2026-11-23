@@ -1,9 +1,10 @@
 import {
   MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition, PARTY_SIDES, FOE_SIDES,
-  canStep, attackTargets, jumpLanding, jumpLandingCandidates, resolveMovement
+  canStep, attackTargets, jumpLanding, jumpLandingCandidates, adjacent8, resolveMovement
 } from "./grid-rules.js?v=7";
 import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=5";
 import { chooseHellorAction } from "./hellor-ai.js?v=1";
+import { ENEMY_TACTICS, chooseEnemyTactic } from "./grid-tactics.js?v=1";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -39,6 +40,8 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
     battle.grid.enemyName = gridOptions.enemyName;
     battle.grid.enemyType = gridOptions.enemyType === "hellor" ? "hellor" : "default";
+    battle.grid.enemyTactics = Object.hasOwn(ENEMY_TACTICS, gridOptions.enemyTactics)
+      ? gridOptions.enemyTactics : "standard";
     for (const side of PARTY_SIDES.slice(1, players)) battle[side] = participant(100);
     for (const side of FOE_SIDES.slice(1, enemies)) battle[side] = participant(100);
     battle.player.automatic = gridOptions.automatic?.player === true;
@@ -299,22 +302,33 @@ function planGridActor(battle, side) {
   const target = targetFor(battle, side);
   if (!target) return;
   const canChoose = (id, destination) => canReserve(battle, side, id, destination);
-  const isHellor = teamOf(side) === "enemy" && grid.enemyType === "hellor";
-  const choice = isHellor ? chooseHellorAction({
+  const enemySide = teamOf(side) === "enemy";
+  const isHellor = enemySide && grid.enemyType === "hellor";
+  const nextStart = Math.max(battle.tick + 1, (lastAction(actor)?.end ?? battle.tick) + 1);
+  const opponents = opposingSides(battle, side).map(id => ({
+    id, at: grid[id], hp: battle[id].hp, maxHp: battle[id].maxHp,
+    stamina: battle[id].stamina, actions: battle[id].actions,
+    landingAvailable: jumpLandingCandidates(battle, side, id).length > 0
+  }));
+  const tacticChoice = enemySide && grid.enemyTactics !== "standard"
+    ? chooseEnemyTactic({
+        tactic: grid.enemyTactics, side, board: grid, from: grid[side],
+        hp: actor.hp, stamina: actor.stamina, turn: actor.decision ?? 0,
+        previous: actor.previousAction, nextStart, opponents,
+        comrades: gridSides(battle).filter(id => teamOf(id) === "enemy" && battle[id].hp > 0)
+          .map(id => ({id,at:grid[id],hp:battle[id].hp,maxHp:battle[id].maxHp,actions:battle[id].actions}))
+      }, canChoose)
+    : null;
+  const choice = tacticChoice ?? (isHellor ? chooseHellorAction({
     board: grid, from: grid[side], previous: actor.previousAction,
     lockedTarget: actor.hellorTarget, turn: actor.decision ?? 0,
-    hp: actor.hp, stamina: actor.stamina,
-    nextStart: Math.max(battle.tick + 1, (lastAction(actor)?.end ?? battle.tick) + 1),
-    opponents: opposingSides(battle, side).map(id => ({
-      id, at: grid[id], hp: battle[id].hp, actions: battle[id].actions,
-      landingAvailable: jumpLandingCandidates(battle, side, id).length > 0
-    }))
+    hp: actor.hp, stamina: actor.stamina, nextStart, opponents
   }, canChoose) : chooseEnemyAction({
-    profile: teamOf(side) === "player" ? allyProfile : grid.enemyProfile,
+    profile: enemySide ? grid.enemyProfile : allyProfile,
     board: grid,
     from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
     hp: actor.hp, stamina: actor.stamina, incomingDamage: incomingDamageAtNextSlot(battle, side)
-  }, canChoose);
+  }, canChoose));
   const chosenTarget = choice.target ?? target;
   if (reserve(battle, side, choice.id, choice.destination, chosenTarget)) {
     actor.previousAction = choice.id;
@@ -395,6 +409,29 @@ function advanceGrid(battle, tick) {
     for (const target of targets) {
       const hit = assessHit(command, actions[target], tick, wins.get(side)?.has(target) ?? false);
       hits.push({ ...hit, tick, from: side, to: target });
+    }
+  }
+
+  // A guarding front defender may take one direct strike aimed at a nearby ally.
+  // Fire is an area attack and cannot be intercepted; the technique costs a guard turn.
+  if (battle.grid.enemyTactics === "protect") {
+    const defender = FOE_SIDES.find(id => battle[id]?.hp > 0);
+    const guardAction = actions[defender];
+    if (defender && guardAction?.commandId === "guard" && guardAction.status === "pending") {
+      const intercepted = hits.find(hit =>
+        teamOf(hit.from) === "player" && teamOf(hit.to) === "enemy"
+        && hit.to !== defender && hit.attack !== COMMANDS.fire
+        && adjacent8(battle.grid[defender], battle.grid[hit.to]));
+      if (intercepted) {
+        const originalTarget = intercepted.to;
+        const guarded = assessHit(intercepted.attack, guardAction, tick, false);
+        intercepted.to = defender;
+        intercepted.coveredTo = originalTarget;
+        intercepted.damage = guarded.damage;
+        intercepted.guardFactor = guarded.guardFactor;
+        intercepted.clashWin = false;
+        reportGrid(battle, `${fighterName(battle, defender)}が${fighterName(battle, originalTarget)}を庇った！`);
+      }
     }
   }
 
