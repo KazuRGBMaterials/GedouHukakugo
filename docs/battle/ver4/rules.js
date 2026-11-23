@@ -6,7 +6,7 @@ import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=5";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
-  heavy: { name: "強打", tc: 3, impact: 3, sc: 3, level: 1, color: "blue", damage: 20 },
+  heavy: { name: "強打", tc: 3, impact: 3, sc: 3, level: 2, color: "blue", damage: 24 },
   fire: { name: "火炎", tc: 5, impact: 3, sc: 4, level: 3, color: "red", damage: 26 },
   guard: { name: "防御", tc: 1, impact: 1, sc: 1, level: 0 },
   dodge: { name: "回避", tc: 2, impact: 2, sc: 3, level: 1 },

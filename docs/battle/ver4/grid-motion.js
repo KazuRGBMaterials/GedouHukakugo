@@ -1,5 +1,5 @@
 import { GRID_COLUMNS, GRID_ROWS, targetFor, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=7";
-import { nextAction } from "./rules.js?v=11";
+import { nextAction } from "./rules.js?v=12";
 
 const sides = [...PARTY_SIDES, ...FOE_SIDES];
 const thrust = { quick: 9, heavy: 14, jumpSlash: 12 };
