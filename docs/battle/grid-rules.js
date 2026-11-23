@@ -10,14 +10,17 @@ export const PARTY_SIDES = ["player", "ally", "ally2", "ally3"];
 export const FOE_SIDES = ["enemy", "enemy2", "enemy3", "enemy4"];
 export const MOVE = { name: "移動", tc: 1, impact: 1, sc: 0.5, level: 0 };
 const cardinal = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const diagonal = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+const nearOffsets = [...cardinal, ...diagonal];
 const fireOffsets = [
   ...cardinal, ...cardinal.map(([x, y]) => [2 * x, 2 * y]),
-  [-1, -1], [1, -1], [-1, 1], [1, 1]
+  ...diagonal
 ];
 
 export const cellName = ({ x, y }) => `${String.fromCharCode(65 + x)}${y + 1}`;
 const sameCell = (a, b) => a.x === b.x && a.y === b.y;
 export const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+export const adjacent8 = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) === 1;
 const inside = ({ x, y }, grid) => Number.isInteger(x) && Number.isInteger(y)
   && x >= 0 && x < (grid?.columns ?? GRID_COLUMNS)
   && y >= 0 && y < (grid?.rows ?? GRID_ROWS);
@@ -70,12 +73,24 @@ export function rangeStep(from, target, sign, legal, grid) {
   return cellsAround(from, cardinal, grid).find(cell => distance(cell, target) === gap + sign && legal(cell));
 }
 
-export function jumpLanding(battle, side, target, from = battle.grid[side]) {
+// A plunge can strike a target up to four orthogonal steps away, including diagonals.
+export function jumpLandingCandidates(battle, side, target, from = battle.grid[side]) {
   const to = battle.grid[target];
+  if (!from || !to || !battle[target]?.hp) return [];
   const gap = distance(from, to);
-  if (gap < 2 || gap > 3 || (from.x !== to.x && from.y !== to.y)) return null;
-  const landing = { x: to.x - Math.sign(to.x - from.x), y: to.y - Math.sign(to.y - from.y) };
-  return clearCell(battle, side, landing) ? landing : null;
+  if (gap < 1 || gap > 4) return [];
+  return cellsAround(to, nearOffsets, battle.grid)
+    .filter(cell => !sameCell(cell, from)
+      && Math.max(Math.abs(cell.x - from.x), Math.abs(cell.y - from.y)) <= 3
+      && clearCell(battle, side, cell))
+    .sort((a, b) => distance(a, from) - distance(b, from)
+      || a.y - b.y || a.x - b.x);
+}
+
+export function jumpLanding(battle, side, target, from = battle.grid[side], preferred = null, manual = false) {
+  const candidates = jumpLandingCandidates(battle, side, target, from);
+  const requested = preferred && candidates.find(cell => sameCell(cell, preferred));
+  return manual ? (requested ?? null) : (requested ?? candidates[0] ?? null);
 }
 
 export function plannedPosition(battle, side = "player") {
@@ -85,7 +100,7 @@ export function plannedPosition(battle, side = "player") {
     if (action.commandId === "move") position = action.destination;
     if (action.commandId === "jumpSlash") {
       const target = targetFor(battle, side, action.targetSide, position);
-      if (target) position = jumpLanding(battle, side, target, position) ?? position;
+      if (target) position = jumpLanding(battle, side, target, position, action.landing, action.manualLanding) ?? position;
     }
   }
   return position;
@@ -106,8 +121,10 @@ export function attackTargets(battle, side, action) {
   }
   const target = targetFor(battle, side, action.targetSide);
   if (!target) return [];
-  if (distance(from, battle.grid[target]) === 1) return [target];
-  return action.commandId === "jumpSlash" && jumpLanding(battle, side, target) ? [target] : [];
+  if (action.commandId === "jumpSlash") {
+    return jumpLanding(battle, side, target, from, action.landing, action.manualLanding) ? [target] : [];
+  }
+  return adjacent8(from, battle.grid[target]) ? [target] : [];
 }
 
 export function resolveMovement(battle, actions, landings, report) {
@@ -138,7 +155,7 @@ export function enemyThreats(battle) {
     const action = battle[side].actions.find(item => item.status === "pending" && item.start <= tick + 1 && item.impact > tick);
     if (action?.commandId === "fire") return [{ side, action, cells: fireCells(grid[side], grid) }];
     if (action?.commandId === "heavy" || action?.commandId === "quick") {
-      return [{ side, action, cells: cellsAround(grid[side], cardinal, grid) }];
+      return [{ side, action, cells: cellsAround(grid[side], nearOffsets, grid) }];
     }
     return [];
   });

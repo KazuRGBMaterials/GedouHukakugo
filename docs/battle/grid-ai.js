@@ -1,4 +1,4 @@
-import { distance, fireReaches, rangeStep } from "./grid-rules.js?v=6";
+import { distance, fireReaches, rangeStep, adjacent8 } from "./grid-rules.js?v=7";
 
 const defaults = { risk: "balanced", waste: "some", style: "power" };
 const risks = ["bold", "balanced", "cautious"];
@@ -42,7 +42,7 @@ export function chooseEnemyAction(view, canChoose) {
     if (canChoose("fire")) return { id: "fire" };
   }
 
-  if (gap > 1) return step(-1) ?? { id: "wait" };
+  if (!adjacent8(from, target)) return step(-1) ?? { id: "wait" };
 
   if (profile.style === "hitRun" && previous === "quick") {
     const backingOff = step(1);
