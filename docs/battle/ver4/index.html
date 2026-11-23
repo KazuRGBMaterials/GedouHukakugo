@@ -59,6 +59,7 @@
       <div class="grid-topline">
         <p id="grid-threat" class="grid-threat"></p>
         <label id="grid-size-label">対戦人数 <select id="grid-size"><option value="1:1">1対1</option><option value="1:2">1対2</option><option value="2:1">2対1</option><option value="2:2">2対2</option></select></label>
+        <label for="grid-enemy">敵 <select id="grid-enemy"><option value="default" selected>訓練用の見張り</option><option value="hellor">ヘルオル</option></select></label>
         <label for="grid-terrain">地形 <select id="grid-terrain"><option value="mixed" selected>草原＋廃墟</option><option value="grassland">草原</option><option value="ruins">廃墟</option></select></label>
         <div class="grid-size-controls" role="group" aria-label="盤面の縦横サイズ">
           <label for="grid-columns">横 <select id="grid-columns" aria-label="フィールドの横幅（列数）">
@@ -175,6 +176,6 @@
     </details>
   </main>
   <audio id="battle-bgm" src="./battle-loop.wav" preload="none" loop></audio>
-  <script type="module" src="./battle.js?v=16"></script>
+  <script type="module" src="./battle.js?v=17"></script>
 </body>
 </html>
