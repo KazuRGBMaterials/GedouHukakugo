@@ -305,6 +305,17 @@ function incomingDamageAtNextSlot(battle, side) {
 
 // One action of breathing room, only after the last player fighter becomes
 // killable by a legal attack. No repeat grants, no omniscient future input.
+function beginHellorMercy(battle) {
+  const mercy = battle.grid.hellorMercy;
+  if(mercy.used)return;
+  mercy.used=true;
+  mercy.active=true;
+  mercy.startedAt=battle.tick;
+  mercy.until=battle.tick+5;
+  mercy.actionId=null;
+  reportGrid(battle,"ヘルオルは最後の一人をいたぶるように、あえてとどめを控えた。");
+}
+
 function couldFinishLastPlayer(battle, side, playerSide) {
   const { grid } = battle;
   const hp = battle[playerSide].hp;
@@ -361,11 +372,7 @@ function planGridActor(battle, side) {
     const mercy = grid.hellorMercy;
     if(!mercy.used && opponents.length===1 &&
       couldFinishLastPlayer(battle,side,opponents[0].id)){
-      mercy.used=true;
-      mercy.active=true;
-      mercy.startedAt=battle.tick;
-      mercy.until=battle.tick+5; // Max one full five-slot command.
-      reportGrid(battle,"ヘルオルは最後の一人をいたぶるように、あえてとどめを控えた。");
+      beginHellorMercy(battle); // Max one full five-slot command.
     }
     if(mercy.active){
       if(reserve(battle,side,"wait")){
@@ -500,6 +507,23 @@ function advanceGrid(battle, tick) {
         intercepted.guardFactor = guarded.guardFactor;
         intercepted.clashWin = false;
         reportGrid(battle, `${fighterName(battle, defender)}が${fighterName(battle, originalTarget)}を庇った！`);
+      }
+    }
+  }
+
+  // If the player became the last survivor while another Hellor action was
+  // already booked, suppress its killing blow and grant the same one-time
+  // chance. This prevents a queued attack from bypassing the mercy rule.
+  if (battle.grid.enemyType==="hellor" && battle.grid.enemyTactics==="optimal"
+      && !battle.grid.hellorMercy.used) {
+    const lastFighters = PARTY_SIDES.filter(id => battle[id]?.hp > 0);
+    if(lastFighters.length===1){
+      const last=lastFighters[0];
+      const fatal=hits.filter(hit=>teamOf(hit.from)==="enemy" &&
+        hit.to===last && hit.damage>0);
+      if(fatal.reduce((sum,hit)=>sum+hit.damage,0)>=battle[last].hp){
+        beginHellorMercy(battle);
+        for(const hit of fatal)hit.damage=0;
       }
     }
   }
