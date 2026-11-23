@@ -1,4 +1,4 @@
-import { distance, fireReaches, rangeStep } from "./grid-rules.js?v=5";
+import { distance, fireReaches, rangeStep } from "./grid-rules.js?v=6";
 
 const defaults = { risk: "balanced", waste: "some", style: "power" };
 const risks = ["bold", "balanced", "cautious"];
@@ -14,7 +14,7 @@ export function makeEnemyProfile(selection = defaults) {
 }
 
 export function chooseEnemyAction(view, canChoose) {
-  const { profile, from, target, previous, turn, hp, stamina, incomingDamage } = view;
+  const { profile, from, target, previous, turn, hp, stamina, incomingDamage, board } = view;
   const gap = distance(from, target);
   const safer = profile.risk === "cautious";
   const defend = safer || (profile.risk === "balanced" && (hp <= 50 || incomingDamage >= 24));
@@ -29,12 +29,12 @@ export function chooseEnemyAction(view, canChoose) {
   }
 
   function step(sign) {
-    const destination = rangeStep(from, target, sign, cell => canChoose("move", cell));
+    const destination = rangeStep(from, target, sign, cell => canChoose("move", cell), board);
     if (destination) return { id: "move", destination };
     return null;
   }
 
-  if (profile.style === "mage" && fireReaches(from, target)) {
+  if (profile.style === "mage" && fireReaches(from, target, board)) {
     if (gap === 1 && profile.risk !== "bold") {
       const backingOff = step(1);
       if (backingOff) return backingOff;

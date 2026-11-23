@@ -1,5 +1,5 @@
-import { GRID_COLUMNS, GRID_ROWS, targetFor, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=5";
-import { nextAction } from "./rules.js?v=8";
+import { GRID_COLUMNS, GRID_ROWS, targetFor, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=6";
+import { nextAction } from "./rules.js?v=9";
 
 const sides = [...PARTY_SIDES, ...FOE_SIDES];
 const thrust = { quick: 9, heavy: 14, jumpSlash: 12 };
@@ -92,8 +92,8 @@ export function bindGridMotion(layer) {
       } else if (processed && !motionPreference?.matches) {
         if (moved) {
           const gap = Number.parseFloat(window.getComputedStyle?.(layer).gap) || 4;
-          const x = -travel.x * (layer.clientWidth + gap) / GRID_COLUMNS;
-          const y = -travel.y * (layer.clientHeight + gap) / GRID_ROWS;
+          const x = -travel.x * (layer.clientWidth + gap) / (battle.grid.columns ?? GRID_COLUMNS);
+          const y = -travel.y * (layer.clientHeight + gap) / (battle.grid.rows ?? GRID_ROWS);
           const trail = command?.commandId === "jumpSlash"
             ? [shift(x, y - 7), shift(x / 2, y / 2 - 13), shift(0, 0)] : [shift(x, y), shift(0, 0)];
           animate(node, trail, 240);

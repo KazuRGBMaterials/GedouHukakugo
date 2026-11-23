@@ -1,5 +1,11 @@
 export const GRID_COLUMNS = 5;
 export const GRID_ROWS = 5;
+export const GRID_MIN = 5;
+export const GRID_MAX = 15;
+export function normalizeGridSize(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(GRID_MIN, Math.min(GRID_MAX, Math.trunc(number))) : GRID_COLUMNS;
+}
 export const PARTY_SIDES = ["player", "ally", "ally2", "ally3"];
 export const FOE_SIDES = ["enemy", "enemy2", "enemy3", "enemy4"];
 export const MOVE = { name: "移動", tc: 1, impact: 1, sc: 0.5, level: 0 };
@@ -9,30 +15,34 @@ const fireOffsets = [
   [-1, -1], [1, -1], [-1, 1], [1, 1]
 ];
 
-export const cellName = ({ x, y }) => `${"ABCDE"[x]}${y + 1}`;
+export const cellName = ({ x, y }) => `${String.fromCharCode(65 + x)}${y + 1}`;
 const sameCell = (a, b) => a.x === b.x && a.y === b.y;
 export const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-const inside = ({ x, y }) => Number.isInteger(x) && Number.isInteger(y)
-  && x >= 0 && x < GRID_COLUMNS && y >= 0 && y < GRID_ROWS;
-const cellsAround = ({ x, y }, offsets) => offsets.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter(inside);
+const inside = ({ x, y }, grid) => Number.isInteger(x) && Number.isInteger(y)
+  && x >= 0 && x < (grid?.columns ?? GRID_COLUMNS)
+  && y >= 0 && y < (grid?.rows ?? GRID_ROWS);
+const cellsAround = ({ x, y }, offsets, grid) =>
+  offsets.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter(cell => inside(cell, grid));
 
 export const teamOf = side => PARTY_SIDES.includes(side) ? "player" : "enemy";
 export const gridSides = battle => [...PARTY_SIDES, ...FOE_SIDES].filter(side => Boolean(battle[side]));
 export const opposingSides = (battle, side) => gridSides(battle).filter(id => teamOf(id) !== teamOf(side) && battle[id].hp > 0);
 
-export function createGrid(players, enemies) {
-  const grid = { notice: "", roundHits: [] };
-  if (players <= 2 && enemies <= 2) {
-    // Preserve the VER2 starting positions for all original matchups.
+export function createGrid(players, enemies, columns = GRID_COLUMNS, rows = GRID_ROWS) {
+  const width = normalizeGridSize(columns);
+  const height = normalizeGridSize(rows);
+  const grid = { columns: width, rows: height, notice: "", roundHits: [] };
+  if (width === GRID_COLUMNS && height === GRID_ROWS && players <= 2 && enemies <= 2) {
+    // Preserve VER2's original 5x5 deployment exactly.
     grid.player = { x: 1, y: 2 };
     grid.enemy = { x: 2, y: 2 };
     if (players === 2) grid.ally = { x: 1, y: 3 };
     if (enemies === 2) grid.enemy2 = { x: 2, y: 3 };
     return grid;
   }
-  // Give larger teams separate columns so eight actors can all occupy distinct cells.
-  for (const [sides, count, x] of [[PARTY_SIDES, players, 1], [FOE_SIDES, enemies, 3]]) {
-    const firstRow = Math.floor((GRID_ROWS - count) / 2);
+  // Other layouts start in separate columns, spaced appropriately for the field width.
+  for (const [sides, count, x] of [[PARTY_SIDES, players, 1], [FOE_SIDES, enemies, width - 2]]) {
+    const firstRow = Math.floor((height - count) / 2);
     for (let index = 0; index < count; index++) {
       grid[sides[index]] = { x, y: firstRow + index };
     }
@@ -52,12 +62,12 @@ function clearCell(battle, side, to) {
 }
 
 export function canStep(battle, side, from, to) {
-  return to && inside(to) && distance(from, to) === 1 && clearCell(battle, side, to);
+  return to && inside(to, battle.grid) && distance(from, to) === 1 && clearCell(battle, side, to);
 }
 
-export function rangeStep(from, target, sign, legal) {
+export function rangeStep(from, target, sign, legal, grid) {
   const gap = distance(from, target);
-  return cellsAround(from, cardinal).find(cell => distance(cell, target) === gap + sign && legal(cell));
+  return cellsAround(from, cardinal, grid).find(cell => distance(cell, target) === gap + sign && legal(cell));
 }
 
 export function jumpLanding(battle, side, target, from = battle.grid[side]) {
@@ -81,18 +91,18 @@ export function plannedPosition(battle, side = "player") {
   return position;
 }
 
-export function fireCells(from) {
-  return cellsAround(from, fireOffsets);
+export function fireCells(from, grid) {
+  return cellsAround(from, fireOffsets, grid);
 }
 
-export function fireReaches(from, to) {
-  return fireCells(from).some(cell => sameCell(cell, to));
+export function fireReaches(from, to, grid) {
+  return fireCells(from, grid).some(cell => sameCell(cell, to));
 }
 
 export function attackTargets(battle, side, action) {
   const from = battle.grid[side];
   if (action.commandId === "fire") {
-    return opposingSides(battle, side).filter(id => fireReaches(from, battle.grid[id]));
+    return opposingSides(battle, side).filter(id => fireReaches(from, battle.grid[id], battle.grid));
   }
   const target = targetFor(battle, side, action.targetSide);
   if (!target) return [];
@@ -126,9 +136,9 @@ export function enemyThreats(battle) {
   const { grid, tick } = battle;
   return opposingSides(battle, "player").flatMap(side => {
     const action = battle[side].actions.find(item => item.status === "pending" && item.start <= tick + 1 && item.impact > tick);
-    if (action?.commandId === "fire") return [{ side, action, cells: fireCells(grid[side]) }];
+    if (action?.commandId === "fire") return [{ side, action, cells: fireCells(grid[side], grid) }];
     if (action?.commandId === "heavy" || action?.commandId === "quick") {
-      return [{ side, action, cells: cellsAround(grid[side], cardinal) }];
+      return [{ side, action, cells: cellsAround(grid[side], cardinal, grid) }];
     }
     return [];
   });

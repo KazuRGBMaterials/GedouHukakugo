@@ -1,8 +1,8 @@
 import {
   MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition, PARTY_SIDES, FOE_SIDES,
   canStep, attackTargets, jumpLanding, resolveMovement
-} from "./grid-rules.js?v=5";
-import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=3";
+} from "./grid-rules.js?v=6";
+import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=4";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -34,7 +34,7 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
   if (withGrid) {
     const players = Math.min(4, Math.max(1, Math.trunc(Number(gridOptions.players) || 1)));
     const enemies = Math.min(4, Math.max(1, Math.trunc(Number(gridOptions.enemies) || 1)));
-    battle.grid = createGrid(players, enemies);
+    battle.grid = createGrid(players, enemies, gridOptions.columns, gridOptions.rows);
     battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
     battle.grid.enemyName = gridOptions.enemyName;
     for (const side of PARTY_SIDES.slice(1, players)) battle[side] = participant(100);
@@ -261,6 +261,7 @@ function planGridActor(battle, side) {
   const canChoose = (id, destination) => canReserve(battle, side, id, destination);
   const choice = chooseEnemyAction({
     profile: teamOf(side) === "player" ? allyProfile : grid.enemyProfile,
+    board: grid,
     from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
     hp: actor.hp, stamina: actor.stamina, incomingDamage: incomingDamageAtNextSlot(battle, side)
   }, canChoose);
