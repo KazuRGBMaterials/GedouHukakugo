@@ -77,7 +77,7 @@ export function chooseEnemyTactic(view,canChoose) {
   if (tactic==="isolate") {
     const target=choose(targets,o=>(100-o.hp)*.9-distance(from,o.at)*10+
       (adjacent8(from,o.at)?18:0) + (exposed(o,nextStart)?13:0));
-    return pressure(view,target,canChoose,{preferQuick:exposed(target,nextStart)});
+    return pressure(view,target,canChoose,{preferQuick:exposed(target,nextStart),allowFire:false});
   }
 
   // Entire team converges on one victim; prefer matching the allies' impact slot.
@@ -114,7 +114,7 @@ export function chooseEnemyTactic(view,canChoose) {
       const retreat=reachMove(from,target.at,canChoose,board,true);
       if(retreat)return {...retreat,target:target.id};
     }
-    return pressure(view,target,canChoose,{preferQuick:true,flank:true});
+    return pressure(view,target,canChoose,{preferQuick:true,flank:true,allowFire:false});
   }
 
   // Leader draws attention; accomplices punish players committed to attacking him.
