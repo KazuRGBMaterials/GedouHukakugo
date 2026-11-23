@@ -1,0 +1,108 @@
+/* Scenery only: the board is still the original 5x5 button grid. */
+.grid-board {
+  background: #1b2924;
+  box-shadow: 0 0 0 2px #587c73;
+}
+.grid-board .grid-cell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid #29423c;
+  border-radius: 1px;
+  background-color: #416d3b;
+  color: #f5fff6;
+  padding: 0;
+  text-shadow: none;
+  touch-action: manipulation;
+}
+.grid-board .grid-cell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+  background-repeat: repeat;
+  background-size: 80px 80px;
+  background-position: var(--tile-x, 0px) var(--tile-y, 0px);
+}
+.grid-board .grid-cell.terrain-grass::before {
+  background-color: #416d3b;
+  background-image: url("./assets/tile-grass.svg");
+}
+.grid-board .grid-cell.terrain-ruins::before {
+  background-color: #696b60;
+  background-image: url("./assets/tile-ruins.svg");
+}
+.grid-board .grid-cell.terrain-rubble::before {
+  background-color: #655f4e;
+  background-image: url("./assets/tile-rubble.svg");
+}
+.grid-board .grid-cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+  pointer-events: none;
+}
+.grid-board .grid-cell.grid-danger::after {
+  background: rgba(160, 30, 25, .46);
+  box-shadow: inset 0 0 0 2px #ffad7a;
+}
+.grid-board .grid-cell.grid-booked::after {
+  background: rgba(20, 112, 130, .22);
+}
+.grid-board .grid-cell.grid-controlled::after {
+  box-shadow: inset 0 0 0 2px #abfff0;
+}
+.grid-board .grid-cell.grid-aimed::after {
+  box-shadow: inset 0 0 0 2px #ffe28c;
+}
+.grid-board .grid-cell.grid-danger.grid-aimed::after {
+  background: rgba(160, 30, 25, .46);
+  box-shadow: inset 0 0 0 2px #ffe28c;
+}
+.grid-board .grid-cell .grid-cell-coord,
+.grid-board .grid-cell .grid-cell-main {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+  color: #fffef1;
+  text-shadow: 1px 1px 0 #15211d, -1px -1px 0 #15211d;
+}
+.grid-board .grid-cell .grid-cell-coord {
+  top: 1px;
+  left: 1px;
+  min-width: 18px;
+  padding: 1px 2px;
+  border-radius: 1px;
+  background: rgba(9, 24, 20, .79);
+  font: 700 10px/1.1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: 0;
+  text-align: left;
+}
+.grid-board .grid-cell .grid-cell-main {
+  bottom: 1px;
+  left: 0;
+  right: 0;
+  min-height: 11px;
+  padding: 1px 0;
+  font-weight: 800;
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+  background: rgba(13, 29, 25, .47);
+}
+.grid-board .grid-cell .grid-cell-main:empty { display: none; }
+.grid-board .grid-cell.grid-player .grid-cell-main { color: #d4ffff; }
+.grid-board .grid-cell.grid-enemy .grid-cell-main { color: #ffe5bd; }
+.grid-board .grid-cell:focus-visible { outline: 3px solid #fff2a2; outline-offset: -3px; }
+.grid-topline #grid-terrain { max-width: 118px; }
+
+@media (max-width: 600px), (max-height: 530px) and (pointer: coarse) {
+  .grid-board .grid-cell .grid-cell-coord { font-size: 8px; min-width: 15px; padding: 0 1px; }
+  .grid-board .grid-cell .grid-cell-main { font-size: 9px; padding: 0; }
+  .grid-board .grid-cell::before { background-size: 64px 64px; }
+}

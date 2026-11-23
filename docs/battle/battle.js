@@ -5,7 +5,7 @@ import {
 } from "./rules.js?v=8";
 import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=5";
-import { bindBattleGrid } from "./grid-ui.js?v=6";
+import { bindBattleGrid } from "./grid-ui.js?v=7";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
@@ -94,6 +94,7 @@ if (gridMode) {
     },
     onSelect: selectFighter
   });
+  el("grid-terrain").addEventListener("change", () => render());
   for (const side of PARTY_SIDES) {
     el(`${side}-select`).addEventListener("click", () => selectFighter(side));
     el(`${side}-mode`).addEventListener("click", () => {
