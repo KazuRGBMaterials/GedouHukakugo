@@ -21,6 +21,10 @@ export function chooseHellorAction(view, canChoose) {
   const threatNow = standing.some(o => aimed(o, nextStart, from, board));
   const threatNext = standing.some(o => aimed(o, nextStart + 1, from, board));
   // Prevent a visibly telegraphed hit, but never evade attacks not yet reserved.
+  // Sometimes trade a quick blow rather than endlessly turtling against repeated jabs.
+  if (threatNow && turn % 3 !== 0 && canChoose("quick") &&
+      standing.some(o => adjacent8(from, o.at)))
+    return { id: "quick", target: standing.find(o => adjacent8(from, o.at)).id };
   if (threatNow && canChoose("guard")) return { id: "guard" };
   if (threatNext && canChoose("dodge")) return { id: "dodge" };
 
@@ -47,6 +51,11 @@ export function chooseHellorAction(view, canChoose) {
   }
   if (adjacent8(from, target.at)) {
     // Strike a player committed to a slow action before their impact comes out.
+    // A moving target can slip beyond melee, but is often still inside the fire zone.
+    if (target.actions?.some(a => a.status === "pending" && a.commandId === "move"
+        && a.impact >= nextStart && a.impact <= nextStart + 2)
+        && fireReaches(from, target.at, board) && canChoose("fire"))
+      return { id: "fire", target: target.id };
     const windup = pending(target, nextStart);
     if (windup?.commandId === "jump" && canChoose("quick"))
       return { id: "quick", target: target.id };
