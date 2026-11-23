@@ -5,7 +5,7 @@ import {
 } from "./rules.js?v=12";
 import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
-import { bindBattleGrid } from "./grid-ui.js?v=11";
+import { bindBattleGrid } from "./grid-ui.js?v=12";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "./assets/game-taps.js?v=1";
 
@@ -20,6 +20,18 @@ const planningSeconds = 8;
 const urlParams = new URLSearchParams(window.location.search);
 const gridMode = true; // VER4 always launches the grid battle.
 const enemyName = urlParams.get("encounter")?.trim().slice(0, 40);
+const enemyChoiceField = gridMode ? el("grid-enemy") : null;
+if (enemyChoiceField && enemyName) {
+  if (enemyName === "ヘルオル") {
+    enemyChoiceField.value = "hellor";
+  } else {
+    const option = document.createElement("option");
+    option.value = "encounter";
+    option.textContent = enemyName;
+    enemyChoiceField.append(option);
+    enemyChoiceField.value = "encounter";
+  }
+}
 const sizeField = gridMode ? el("grid-size") : null;
 const columnsField = gridMode ? el("grid-columns") : null;
 const rowsField = gridMode ? el("grid-rows") : null;
@@ -117,7 +129,7 @@ if (gridMode) {
       render();
     });
   }
-  for (const field of [sizeField, columnsField, rowsField, ...Object.values(profileFields)]) field.addEventListener("change", () => {
+  for (const field of [sizeField, enemyChoiceField, columnsField, rowsField, ...Object.values(profileFields)]) field.addEventListener("change", () => {
     if (!canChooseProfile()) return;
     battle = newBattle();
     controlled = "player";
@@ -135,7 +147,8 @@ function newBattle() {
   columnsField.value = columns;
   rowsField.value = rows;
   return createBattle(true, { risk: risk.value, waste: waste.value, style: style.value },
-    { players, enemies, enemyName, automatic, columns, rows });
+    { players, enemies, enemyName: enemyChoiceField.value === "hellor" ? "ヘルオル"
+      : enemyChoiceField.value === "encounter" ? enemyName : undefined, automatic, columns, rows });
 }
 
 function canChooseProfile() {
@@ -434,11 +447,12 @@ function render(processed) {
     const editable = canChooseProfile();
     el("grid-personality").disabled = !editable;
     sizeField.disabled = !editable;
+    enemyChoiceField.disabled = !editable;
     columnsField.disabled = !editable;
     rowsField.disabled = !editable;
     el("grid-profile-hint").textContent = editable
-      ? "人数・マス目・敵の性格は最初の予約前に変更できます。"
-      : "人数・マス目・敵の性格を変えるには「最初から」を押してください。";
+      ? "人数・マス目・敵の種類・性格は最初の予約前に変更できます。"
+      : "人数・マス目・敵の種類・性格を変えるには「最初から」を押してください。";
   }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
   const manual = isManual(battle, controlled);
