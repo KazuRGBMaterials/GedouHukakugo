@@ -3,6 +3,7 @@ import {
   canStep, attackTargets, jumpLanding, jumpLandingCandidates, resolveMovement
 } from "./grid-rules.js?v=7";
 import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=5";
+import { chooseHellorAction } from "./hellor-ai.js?v=1";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -37,6 +38,7 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     battle.grid = createGrid(players, enemies, gridOptions.columns, gridOptions.rows);
     battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
     battle.grid.enemyName = gridOptions.enemyName;
+    battle.grid.enemyType = gridOptions.enemyType === "hellor" ? "hellor" : "default";
     for (const side of PARTY_SIDES.slice(1, players)) battle[side] = participant(100);
     for (const side of FOE_SIDES.slice(1, enemies)) battle[side] = participant(100);
     battle.player.automatic = gridOptions.automatic?.player === true;
@@ -297,14 +299,26 @@ function planGridActor(battle, side) {
   const target = targetFor(battle, side);
   if (!target) return;
   const canChoose = (id, destination) => canReserve(battle, side, id, destination);
-  const choice = chooseEnemyAction({
+  const isHellor = teamOf(side) === "enemy" && grid.enemyType === "hellor";
+  const choice = isHellor ? chooseHellorAction({
+    board: grid, from: grid[side], previous: actor.previousAction,
+    lockedTarget: actor.hellorTarget, turn: actor.decision ?? 0,
+    hp: actor.hp, stamina: actor.stamina,
+    nextStart: Math.max(battle.tick + 1, (lastAction(actor)?.end ?? battle.tick) + 1),
+    opponents: opposingSides(battle, side).map(id => ({
+      id, at: grid[id], hp: battle[id].hp, actions: battle[id].actions,
+      landingAvailable: jumpLandingCandidates(battle, side, id).length > 0
+    }))
+  }, canChoose) : chooseEnemyAction({
     profile: teamOf(side) === "player" ? allyProfile : grid.enemyProfile,
     board: grid,
     from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
     hp: actor.hp, stamina: actor.stamina, incomingDamage: incomingDamageAtNextSlot(battle, side)
   }, canChoose);
-  if (reserve(battle, side, choice.id, choice.destination, target)) {
+  const chosenTarget = choice.target ?? target;
+  if (reserve(battle, side, choice.id, choice.destination, chosenTarget)) {
     actor.previousAction = choice.id;
+    if (isHellor && choice.id === "jump") actor.hellorTarget = chosenTarget;
     actor.decision = (actor.decision ?? 0) + 1;
   }
 }
