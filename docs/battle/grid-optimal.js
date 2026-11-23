@@ -226,6 +226,14 @@ function nextPotential(first,view) {
 export function chooseOptimalEnemyAction(view,canChoose){
   const {commands,opponents}=view;
   if(!commands||!opponents.some(o=>o.hp>0))return null;
+  // Against a confirmed immediate jab, a one-slot guard is better than
+  // committing to a slow wind-up before the hit has resolved.
+  // Limit this duel counter to 1v1; in a group, AoE/crossfire may be superior.
+  const urgent=opponents.some(o=>(o.actions||[]).some(a=>a.status==="pending"
+    && a.commandId==="quick" && a.impact===view.nextStart
+    && (!a.targetSide || a.targetSide===view.side)
+    && adjacent8(view.from,o.at)));
+  if(view.comrades.length===1 && urgent && canChoose("guard"))return {id:"guard"};
   const candidates=candidateActions(view,canChoose);
   if(!candidates.length)return null;
   let winner=candidates[0],best=-Infinity;

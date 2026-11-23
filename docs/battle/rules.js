@@ -273,7 +273,12 @@ const allyProfile = makeEnemyProfile({ risk: "balanced", waste: "rarely", style:
 function planEnemy(battle) {
   if (battle.grid) {
     for (const side of gridSides(battle)) {
-      if (teamOf(side) === "enemy" || (battle.phase === "running" && battle[side].automatic)) planGridActor(battle, side);
+      // Optimizer waits until combat starts, after the player's initial queue is
+      // visible. Other tactics keep their historical pre-booked first action.
+      if ((teamOf(side) === "enemy" && (battle.phase === "running"
+           || battle.grid.enemyTactics !== "optimal"))
+           || (battle.phase === "running" && battle[side].automatic))
+        planGridActor(battle, side);
     }
     return;
   }
