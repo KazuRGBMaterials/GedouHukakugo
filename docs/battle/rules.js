@@ -1,8 +1,8 @@
 import {
   MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition, PARTY_SIDES, FOE_SIDES,
-  canStep, attackTargets, jumpLanding, resolveMovement
-} from "./grid-rules.js?v=6";
-import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=4";
+  canStep, attackTargets, jumpLanding, jumpLandingCandidates, resolveMovement
+} from "./grid-rules.js?v=7";
+import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=5";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -100,8 +100,46 @@ export function reserve(battle, side, commandId, destination, targetSide) {
     requiresId: command.requires ? previous.id : null, status: "pending", shifted: false
   };
   if (commandId === "move" && destination) action.destination = { x: destination.x, y: destination.y };
-  if (battle.grid && command.damage && commandId !== "fire" && targetSide) action.targetSide = targetSide;
+  if (battle.grid && command.damage && commandId !== "fire") {
+    action.targetSide = targetFor(battle, side, targetSide, plannedPosition(battle, side));
+    if (commandId === "jumpSlash" && action.targetSide) {
+      action.landing = jumpLanding(battle, side, action.targetSide, plannedPosition(battle, side));
+      action.manualLanding = false;
+    }
+  }
   actor.actions.push(action);
+  return true;
+}
+
+// Only the next impact (or the first planned attack before launch) can be retargeted.
+// The rest of the command queue remains intact.
+export function editableAttack(battle, side) {
+  if (!battle.grid || !isManual(battle, side) || battle.phase === "finished") return null;
+  const candidates = battle[side].actions.filter(action => action.status === "pending"
+    && (action.commandId === "quick" || action.commandId === "heavy" || action.commandId === "jumpSlash"));
+  return battle.phase === "planning" ? (candidates[0] ?? null)
+    : (candidates.find(action => action.impact === battle.tick + 1) ?? null);
+}
+
+export function setQueuedTarget(battle, side, target) {
+  const action = editableAttack(battle, side);
+  if (!action || !opposingSides(battle, side).includes(target)) return false;
+  action.targetSide = target;
+  if (action.commandId === "jumpSlash") {
+    action.manualLanding = false;
+    action.landing = jumpLanding(battle, side, target);
+  }
+  return true;
+}
+
+export function setQueuedLanding(battle, side, destination) {
+  const action = editableAttack(battle, side);
+  if (action?.commandId !== "jumpSlash" || !destination) return false;
+  const target = targetFor(battle, side, action.targetSide);
+  if (!target || !jumpLandingCandidates(battle, side, target)
+    .some(cell => cell.x === destination.x && cell.y === destination.y)) return false;
+  action.landing = { x: destination.x, y: destination.y };
+  action.manualLanding = true;
   return true;
 }
 
@@ -334,8 +372,11 @@ function advanceGrid(battle, tick) {
     if (stopped.has(side)) continue;
     actions[side].performedTarget = targets[0];
     if (actions[side].commandId === "jumpSlash") {
-      const cell = jumpLanding(battle, side, targets[0]);
-      if (cell) landings.set(side, cell);
+      const cell = jumpLanding(battle, side, targets[0], battle.grid[side], actions[side].landing, actions[side].manualLanding);
+      if (cell) {
+        landings.set(side, cell);
+        actions[side].performedLanding = cell;
+      }
     }
     for (const target of targets) {
       const hit = assessHit(command, actions[target], tick, wins.get(side)?.has(target) ?? false);
