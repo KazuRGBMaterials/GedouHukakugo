@@ -55,14 +55,14 @@ export function jumpLanding(battle, side, target, from = battle.grid[side]) {
   return clearCell(battle, side, landing) ? landing : null;
 }
 
-export function plannedPosition(battle) {
-  let position = battle.grid.player;
-  for (const action of battle.player.actions) {
+export function plannedPosition(battle, side = "player") {
+  let position = battle.grid[side];
+  for (const action of battle[side].actions) {
     if (action.status !== "pending" || action.impact <= battle.tick) continue;
     if (action.commandId === "move") position = action.destination;
     if (action.commandId === "jumpSlash") {
-      const target = targetFor(battle, "player", action.targetSide, position);
-      if (target) position = jumpLanding(battle, "player", target, position) ?? position;
+      const target = targetFor(battle, side, action.targetSide, position);
+      if (target) position = jumpLanding(battle, side, target, position) ?? position;
     }
   }
   return position;

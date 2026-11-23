@@ -1,4 +1,4 @@
-import { distance, fireReaches, rangeStep } from "./grid-rules.js?v=3";
+import { distance, fireReaches, rangeStep } from "./grid-rules.js?v=4";
 
 const defaults = { risk: "balanced", waste: "some", style: "power" };
 const risks = ["bold", "balanced", "cautious"];

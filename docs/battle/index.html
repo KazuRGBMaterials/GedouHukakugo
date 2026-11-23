@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101924">
   <title>外道不覚悟 | ベルトライン戦闘 試作</title>
-  <link rel="stylesheet" href="./style.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
 </head>
 <body>
   <main id="battle-main">
@@ -18,10 +18,14 @@
       <button id="battle-fullscreen" type="button" aria-pressed="false">全画面</button>
     </header>
     <section class="arena" aria-label="戦闘状態">
-      <div class="fighter">
+      <div id="player-state" class="fighter">
         <div id="player-pose" class="pose" aria-hidden="true"><div class="sprite"></div></div>
         <div>
-          <b>MAGE</b>
+          <b class="non-grid-name">MAGE</b>
+          <div id="player-control" class="party-control" hidden>
+            <button id="player-select" class="party-select" type="button" aria-pressed="false">MAGE</button>
+            <button id="player-mode" class="party-mode" type="button" aria-pressed="false">手動</button>
+          </div>
           <div id="player-resources" class="resources"></div>
           <div id="player-cue" class="cue"></div>
         </div>
@@ -35,7 +39,13 @@
         </div>
       </div>
       <div id="ally-state" class="fighter auxiliary" hidden>
-        <div><b>味方（自動）</b><div id="ally-resources" class="resources"></div><div id="ally-cue" class="cue"></div></div>
+        <div>
+          <div class="party-control">
+            <button id="ally-select" class="party-select" type="button" aria-pressed="false">味方</button>
+            <button id="ally-mode" class="party-mode" type="button" aria-pressed="true">AUTO</button>
+          </div>
+          <div id="ally-resources" class="resources"></div><div id="ally-cue" class="cue"></div>
+        </div>
       </div>
       <div id="enemy2-state" class="fighter enemy auxiliary" hidden>
         <div><b id="battle-enemy2-name"></b><div id="enemy2-resources" class="resources"></div><div id="enemy2-cue" class="cue"></div></div>
@@ -96,7 +106,7 @@
         <div id="enemy-impact" class="impact-result"></div>
       </div>
       <div>
-        <b class="feedback-label">次のスタミナ回復</b>
+        <b id="stamina-label" class="feedback-label">次のスタミナ回復</b>
         <p id="stamina-cue" class="stamina-cue"></p>
       </div>
     </section>
@@ -106,7 +116,7 @@
       <div id="enemy-belt" class="track"></div>
       <div id="enemy2-belt-label" class="belt-name" hidden>敵2</div>
       <div id="enemy2-belt" class="track" hidden></div>
-      <div class="belt-name">MAGE</div>
+      <div id="player-belt-label" class="belt-name">MAGE</div>
       <div id="player-belt" class="track"></div>
       <div id="ally-belt-label" class="belt-name" hidden>味方</div>
       <div id="ally-belt" class="track" hidden></div>
@@ -122,13 +132,14 @@
       <summary>ログ・操作ガイド</summary>
       <div class="note-content">
         <p class="hint">★は発動枠。黄は青に、青は赤に、赤は黄に有利。待機1枠でスタミナを1回復できます。</p>
-        <p class="hint" id="grid-instructions" hidden>青枠をタップすると、1枠・スタミナ0.5で移動を予約します。赤いマスは敵の攻撃範囲です。火炎は術者を中心に縦横各2マスと斜め4マスに届き、範囲内の敵側全員に当たります。敵が2人いるときは、敵をタップして近接攻撃の相手を選べます。味方は自動で動きます。</p>
+        <p class="hint" id="grid-instructions" hidden>味方の名前や盤面の味方をタップして操作キャラを選び、横のボタンで各キャラの手動／AUTOを切り替えます。戦闘中の切り替えでは実行中・予約済みの行動が先に出ます。</p>
+        <p class="hint">マス目版では青枠をタップすると、1枠・スタミナ0.5で移動を予約します。赤いマスは敵の攻撃範囲です。火炎は術者を中心に縦横各2マスと斜め4マスに届きます。敵が2人いるときは敵をタップして近接攻撃の相手を選べます。</p>
         <p class="hint battle-links"><a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="./ver1/">ベルトコンベアVER1（保存版）</a></p>
         <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
       </div>
     </details>
   </main>
   <audio id="battle-bgm" src="./battle-loop.wav" preload="none" loop></audio>
-  <script type="module" src="./battle.js?v=9"></script>
+  <script type="module" src="./battle.js?v=10"></script>
 </body>
 </html>

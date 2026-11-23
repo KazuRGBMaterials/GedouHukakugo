@@ -122,7 +122,12 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .grid-mode .pose { display: none; }
 .grid-mode .arena { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid-mode .fighter b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grid-mode .fighter .non-grid-name { display: none; }
 .grid-mode .fighter > div:last-child { min-width: 0; }
+.party-control { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+.party-control button { min-height: 30px; padding: 3px 7px; font-size: .76rem; line-height: 1.1; }
+.party-control .party-select[aria-pressed="true"] { background: #24534f; border-color: #8fdfcd; color: #e6fffa; }
+.party-control .party-mode[aria-pressed="true"] { color: #ffe0a0; border-color: #aa9259; }
 .grid-panel {
   margin: 0 0 9px;
   padding: 10px;
@@ -203,6 +208,7 @@ h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); margin: 0; }
 .grid-cell:focus-visible { outline: 3px solid #fff3b9; outline-offset: -3px; }
 .grid-cell.grid-targetable { outline-color: #f5b56f; }
 .grid-cell.grid-aimed { outline-color: #ffdc7b; outline-width: 3px; }
+.grid-cell.grid-controlled { outline: 2px solid #8fdfcd; outline-offset: -3px; }
 .grid-cell.grid-booked { border: 2px dashed #85d8ee; color: #e1f8ff; }
 .grid-info { font-size: .82rem; line-height: 1.45; color: #c8d7e4; }
 .grid-info p { margin: 0 0 5px; }
@@ -257,6 +263,8 @@ button.primary { background: #386055; border-color: #9bd0b9; }
 .grid-mode .timeline > #time-axis { grid-column: 2; }
 .grid-mode .track { min-width: 0; }
 .grid-mode .belt-name { align-self: center; }
+.grid-mode .party-belt-label { color: #a8ead3; font-weight: 750; }
+.grid-mode .party-belt { box-shadow: inset 0 -1px #579d8f; }
 
 @media (max-width: 520px) {
   .arena { padding: 8px 10px; }
@@ -277,6 +285,7 @@ button.primary { background: #386055; border-color: #9bd0b9; }
   .arena { margin-top: 4px; min-height: 0; padding: 5px 8px; gap: 4px 8px; }
   .arena .pose { display: none; }
   .fighter { font-size: .74rem; }
+  .party-control button { min-height: 25px; padding: 2px 5px; font-size: .65rem; }
   .resources, .cue { font-size: .66rem; line-height: 1.15; }
   .cue { margin-top: 2px; }
   .battle-status { margin: 4px 0; font-size: .74rem; }

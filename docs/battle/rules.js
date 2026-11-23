@@ -1,8 +1,8 @@
 import {
   MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition,
   canStep, attackTargets, jumpLanding, resolveMovement
-} from "./grid-rules.js?v=3";
-import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=2";
+} from "./grid-rules.js?v=4";
+import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=3";
 
 export const COMMANDS = Object.freeze({
   quick: { name: "通常攻撃", tc: 2, impact: 1, sc: 2, level: 1, color: "yellow", damage: 12 },
@@ -39,6 +39,8 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     battle.grid.enemyName = gridOptions.enemyName;
     if (players === 2) battle.ally = participant(100);
     if (enemies === 2) battle.enemy2 = participant(100);
+    battle.player.automatic = gridOptions.automatic?.player === true;
+    if (battle.ally) battle.ally.automatic = gridOptions.automatic?.ally !== false;
   }
   planEnemy(battle);
   return battle;
@@ -48,12 +50,23 @@ function lastAction(actor) {
   return actor.actions.at(-1);
 }
 
+export function isManual(battle, side) {
+  return teamOf(side) === "player" && !!battle[side]?.hp && !battle[side].automatic;
+}
+
+export function setAutomatic(battle, side, automatic) {
+  if (!battle.grid || teamOf(side) !== "player" || !battle[side]?.hp || battle.phase === "finished") return false;
+  battle[side].automatic = automatic;
+  if (automatic && battle.phase === "running") planGridActor(battle, side);
+  return true;
+}
+
 export function canReserve(battle, side, commandId, destination) {
   const actor = battle[side];
   if (!actor?.hp || battle.phase === "finished") return false;
   if (commandId === "move") {
     if (!battle.grid) return false;
-    const from = side === "player" ? plannedPosition(battle) : battle.grid[side];
+    const from = teamOf(side) === "player" ? plannedPosition(battle, side) : battle.grid[side];
     if (!canStep(battle, side, from, destination)) return false;
   } else if (!Object.hasOwn(COMMANDS, commandId)) {
     return false;
@@ -90,21 +103,22 @@ export function reserve(battle, side, commandId, destination, targetSide) {
   return true;
 }
 
-function shiftableFire(battle) {
-  return battle.player.actions.find(action => (
-    action.commandId === "fire" && action.impact > battle.tick && action.status === "pending" && !action.shifted
+function shiftableFire(actor, tick) {
+  return actor.actions.find(action => (
+    action.commandId === "fire" && action.impact > tick && action.status === "pending" && !action.shifted
   ));
 }
 
-export function canShiftImpact(battle) {
-  return battle.phase !== "finished" && battle.player.stamina >= SHIFT_STAMINA && !!shiftableFire(battle)
-    && lastAction(battle.player).end < battle.tick + TIMELINE_SIZE;
+export function canShiftImpact(battle, side = "player") {
+  const actor = battle[side];
+  return battle.phase !== "finished" && !!actor?.hp && actor.stamina >= SHIFT_STAMINA && !!shiftableFire(actor, battle.tick)
+    && lastAction(actor).end < battle.tick + TIMELINE_SIZE;
 }
 
-export function shiftImpact(battle) {
-  if (!canShiftImpact(battle)) return false;
-  const actor = battle.player;
-  const fire = shiftableFire(battle);
+export function shiftImpact(battle, side = "player") {
+  if (!canShiftImpact(battle, side)) return false;
+  const actor = battle[side];
+  const fire = shiftableFire(actor, battle.tick);
   fire.impact++;
   fire.end++;
   fire.shifted = true;
@@ -123,6 +137,7 @@ export function shiftImpact(battle) {
 export function startBattle(battle) {
   if (battle.phase !== "planning") return;
   battle.phase = "running";
+  if (battle.grid) planEnemy(battle);
 }
 
 function activeAction(actor, tick) {
@@ -145,10 +160,11 @@ function recoveryAmounts(actor) {
   return { committed, gain };
 }
 
-export function nextRecovery(battle) {
-  const action = nextAction(battle, "player");
-  const { committed, gain } = recoveryAmounts(battle.player);
-  return { source: recoverySource(action), reserved: committed > 0, full: battle.player.stamina >= maxStamina, committed, gain };
+export function nextRecovery(battle, side = "player") {
+  const action = nextAction(battle, side);
+  const actor = battle[side];
+  const { committed, gain } = recoveryAmounts(actor);
+  return { source: recoverySource(action), reserved: committed > 0, full: actor.stamina >= maxStamina, committed, gain };
 }
 
 function resolveDependency(battle, side, action) {
@@ -211,7 +227,7 @@ const allyProfile = makeEnemyProfile({ risk: "balanced", waste: "rarely", style:
 function planEnemy(battle) {
   if (battle.grid) {
     for (const side of gridSides(battle)) {
-      if (side !== "player") planGridActor(battle, side);
+      if (teamOf(side) === "enemy" || (battle.phase === "running" && battle[side].automatic)) planGridActor(battle, side);
     }
     return;
   }
@@ -235,13 +251,13 @@ function incomingDamageAtNextSlot(battle, side) {
 function planGridActor(battle, side) {
   const { grid } = battle;
   const actor = battle[side];
-  if (!actor.hp || actor.actions.length) return;
+  if (!actor.hp || lastAction(actor)?.end > battle.tick) return;
 
   const target = targetFor(battle, side);
   if (!target) return;
   const canChoose = (id, destination) => canReserve(battle, side, id, destination);
   const choice = chooseEnemyAction({
-    profile: side === "ally" ? allyProfile : grid.enemyProfile,
+    profile: teamOf(side) === "player" ? allyProfile : grid.enemyProfile,
     from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
     hp: actor.hp, stamina: actor.stamina, incomingDamage: incomingDamageAtNextSlot(battle, side)
   }, canChoose);

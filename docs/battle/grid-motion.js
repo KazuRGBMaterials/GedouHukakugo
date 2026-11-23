@@ -1,5 +1,5 @@
-import { GRID_COLUMNS, GRID_ROWS, targetFor } from "./grid-rules.js?v=3";
-import { nextAction } from "./rules.js?v=6";
+import { GRID_COLUMNS, GRID_ROWS, targetFor } from "./grid-rules.js?v=4";
+import { nextAction } from "./rules.js?v=7";
 
 const sides = ["player", "ally", "enemy", "enemy2"];
 const thrust = { quick: 9, heavy: 14, jumpSlash: 12 };

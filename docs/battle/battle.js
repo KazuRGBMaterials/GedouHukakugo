@@ -1,10 +1,11 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
-  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName
-} from "./rules.js?v=6";
+  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
+  isManual, setAutomatic
+} from "./rules.js?v=7";
 import { createBattleAudio } from "./audio.js?v=1";
-import { MOVE, cellName, gridSides, targetFor, teamOf } from "./grid-rules.js?v=3";
-import { bindBattleGrid } from "./grid-ui.js?v=4";
+import { MOVE, cellName, gridSides, targetFor, teamOf } from "./grid-rules.js?v=4";
+import { bindBattleGrid } from "./grid-ui.js?v=5";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
@@ -23,8 +24,10 @@ const sizeField = gridMode ? el("grid-size") : null;
 const profileFields = gridMode ? {
   risk: el("grid-risk"), waste: el("grid-waste"), style: el("grid-style")
 } : null;
+const automatic = { player: false, ally: true };
 let battle = newBattle();
-let selectedTarget;
+let controlled = "player";
+let targets = {};
 let preparation = planningSeconds;
 let planningTimer = null;
 let battleTimer = null;
@@ -36,19 +39,35 @@ let renderGrid;
 if (gridMode) {
   el("grid-panel").hidden = false;
   el("grid-instructions").hidden = false;
+  el("player-control").hidden = false;
   el("grid-link").href = "./";
   el("grid-link").textContent = "通常のベルトライン戦闘";
   document.title = "外道不覚悟 | ベルトライン戦闘 マス目試作";
   el("battle-title").textContent = "ベルトライン戦闘・マス目試作";
   document.body.classList.add("grid-mode");
-  renderGrid = bindBattleGrid(position => queue("move", position), side => {
-    selectedTarget = side;
-    render();
+  renderGrid = bindBattleGrid({
+    onMove: position => queue("move", position),
+    onTarget: side => {
+      targets[controlled] = side;
+      render();
+    },
+    onSelect: selectFighter
   });
+  for (const side of Object.keys(automatic)) {
+    el(`${side}-select`).addEventListener("click", () => selectFighter(side));
+    el(`${side}-mode`).addEventListener("click", () => {
+      const enabled = !battle[side]?.automatic;
+      if (!setAutomatic(battle, side, enabled)) return;
+      automatic[side] = enabled;
+      el("input-status").textContent = `${fighterName(battle, side)} · ${enabled ? "AUTO" : "手動"}`;
+      render();
+    });
+  }
   for (const field of [sizeField, ...Object.values(profileFields)]) field.addEventListener("change", () => {
     if (!canChooseProfile()) return;
     battle = newBattle();
-    selectedTarget = undefined;
+    controlled = "player";
+    targets = {};
     render();
   });
 }
@@ -57,11 +76,18 @@ function newBattle() {
   if (!profileFields) return createBattle();
   const { risk, waste, style } = profileFields;
   const [players, enemies] = (sizeField.value || "1:1").split(":").map(Number);
-  return createBattle(true, { risk: risk.value, waste: waste.value, style: style.value }, { players, enemies, enemyName });
+  return createBattle(true, { risk: risk.value, waste: waste.value, style: style.value }, { players, enemies, enemyName, automatic });
 }
 
 function canChooseProfile() {
-  return battle.phase === "planning" && battle.player.actions.length === 0;
+  return battle.phase === "planning" && !battle.player.actions.length && !battle.ally?.actions.length;
+}
+
+function selectFighter(side) {
+  if (!battle[side]?.hp || battle.phase === "finished") return;
+  controlled = side;
+  el("input-status").textContent = `操作キャラ · ${fighterName(battle, side)}`;
+  render();
 }
 
 for (const [id, command] of Object.entries(COMMANDS)) {
@@ -80,9 +106,10 @@ for (const [id, command] of Object.entries(COMMANDS)) {
 }
 
 function queue(id, destination) {
-  if (!reserve(battle, "player", id, destination, selectedTarget)) return;
+  if (!isManual(battle, controlled) || !reserve(battle, controlled, id, destination, targets[controlled])) return;
   audio.unlock();
-  el("input-status").textContent = destination ? `${cellName(destination)}への移動を予約（SC ${MOVE.sc}）。` : `${COMMANDS[id].name}を予約。`;
+  const message = destination ? `${cellName(destination)}への移動を予約（SC ${MOVE.sc}）。` : `${COMMANDS[id].name}を予約。`;
+  el("input-status").textContent = battle.ally ? `${fighterName(battle, controlled)} · ${message}` : message;
   if (battle.phase === "planning") {
     audio.setMusic(true);
     if (!gridMode && planningTimer === null) {
@@ -131,7 +158,7 @@ function playImpact() {
 }
 
 function stepBattle() {
-  const recovery = nextRecovery(battle);
+  const recovery = nextRecovery(battle, controlled);
   const processed = renderGrid ? Object.fromEntries(gridSides(battle).map(side => [side, nextAction(battle, side)])) : null;
   advanceBattle(battle);
   for (const hit of battle.grid?.roundHits ?? []) {
@@ -262,10 +289,12 @@ function renderImpact(side) {
 
 function renderRecovery() {
   const cue = el("stamina-cue");
-  const { source, committed, gain } = nextRecovery(battle);
+  const { source, committed, gain } = nextRecovery(battle, controlled);
+  if (battle.ally) el("stamina-label").textContent = `${fighterName(battle, controlled)}の次の回復`;
+  else el("stamina-label").textContent = "次のスタミナ回復";
   cue.className = "stamina-cue";
-  if (!battle.player.hp && battle.phase !== "finished") {
-    cue.textContent = "MAGEは戦闘不能";
+  if (!battle[controlled].hp && battle.phase !== "finished") {
+    cue.textContent = `${fighterName(battle, controlled)}は戦闘不能`;
   } else if (battle.phase === "finished") {
     cue.textContent = "戦闘終了";
   } else if (!source) {
@@ -290,7 +319,30 @@ function renderGridAdvice() {
   el("grid-defeat-tip").textContent = `${tick}枠目に${during}${commandName(attack)}を受け、最大${damage}ダメージ。 ${retry}`;
 }
 
+function renderParty() {
+  for (const side of Object.keys(automatic)) {
+    const actor = battle[side];
+    const selected = !!actor && side === controlled;
+    const mode = el(`${side}-mode`);
+    const selector = el(`${side}-select`);
+    const name = fighterName(battle, side);
+    const inactive = !actor?.hp || battle.phase === "finished";
+    mode.disabled = inactive;
+    selector.disabled = inactive;
+    mode.textContent = actor?.automatic ? "AUTO" : "手動";
+    mode.setAttribute("aria-pressed", String(!!actor?.automatic));
+    mode.setAttribute("aria-label", `${name}の自動操作`);
+    selector.setAttribute("aria-pressed", String(selected));
+    el(`${side}-belt`).classList.toggle("party-belt", selected);
+    el(`${side}-belt-label`).classList.toggle("party-belt-label", selected);
+  }
+}
+
 function render(processed) {
+  if (battle.ally && !battle[controlled].hp) {
+    const other = controlled === "player" ? "ally" : "player";
+    if (battle[other].hp) controlled = other;
+  }
   const sides = battle.grid ? gridSides(battle) : ["player", "enemy"];
   for (const side of sides) {
     el(`${side}-resources`).textContent = resources(battle[side]);
@@ -314,8 +366,9 @@ function render(processed) {
   el("battle-status").textContent = gridMode && battle.phase === "planning"
     ? "技や移動を予約し、準備ができたら「戦闘開始」。" : status;
   if (renderGrid) {
-    selectedTarget = targetFor(battle, "player", selectedTarget);
-    renderGrid(battle, processed, selectedTarget);
+    targets[controlled] = targetFor(battle, controlled, targets[controlled]);
+    renderGrid(battle, processed, controlled, targets[controlled]);
+    renderParty();
     renderGridAdvice();
     const editable = canChooseProfile();
     el("grid-personality").disabled = !editable;
@@ -325,9 +378,11 @@ function render(processed) {
       : "敵の性格を選び直すには「最初から」を押してください。";
   }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
-  for (const [id, button] of buttons) button.disabled = !canReserve(battle, "player", id);
+  const manual = isManual(battle, controlled);
+  el("commands").setAttribute("aria-label", `${fighterName(battle, controlled)}のコマンド入力`);
+  for (const [id, button] of buttons) button.disabled = !manual || !canReserve(battle, controlled, id);
   el("start").hidden = battle.phase !== "planning";
-  el("shift").disabled = !canShiftImpact(battle);
+  el("shift").disabled = !manual || !canShiftImpact(battle, controlled);
   el("battle-log").replaceChildren(...battle.events.map(text => {
     const entry = document.createElement("p");
     entry.textContent = text;
@@ -350,7 +405,7 @@ soundButton.addEventListener("click", () => {
 document.addEventListener("visibilitychange", audio.syncMusic);
 el("shift").title = `火炎の発生と後続を1枠遅らせる（スタミナ ${SHIFT_STAMINA}）`;
 el("shift").addEventListener("click", () => {
-  if (shiftImpact(battle)) {
+  if (isManual(battle, controlled) && shiftImpact(battle, controlled)) {
     el("input-status").textContent = "火炎の発生を1枠遅らせました。";
     render();
   }
@@ -364,7 +419,8 @@ el("reset").addEventListener("click", () => {
   audio.stopEffects();
   preparation = planningSeconds;
   battle = newBattle();
-  selectedTarget = undefined;
+  controlled = "player";
+  targets = {};
   largestHit = null;
   el("input-status").textContent = "";
   render();
