@@ -8,14 +8,15 @@
   overscroll-behavior: contain;
   border-radius: 3px;
   scrollbar-width: thin;
-  touch-action: pan-x pan-y;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 .grid-viewport:focus-visible { outline: 2px solid #e7ffb3; outline-offset: 2px; }
 .grid-playfield {
   --grid-columns: 5;
   --grid-rows: 5;
   --grid-gap-size: 4px;
-  width: max(100%, calc(var(--grid-columns) * 46px + (var(--grid-columns) - 1) * var(--grid-gap-size)));
+  width: 100%;
+  min-width: var(--grid-min-width, 246px);
 }
 .grid-playfield .grid-board, .grid-playfield .grid-units {
   grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
@@ -32,7 +33,7 @@
 .grid-size-controls label { display: flex; align-items: center; gap: 3px; }
 .grid-size-controls input {
   width: 3.5rem;
-  min-height: 34px;
+  min-height: 44px;
   padding: 3px 4px;
   color: #eaf0ef;
   background: #26384a;
@@ -46,6 +47,6 @@
   .grid-playfield { --grid-gap-size: 2px; }
   .grid-playfield[data-expanded="true"] .grid-board { grid-auto-rows: 44px; }
   .grid-size-controls { font-size: .7rem; gap: 3px; }
-  .grid-size-controls input { width: 3.1rem; min-height: 30px; }
+  .grid-size-controls input { width: 3.1rem; min-height: 44px; }
   .grid-viewport { max-height: min(58dvh, 420px); }
 }

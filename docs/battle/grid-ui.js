@@ -25,6 +25,7 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
     board.replaceChildren();
     playfield.style.setProperty("--grid-columns", columns);
     playfield.style.setProperty("--grid-rows", rows);
+    playfield.style.setProperty("--grid-min-width", `${columns * 46 + (columns - 1) * 4}px`);
     playfield.dataset.expanded = String(columns > GRID_COLUMNS || rows > GRID_ROWS);
     board.setAttribute("aria-label", `戦場 ${columns}列 ${rows}行`);
     for (let y = 0; y < rows; y++) {
