@@ -1,11 +1,11 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
-  isManual, setAutomatic
-} from "./rules.js?v=9";
+  isManual, setAutomatic, setQueuedTarget, setQueuedLanding
+} from "./rules.js?v=10";
 import { createBattleAudio } from "./audio.js?v=1";
-import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=6";
-import { bindBattleGrid } from "./grid-ui.js?v=8";
+import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
+import { bindBattleGrid } from "./grid-ui.js?v=9";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
@@ -85,14 +85,24 @@ if (gridMode) {
   el("player-control").hidden = false;
   el("grid-link").href = "./";
   el("grid-link").textContent = "通常のベルトライン戦闘";
-  document.title = "外道不覚悟 | ベルトライン戦闘 マス目試作";
-  el("battle-title").textContent = "ベルトライン戦闘・マス目試作";
+  document.title = "外道不覚悟 | 戦闘VER4";
+  el("battle-title").textContent = "ベルトライン戦闘 VER4";
   document.body.classList.add("grid-mode");
   renderGrid = bindBattleGrid({
     onMove: position => queue("move", position),
     onTarget: side => {
       targets[controlled] = side;
+      const updated = setQueuedTarget(battle, controlled, side);
+      el("input-status").textContent = updated
+        ? `${fighterName(battle, controlled)}の次の攻撃 → ${fighterName(battle, side)}`
+        : `次の攻撃対象 → ${fighterName(battle, side)}`;
       render();
+    },
+    onLanding: position => {
+      if (setQueuedLanding(battle, controlled, position)) {
+        el("input-status").textContent = `ジャンプ斬りの着地点 → ${cellName(position)}`;
+        render();
+      }
     },
     onSelect: selectFighter
   });

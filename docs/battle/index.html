@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101924">
-  <title>外道不覚悟 | ベルトライン戦闘 試作</title>
+  <title>外道不覚悟 | 戦闘VER4</title>
   <link rel="stylesheet" href="./style.css?v=12">
-  <link rel="stylesheet" href="./grid-terrain.css?v=1">
+  <link rel="stylesheet" href="./grid-terrain.css?v=2">
   <link rel="stylesheet" href="./grid-size.css?v=1">
 </head>
 <body>
@@ -142,14 +142,14 @@
       <summary>ログ・操作ガイド</summary>
       <div class="note-content">
         <p class="hint">★は発動枠。黄は青に、青は赤に、赤は黄に有利。待機1枠でスタミナを1回復できます。</p>
-        <p class="hint" id="grid-instructions" hidden>味方の名前や盤面の味方をタップして操作キャラを選び、横のボタンで各キャラの手動／AUTOを切り替えます。戦闘中の切り替えでは実行中・予約済みの行動が先に出ます。</p>
+        <p class="hint" id="grid-instructions" hidden>味方の名前や盤面の味方をタップして操作キャラを選び、横のボタンで各キャラの手動／AUTOを切り替えます。敵の攻撃対象は自動選択され、★の1枠前に敵をタップすると次の攻撃だけ変更できます。ジャンプ斬りの着地点は緑の候補マスから変更できます。予約済みの行動は切り替えても先に実行されます。</p>
         <p class="hint">マス目版では青枠をタップすると、1枠・スタミナ0.5で移動を予約します。赤いマスは敵の攻撃範囲です。火炎は術者を中心に縦横各2マスと斜め4マスに届きます。敵が複数いるときは敵をタップして攻撃対象を選べます。最大4対4まで編成できます。盤面は横5～15列・縦5～15行で指定できます。広い盤面は指でスクロールできます。地形は見た目のみで、移動・攻撃のルールは変わりません。</p>
-        <p class="hint battle-links"><a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="./ver1/">ベルトコンベアVER1（保存版）</a></p>
+        <p class="hint battle-links"><a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="./ver1/">VER1（保存版）</a> <a class="version-link" href="./ver2/?grid=1">VER2（保存版）</a> <a class="version-link" href="./ver3/">VER3（保存版）</a></p>
         <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
       </div>
     </details>
   </main>
   <audio id="battle-bgm" src="./battle-loop.wav" preload="none" loop></audio>
-  <script type="module" src="./battle.js?v=13"></script>
+  <script type="module" src="./battle.js?v=14"></script>
 </body>
 </html>

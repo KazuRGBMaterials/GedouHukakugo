@@ -1,6 +1,9 @@
-import { GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition, gridSides, teamOf } from "./grid-rules.js?v=6";
-import { COMMANDS, canReserve, isManual } from "./rules.js?v=9";
-import { bindGridMotion } from "./grid-motion.js?v=6";
+import {
+  GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition,
+  gridSides, teamOf, jumpLandingCandidates, jumpLanding, targetFor
+} from "./grid-rules.js?v=7";
+import { COMMANDS, canReserve, isManual, editableAttack } from "./rules.js?v=10";
+import { bindGridMotion } from "./grid-motion.js?v=7";
 import { terrainAt } from "./grid-terrain.js?v=2";
 
 const shortNames = {
@@ -8,7 +11,7 @@ const shortNames = {
   enemy: "敵1", enemy2: "敵2", enemy3: "敵3", enemy4: "敵4"
 };
 
-export function bindBattleGrid({ onMove, onTarget, onSelect }) {
+export function bindBattleGrid({ onMove, onTarget, onSelect, onLanding }) {
   const board = document.getElementById("grid-board");
   const cue = document.getElementById("grid-threat");
   const plan = document.getElementById("grid-plan");
@@ -47,6 +50,7 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
       button.addEventListener("click", () => {
         if (cell.crew) onSelect(cell.crew);
         else if (cell.target) onTarget(cell.target);
+        else if (cell.landing) onLanding(cell.landing);
         else onMove(cell.position);
       });
       cells.push(cell);
@@ -69,6 +73,15 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
     const playerCell = cellName(battle.grid[controlled]);
     const plannedCell = cellName(plannedPosition(battle, controlled));
     const manual = isManual(battle, controlled) && battle.phase !== "finished";
+    const editing = editableAttack(battle, controlled);
+    const previewTarget = targetFor(battle, controlled, editing?.targetSide || selected);
+    const previewing = !!editing;
+    const imminent = previewing && battle.phase === "running" && editing.impact === battle.tick + 1;
+    const landingOptions = editing?.commandId === "jumpSlash" && previewTarget
+      ? jumpLandingCandidates(battle, controlled, previewTarget) : [];
+    const landingKey = cellName(jumpLanding(battle, controlled, previewTarget,
+      battle.grid[controlled], editing?.landing, editing?.manualLanding) ?? { x: -10, y: -10 });
+    const candidateKeys = new Set(landingOptions.map(cellName));
     for (const cell of cells) {
       const { button, position, label } = cell;
       const id = occupants.get(label);
@@ -77,19 +90,30 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
       const booked = label !== playerCell && label === plannedCell;
       const targetable = manual && battle.enemy2 && id && teamOf(id) === "enemy";
       const selectable = battle.ally && id && teamOf(id) === "player" && battle.phase !== "finished";
+      const landingOption = manual && editing?.commandId === "jumpSlash" && candidateKeys.has(label);
+      const currentLanding = landingOption && label === landingKey;
+      const luminousTarget = previewing && previewTarget === id;
       cell.target = targetable ? id : null;
       cell.crew = selectable ? id : null;
+      cell.landing = landingOption ? position : null;
       button.className = `grid-cell terrain-${terrainAt(position.x, position.y, scene)}`;
       if (occupant) button.className += teamOf(id) === "player" ? " grid-player" : " grid-enemy";
       if (hazardous) button.className += " grid-danger";
       if (booked) button.className += " grid-booked";
       if (targetable) button.className += " grid-targetable";
-      if (targetable && selected === id) button.className += " grid-aimed";
+      if (targetable && (previewTarget ?? selected) === id) button.className += " grid-aimed";
+      if (luminousTarget && imminent) button.className += " grid-impact-target";
+      if (landingOption) button.className += " grid-landing-option";
+      if (currentLanding) button.className += " grid-landing-selected";
       if (id && controlled === id) button.className += " grid-controlled";
-      button.disabled = !selectable && !targetable && !(manual && canReserve(battle, controlled, "move", position));
-      cell.content.textContent = occupant || (booked ? "移動先" : hazardous ? "！" : "");
+      button.disabled = !selectable && !targetable && !landingOption
+        && !(manual && canReserve(battle, controlled, "move", position));
+      cell.content.textContent = occupant || (currentLanding ? "着地" : landingOption ? "候補" :
+        booked ? "移動先" : hazardous ? "！" : "");
       const details = [label, occupant, booked ? "移動予定" : "", hazardous ? "攻撃範囲" : "",
-        targetable ? selected === id ? "選択中の攻撃対象" : "攻撃対象に選ぶ" : "",
+        targetable ? previewTarget === id ? "選択中の攻撃対象" : "攻撃対象に選ぶ" : "",
+        imminent && luminousTarget ? "次の枠に攻撃発動" : "",
+        landingOption ? currentLanding ? "ジャンプ斬りの着地点" : "着地点に変更" : "",
         selectable ? controlled === id ? "選択中の味方" : "操作キャラに選ぶ" : ""].filter(Boolean);
       button.setAttribute("aria-label", details.join("、"));
     }
@@ -100,9 +124,13 @@ export function bindBattleGrid({ onMove, onTarget, onSelect }) {
     }).join(" ／ ") || (battle.phase === "finished" ? "戦闘終了" : "いま構えている攻撃はありません。");
     const location = plannedCell === playerCell ? playerCell : `${playerCell} → ${plannedCell}`;
     const name = shortNames[controlled];
-    const aiming = battle.enemy2 && selected && manual ? ` · 狙い ${shortNames[selected]}` : "";
+    const aiming = previewTarget && manual ? ` · 狙い ${shortNames[previewTarget]}` : "";
+    const jumpSpot = editing?.commandId === "jumpSlash" && landingOptions.length
+      ? ` · 着地 ${landingKey}${editing.manualLanding ? "（指定）" : "（自動）"}` : "";
+    const notice = imminent ? " · 次の★！対象と着地点をタップで変更可"
+      : previewing && battle.phase === "planning" ? " · ★予約を編集可" : "";
     plan.textContent = battle[controlled].hp
-      ? `${name} ${location}${aiming}${battle[controlled].automatic ? " · AUTO" : ` · 移動 SC${MOVE.sc}`}`
+      ? `${name} ${location}${aiming}${jumpSpot}${notice}${battle[controlled].automatic ? " · AUTO" : ` · 移動 SC${MOVE.sc}`}`
       : `${name}は戦闘不能。`;
     result.textContent = battle.grid.notice;
     renderMotion(battle, processed);
