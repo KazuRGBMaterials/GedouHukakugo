@@ -318,14 +318,18 @@ function couldFinishLastPlayer(battle, side, playerSide) {
       && canReserve(battle,side,"jumpSlash"));
 }
 
-function mercyOnEachTick(battle,tick){
+function mercyOnEachTick(battle,tick,actions){
   const mercy = battle.grid?.hellorMercy;
   if(!mercy?.active)return;
   const alive = PARTY_SIDES.filter(id => battle[id]?.hp > 0);
   if(alive.length === 1 && mercy.actionId === null){
-    const action = battle[alive[0]].actions.find(a =>
-      a.status==="pending" && a.start>mercy.startedAt
-      && a.start<=mercy.until);
+    // The resolved action may already have left actor.actions (one-slot moves,
+    // waits and guards), so also inspect the action captured at tick start.
+    const player = alive[0];
+    const candidates = [...battle[player].actions,actions[player]]
+      .filter(a => a && a.start>mercy.startedAt && a.start<=mercy.until)
+      .sort((a,b)=>a.start-b.start);
+    const action = candidates[0];
     if(action){
       mercy.actionId=action.id;
       mercy.until=Math.min(mercy.until,action.end);
@@ -528,7 +532,7 @@ function advanceGrid(battle, tick) {
   }
   // Attacks use the positions at the start of the slot. Steps take effect afterwards.
   resolveMovement(battle, actions, landings, message => reportGrid(battle, message));
-  mercyOnEachTick(battle,tick);
+  mercyOnEachTick(battle,tick,actions);
   planEnemy(battle);
 }
 
