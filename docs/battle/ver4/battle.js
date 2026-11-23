@@ -450,7 +450,8 @@ function render(processed) {
     renderParty();
     renderGridAdvice();
     const editable = canChooseProfile();
-    el("grid-personality").disabled = !editable || battle.grid.enemyType === "hellor";
+    el("grid-personality").disabled = !editable || battle.grid.enemyType === "hellor"
+      || battle.grid.enemyTactics === "optimal";
     sizeField.disabled = !editable;
     enemyChoiceField.disabled = !editable;
     tacticsField.disabled = !editable;
@@ -470,7 +471,9 @@ function render(processed) {
       optimal: "最強：確定済みの行動・技相性・位置・仲間の予約・スタミナを読み、2手先まで候補を評価。未入力の行動は予知できません。" 
     };
     el("grid-tactics-hint").textContent = hints[teamTactics] || hints.standard;
-    el("grid-profile-hint").textContent = battle.grid.enemyType === "hellor"
+    el("grid-profile-hint").textContent = battle.grid.enemyTactics === "optimal"
+      ? "最強AIは独立した評価ロジックで行動するため、敵の性格3項目は適用されません。"
+      : battle.grid.enemyType === "hellor"
       ? "ヘルオル：弱った相手を狙い、予約済みの攻撃を見て防御・回避し、隙を突く。性格設定は無効。"
       : editable ? "人数・マス目・敵の種類・性格・戦術は最初の予約前に変更できます。"
       : "人数・マス目・敵の種類・性格・戦術を変えるには「最初から」を押してください。";
