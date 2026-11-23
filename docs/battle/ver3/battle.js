@@ -85,8 +85,8 @@ if (gridMode) {
   el("player-control").hidden = false;
   el("grid-link").href = "./";
   el("grid-link").textContent = "通常のベルトライン戦闘";
-  document.title = "外道不覚悟 | ベルトライン戦闘 マス目試作";
-  el("battle-title").textContent = "ベルトライン戦闘・マス目試作";
+  document.title = "外道不覚悟 | 戦闘VER3（保存版）";
+  el("battle-title").textContent = "ベルトライン戦闘 VER3（保存版）";
   document.body.classList.add("grid-mode");
   renderGrid = bindBattleGrid({
     onMove: position => queue("move", position),
