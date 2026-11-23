@@ -1,6 +1,6 @@
 import {
   MOVE, createGrid, gridSides, opposingSides, teamOf, targetFor, plannedPosition, PARTY_SIDES, FOE_SIDES,
-  canStep, attackTargets, jumpLanding, jumpLandingCandidates, adjacent8, resolveMovement
+  canStep, attackTargets, jumpLanding, jumpLandingCandidates, adjacent8, fireReaches, resolveMovement
 } from "./grid-rules.js?v=7";
 import { makeEnemyProfile, chooseEnemyAction } from "./grid-ai.js?v=5";
 import { chooseHellorAction } from "./hellor-ai.js?v=1";
@@ -44,6 +44,8 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     battle.grid.enemyType = gridOptions.enemyType === "hellor" ? "hellor" : "default";
     battle.grid.enemyTactics = Object.hasOwn(ENEMY_TACTICS, gridOptions.enemyTactics)
       ? gridOptions.enemyTactics : "standard";
+    // A single, non-repeatable moment of arrogance for the strongest Hellor.
+    battle.grid.hellorMercy = { used:false, active:false, startedAt:-1, until:-1, actionId:null };
     for (const side of PARTY_SIDES.slice(1, players)) battle[side] = participant(100);
     for (const side of FOE_SIDES.slice(1, enemies)) battle[side] = participant(100);
     battle.player.automatic = gridOptions.automatic?.player === true;
@@ -301,6 +303,40 @@ function incomingDamageAtNextSlot(battle, side) {
   return damage;
 }
 
+// One action of breathing room, only after the last player fighter becomes
+// killable by a legal attack. No repeat grants, no omniscient future input.
+function couldFinishLastPlayer(battle, side, playerSide) {
+  const { grid } = battle;
+  const hp = battle[playerSide].hp;
+  if (hp <= 0 || hp > COMMANDS.fire.damage) return false;
+  const from = grid[side], to = grid[playerSide];
+  return (adjacent8(from,to) &&
+    ((hp <= COMMANDS.quick.damage && canReserve(battle,side,"quick")) ||
+     (hp <= COMMANDS.heavy.damage && canReserve(battle,side,"heavy"))))
+    || (hp <= COMMANDS.fire.damage && fireReaches(from,to,grid) && canReserve(battle,side,"fire"))
+    || (hp <= COMMANDS.jumpSlash.damage && jumpLandingCandidates(battle,side,playerSide).length>0
+      && canReserve(battle,side,"jumpSlash"));
+}
+
+function mercyOnEachTick(battle,tick){
+  const mercy = battle.grid?.hellorMercy;
+  if(!mercy?.active)return;
+  const alive = PARTY_SIDES.filter(id => battle[id]?.hp > 0);
+  if(alive.length === 1 && mercy.actionId === null){
+    const action = battle[alive[0]].actions.find(a =>
+      a.status==="pending" && a.start>mercy.startedAt
+      && a.start<=mercy.until);
+    if(action){
+      mercy.actionId=action.id;
+      mercy.until=Math.min(mercy.until,action.end);
+    }
+  }
+  if(tick>=mercy.until){
+    mercy.active=false;
+    reportGrid(battle,"ヘルオルは手加減をやめた。");
+  }
+}
+
 function planGridActor(battle, side) {
   const { grid } = battle;
   const actor = battle[side];
@@ -317,6 +353,24 @@ function planGridActor(battle, side) {
     stamina: battle[id].stamina, actions: battle[id].actions,
     landingAvailable: jumpLandingCandidates(battle, side, id).length > 0
   }));
+  if(isHellor && grid.enemyTactics==="optimal"){
+    const mercy = grid.hellorMercy;
+    if(!mercy.used && opponents.length===1 &&
+      couldFinishLastPlayer(battle,side,opponents[0].id)){
+      mercy.used=true;
+      mercy.active=true;
+      mercy.startedAt=battle.tick;
+      mercy.until=battle.tick+5; // Max one full five-slot command.
+      reportGrid(battle,"ヘルオルは最後の一人をいたぶるように、あえてとどめを控えた。");
+    }
+    if(mercy.active){
+      if(reserve(battle,side,"wait")){
+        actor.previousAction="wait";
+        actor.decision=(actor.decision??0)+1;
+      }
+      return;
+    }
+  }
   const tacticChoice = enemySide && grid.enemyTactics !== "standard"
     ? chooseEnemyTactic({
         tactic: grid.enemyTactics, side, board: grid, from: grid[side],
@@ -396,6 +450,9 @@ function advanceGrid(battle, tick) {
     resolveDependency(battle, side, action);
     const command = attackAt(action, tick);
     if (!command) continue;
+    // Already-reserved attacks are deliberately withheld throughout mercy.
+    if (battle.grid.enemyType==="hellor" && battle.grid.enemyTactics==="optimal"
+        && battle.grid.hellorMercy?.active && teamOf(side)==="enemy") continue;
     const targets = attackTargets(battle, side, action);
     if (targets.length) attacks.set(side, { command, targets });
     else reportGrid(battle, `${fighterName(battle, side)}の${command.name}は相手が範囲におらず外れた。`);
@@ -471,6 +528,7 @@ function advanceGrid(battle, tick) {
   }
   // Attacks use the positions at the start of the slot. Steps take effect afterwards.
   resolveMovement(battle, actions, landings, message => reportGrid(battle, message));
+  mercyOnEachTick(battle,tick);
   planEnemy(battle);
 }
 

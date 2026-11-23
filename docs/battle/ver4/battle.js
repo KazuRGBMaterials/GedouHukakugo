@@ -33,6 +33,13 @@ if (enemyChoiceField && enemyName) {
     enemyChoiceField.value = "encounter";
   }
 }
+// Selecting Hellor defaults to the strongest AI. Other strategies remain
+// available if explicitly selected afterwards.
+let hellorAutoOptimal = false;
+if(enemyChoiceField?.value==="hellor" && tacticsField?.value==="standard"){
+  tacticsField.value="optimal";
+  hellorAutoOptimal=true;
+}
 const sizeField = gridMode ? el("grid-size") : null;
 const columnsField = gridMode ? el("grid-columns") : null;
 const rowsField = gridMode ? el("grid-rows") : null;
@@ -132,6 +139,18 @@ if (gridMode) {
   }
   for (const field of [sizeField, enemyChoiceField, tacticsField, columnsField, rowsField, ...Object.values(profileFields)]) field.addEventListener("change", () => {
     if (!canChooseProfile()) return;
+    if(field===enemyChoiceField){
+      if(enemyChoiceField.value==="hellor" && tacticsField.value!=="optimal"){
+        tacticsField.value="optimal";
+        hellorAutoOptimal=true;
+      }else if(enemyChoiceField.value!=="hellor" && hellorAutoOptimal
+          && tacticsField.value==="optimal"){
+        tacticsField.value="standard";
+        hellorAutoOptimal=false;
+      }
+    }else if(field===tacticsField){
+      hellorAutoOptimal=false;
+    }
     battle = newBattle();
     controlled = "player";
     targets = {};
@@ -470,7 +489,10 @@ function render(processed) {
         : "庇う戦術：先頭の敵が仲間へ接近し、防御中なら隣の味方への単体攻撃を1回肩代わりします。",
       optimal: "最強：確定済みの行動・技相性・位置・仲間の予約・スタミナを読み、2手先まで候補を評価。未入力の行動は予知できません。" 
     };
-    el("grid-tactics-hint").textContent = hints[teamTactics] || hints.standard;
+    el("grid-tactics-hint").textContent =
+      battle.grid.enemyType==="hellor" && teamTactics==="optimal"
+        ? "ヘルオル・最強：2手先を読んで追い詰め、こちらが最後の1人でとどめを刺せる時だけ、1回の行動猶予（最大5枠）を与える。猶予は一度きり。"
+        : hints[teamTactics] || hints.standard;
     el("grid-profile-hint").textContent = battle.grid.enemyTactics === "optimal"
       ? "最強AIは独立した評価ロジックで行動するため、敵の性格3項目は適用されません。"
       : battle.grid.enemyType === "hellor"
