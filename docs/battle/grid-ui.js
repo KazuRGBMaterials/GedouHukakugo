@@ -87,7 +87,8 @@ export function bindBattleGrid({ onMove, onTarget, onSelect, onLanding }) {
     for (const cell of cells) {
       const { button, position, label } = cell;
       const id = occupants.get(label);
-      const occupant = id === "enemy" && !battle.enemy2 ? "見張り" : shortNames[id];
+      const occupant = id === "enemy" && !battle.enemy2
+        ? (battle.grid.enemyName || "見張り") : shortNames[id];
       const hazardous = danger.has(label);
       const booked = label !== playerCell && label === plannedCell;
       const targetable = manual && battle.enemy2 && id && teamOf(id) === "enemy";
