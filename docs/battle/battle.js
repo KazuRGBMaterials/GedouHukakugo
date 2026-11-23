@@ -2,10 +2,10 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
   isManual, setAutomatic
-} from "./rules.js?v=7";
+} from "./rules.js?v=8";
 import { createBattleAudio } from "./audio.js?v=1";
-import { MOVE, cellName, gridSides, targetFor, teamOf } from "./grid-rules.js?v=4";
-import { bindBattleGrid } from "./grid-ui.js?v=5";
+import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=5";
+import { bindBattleGrid } from "./grid-ui.js?v=6";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 
@@ -24,7 +24,48 @@ const sizeField = gridMode ? el("grid-size") : null;
 const profileFields = gridMode ? {
   risk: el("grid-risk"), waste: el("grid-waste"), style: el("grid-style")
 } : null;
-const automatic = { player: false, ally: true };
+const automatic = { player: false, ally: true, ally2: true, ally3: true };
+
+// Keep the two-person screen unchanged while adding extra fighter panels on demand.
+function addFighterPanel(side, base) {
+  const panel = el(`${base}-state`).cloneNode(true);
+  panel.id = `${side}-state`;
+  panel.querySelectorAll("[id]").forEach(child => {
+    child.id = child.id.replace(base, side);
+  });
+  if (side.startsWith("ally")) panel.querySelector(".party-select").textContent = `味方${side.slice(4)}`;
+  else panel.querySelector("b").textContent = `敵${side.slice(5)}`;
+  panel.hidden = true;
+  el("battle-main").querySelector(".arena").append(panel);
+
+  const label = el(`${base}-belt-label`).cloneNode(true);
+  const track = el(`${base}-belt`).cloneNode(true);
+  label.id = `${side}-belt-label`;
+  label.textContent = side.startsWith("ally") ? `味方${side.slice(4)}` : `敵${side.slice(5)}`;
+  track.id = `${side}-belt`;
+  track.replaceChildren();
+  label.hidden = true;
+  track.hidden = true;
+  if (side.startsWith("enemy")) el("player-belt-label").before(label, track);
+  else el("ally-belt").parentNode.append(label, track);
+}
+if (gridMode) {
+  for (const [side, base] of [["ally2", "ally"], ["enemy3", "enemy2"], ["ally3", "ally"], ["enemy4", "enemy2"]]) {
+    addFighterPanel(side, base);
+  }
+  const currentSize = sizeField.value || "1:1";
+  const choices = [];
+  for (let playerCount = 1; playerCount <= 4; playerCount++) {
+    for (let enemyCount = 1; enemyCount <= 4; enemyCount++) {
+      const option = document.createElement("option");
+      option.value = `${playerCount}:${enemyCount}`;
+      option.textContent = `${playerCount}対${enemyCount}`;
+      choices.push(option);
+    }
+  }
+  sizeField.replaceChildren(...choices);
+  sizeField.value = currentSize;
+}
 let battle = newBattle();
 let controlled = "player";
 let targets = {};
@@ -53,7 +94,7 @@ if (gridMode) {
     },
     onSelect: selectFighter
   });
-  for (const side of Object.keys(automatic)) {
+  for (const side of PARTY_SIDES) {
     el(`${side}-select`).addEventListener("click", () => selectFighter(side));
     el(`${side}-mode`).addEventListener("click", () => {
       const enabled = !battle[side]?.automatic;
@@ -80,7 +121,7 @@ function newBattle() {
 }
 
 function canChooseProfile() {
-  return battle.phase === "planning" && !battle.player.actions.length && !battle.ally?.actions.length;
+  return battle.phase === "planning" && PARTY_SIDES.every(side => !battle[side]?.actions.length);
 }
 
 function selectFighter(side) {
@@ -136,7 +177,7 @@ function launch() {
 }
 
 function playEnemyWarning(delay = 0) {
-  const action = ["enemy", ...(battle.enemy2 ? ["enemy2"] : [])].map(side => nextAction(battle, side))
+  const action = FOE_SIDES.filter(side => battle[side]).map(side => nextAction(battle, side))
     .find(next => next?.start === battle.tick + 1 && next.status === "pending" && warnings[next.commandId]);
   const warning = warnings[action?.commandId];
   if (warning) audio.play(warning, delay);
@@ -320,7 +361,7 @@ function renderGridAdvice() {
 }
 
 function renderParty() {
-  for (const side of Object.keys(automatic)) {
+  for (const side of PARTY_SIDES) {
     const actor = battle[side];
     const selected = !!actor && side === controlled;
     const mode = el(`${side}-mode`);
@@ -339,9 +380,8 @@ function renderParty() {
 }
 
 function render(processed) {
-  if (battle.ally && !battle[controlled].hp) {
-    const other = controlled === "player" ? "ally" : "player";
-    if (battle[other].hp) controlled = other;
+  if (!battle[controlled]?.hp) {
+    controlled = PARTY_SIDES.find(side => battle[side]?.hp) ?? "player";
   }
   const sides = battle.grid ? gridSides(battle) : ["player", "enemy"];
   for (const side of sides) {
@@ -349,14 +389,17 @@ function render(processed) {
     renderFighter(side);
     el(`${side}-belt`).replaceChildren(...makeTrack(battle[side], battle.tick));
   }
-  for (const side of ["ally", "enemy2"]) {
+  for (const side of ["ally", "ally2", "ally3", "enemy2", "enemy3", "enemy4"]) {
     el(`${side}-state`).hidden = !battle[side];
     el(`${side}-belt`).hidden = !battle[side];
     el(`${side}-belt-label`).hidden = !battle[side];
   }
   el("enemy-belt-label").textContent = battle.enemy2 ? "敵1" : "敵";
   el("battle-enemy-name").textContent = fighterName(battle, "enemy");
-  if (battle.enemy2) el("battle-enemy2-name").textContent = fighterName(battle, "enemy2");
+  for (const side of FOE_SIDES.slice(1)) {
+    if (battle[side]) el(`battle-${side}-name`).textContent = fighterName(battle, side);
+  }
+  document.body.classList.toggle("large-party", sides.length >= 6);
   renderImpact("player");
   renderImpact("enemy");
   renderRecovery();

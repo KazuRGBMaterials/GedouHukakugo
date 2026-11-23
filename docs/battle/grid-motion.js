@@ -1,7 +1,7 @@
-import { GRID_COLUMNS, GRID_ROWS, targetFor } from "./grid-rules.js?v=4";
-import { nextAction } from "./rules.js?v=7";
+import { GRID_COLUMNS, GRID_ROWS, targetFor, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=5";
+import { nextAction } from "./rules.js?v=8";
 
-const sides = ["player", "ally", "enemy", "enemy2"];
+const sides = [...PARTY_SIDES, ...FOE_SIDES];
 const thrust = { quick: 9, heavy: 14, jumpSlash: 12 };
 const offset = (from, to) => ({ x: to.x - from.x, y: to.y - from.y });
 const shift = (x, y) => `translate(${x}px,${y}px)`;
@@ -40,7 +40,7 @@ export function bindGridMotion(layer) {
     const node = document.createElement("div");
     const sprite = document.createElement("span");
     const effect = document.createElement("span");
-    node.className = `grid-unit grid-unit-${side}${side === "enemy2" ? " grid-unit-enemy" : ""}`;
+    node.className = `grid-unit grid-unit-${side}${side.startsWith("enemy") ? " grid-unit-enemy" : side.startsWith("ally") ? " grid-unit-ally" : ""}`;
     sprite.className = "grid-unit-sprite";
     effect.className = "grid-unit-effect";
     node.append(effect, sprite);

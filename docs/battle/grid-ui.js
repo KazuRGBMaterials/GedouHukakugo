@@ -1,8 +1,11 @@
-import { GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition, gridSides, teamOf } from "./grid-rules.js?v=4";
-import { COMMANDS, canReserve, isManual } from "./rules.js?v=7";
-import { bindGridMotion } from "./grid-motion.js?v=4";
+import { GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition, gridSides, teamOf } from "./grid-rules.js?v=5";
+import { COMMANDS, canReserve, isManual } from "./rules.js?v=8";
+import { bindGridMotion } from "./grid-motion.js?v=5";
 
-const shortNames = { player: "MAGE", ally: "味方", enemy: "敵1", enemy2: "敵2" };
+const shortNames = {
+  player: "MAGE", ally: "味方", ally2: "味方2", ally3: "味方3",
+  enemy: "敵1", enemy2: "敵2", enemy3: "敵3", enemy4: "敵4"
+};
 
 export function bindBattleGrid({ onMove, onTarget, onSelect }) {
   const board = document.getElementById("grid-board");
