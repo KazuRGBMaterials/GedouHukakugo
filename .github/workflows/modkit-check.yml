@@ -3,10 +3,12 @@ on:
   push:
     paths:
       - 'docs/battle/**'
+      - 'docs/shared/**'
       - '.github/workflows/modkit-check.yml'
   pull_request:
     paths:
       - 'docs/battle/**'
+      - 'docs/shared/**'
       - '.github/workflows/modkit-check.yml'
 jobs:
   checks:
