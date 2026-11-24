@@ -2,7 +2,7 @@
  * Composition root for battle content. Only this module imports concrete packs.
  * Replace/inject packs, registry factory, or terrain provider in isolation.
  */
-import { createDefinitionRegistry } from "../modkit/definition-registry.js";
+import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { contentBases } from "./base.js";
 import mage from "./characters/mage.js";
 import hellor from "./characters/hellor.js";
