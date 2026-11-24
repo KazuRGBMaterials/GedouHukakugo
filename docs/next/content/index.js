@@ -21,8 +21,12 @@ export function graphicsForBattle(side, battle, content = nextContent) {
   if (selected) return content.registry.get("characters",selected)?.graphics || null;
   // The next generation defaults to layered characters on the allied team.
   if (!side.startsWith("enemy")) return content.registry.get("characters","mage-next")?.graphics;
-  return content.registry.get("characters",battle?.grid?.enemyDefinitionId || "nameless")?.graphics
-    || content.visualFor(side,battle);
+  const enemyId = battle?.grid?.enemyDefinitionId;
+  if (!enemyId || enemyId === "default") {
+    const fallback = battle?.grid?.enemyType === "hellor" ? "hellor" : "nameless";
+    return content.registry.get("characters",fallback)?.graphics || content.visualFor(side,battle);
+  }
+  return content.visualFor(side,battle);
 }
 
 export function fieldMapFor(id, content=nextContent) {
