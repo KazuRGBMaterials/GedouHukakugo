@@ -1,6 +1,7 @@
 import { createDefinitionRegistry } from "../modkit/definition-registry.js";
 import { createLayeredSpriteRenderer, DEFAULT_LAYER_ORDER } from "../modkit/layered-sprite.js";
 import { createBattleContent } from "../content/manifest.js";
+import { createBattleAI } from "../content/ai-services.js";
 
 const result = document.getElementById("results");
 let passed = 0, failed = 0;
@@ -52,6 +53,12 @@ check("キャラごとの見た目選択", () => {
   assert(c.visualFor("player", {}).mode === "legacy", "player legacy");
   assert(c.visualFor("enemy", {grid:{enemyType:"hellor"}}).width === 40, "Hellor legacy");
   assert(c.visualFor("player", {grid:{characterBySide:{player:"layered-demo"}}}).mode === "layered", "character override");
+});
+check("敵AIの差し替えと既定の選択", () => {
+  const custom = () => ({id:"wait"});
+  const ai = createBattleAI({extensions:{experimental:custom}});
+  assert(ai.forEnemy({ai:"experimental"}).regular === custom, "custom strategy not injected");
+  assert(typeof ai.forEnemy({ai:"hellor"}).boss === "function", "Hellor strategy missing");
 });
 check("基本5レイヤー順序", () => {
   assert(DEFAULT_LAYER_ORDER.join() === "skin,eyes,clothes,hair,accessories", "wrong order");
