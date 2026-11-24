@@ -1,5 +1,5 @@
-import { createDefinitionRegistry } from "../modkit/definition-registry.js";
-import { createLayeredSpriteRenderer, DEFAULT_LAYER_ORDER } from "../modkit/layered-sprite.js";
+import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
+import { createLayeredSpriteRenderer, DEFAULT_LAYER_ORDER } from "../../shared/modkit/layered-sprite.js";
 import { createBattleContent } from "../content/manifest.js";
 import { createBattleAI } from "../content/ai-services.js";
 
