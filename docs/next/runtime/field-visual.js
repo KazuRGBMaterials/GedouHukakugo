@@ -53,16 +53,55 @@ export function createFieldVisualPort({
  * it again here. The old renderer remains available only in legacy mode.
  */
 export function installFieldLayeredRenderers({
-  TexturedRenderer, ArcaneFieldRenderer, ArcanePreviewRenderer, visualPort
+  TexturedRenderer, AbilityRenderer, SkillMotionRenderer,
+  ArcaneFieldRenderer, ArcanePreviewRenderer, visualPort
 }) {
   if (!TexturedRenderer?.prototype || !visualPort?.draw)
     throw new Error("FIELD NEXT visual port requires a renderer and draw function");
 
-  const groundLegacy = TexturedRenderer.prototype.drawPlayer;
-  TexturedRenderer.prototype.drawPlayer=function(player) {
-    if (visualPort.draw(this.ctx,player,{elapsed:this.elapsed})) return;
-    return groundLegacy.call(this,player);
-  };
+  // AbilityFieldRenderer overrides TexturedFieldRenderer.drawPlayer and
+  // draws the old 42x59 silver-haired sheet directly. Patch that actual
+  // entry point as well as the base renderer. SkillMotionFieldRenderer
+  // wraps its superclass in a .86 scale; compensate only for the layered
+  // body, leaving all skill-effect transforms and legacy mode untouched.
+  const scaledGround = new WeakSet();
+  if (SkillMotionRenderer?.prototype?.drawPlayer) {
+    const motionLegacy=SkillMotionRenderer.prototype.drawPlayer;
+    SkillMotionRenderer.prototype.drawPlayer=function(player) {
+      if (!visualPort.isLayered()) return motionLegacy.call(this,player);
+      scaledGround.add(this);
+      try { return motionLegacy.call(this,player); }
+      finally { scaledGround.delete(this); }
+    };
+  }
+  function shadow(ctx,x,y) {
+    ctx.save();
+    ctx.fillStyle="#070c1a66";
+    ctx.beginPath();
+    ctx.ellipse(x,y+8,16,5,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+  for (const Renderer of [TexturedRenderer, AbilityRenderer]) {
+    if (!Renderer?.prototype?.drawPlayer) continue;
+    const groundLegacy=Renderer.prototype.drawPlayer;
+    Renderer.prototype.drawPlayer=function(player) {
+      if (!visualPort.isLayered()) return groundLegacy.call(this,player);
+      const ctx=this.ctx;
+      const scale=scaledGround.has(this)?Number(this.characterScale):1;
+      ctx.save();
+      try {
+        if (Number.isFinite(scale) && scale>0 && scale!==1) {
+          ctx.translate(player.x,player.y);
+          ctx.scale(1/scale,1/scale);
+          ctx.translate(-player.x,-player.y);
+        }
+        shadow(ctx,player.x,player.y);
+        if (visualPort.draw(ctx,player,{elapsed:this.elapsed})) return;
+      } finally { ctx.restore(); }
+      return groundLegacy.call(this,player);
+    };
+  }
 
   for (const Renderer of [ArcaneFieldRenderer,ArcanePreviewRenderer]) {
     if (!Renderer?.prototype?.drawAirborne) continue;
@@ -75,12 +114,7 @@ export function installFieldLayeredRenderers({
       const ctx=this.ctx;
       // The shadow stays on the ground, while JumpRenderer has already
       // raised the character's drawing coordinate by exactly height.
-      ctx.save();
-      ctx.fillStyle="#070c1a66";
-      ctx.beginPath();
-      ctx.ellipse(player.x,player.y+height+8,16,5,0,0,Math.PI*2);
-      ctx.fill();
-      ctx.restore();
+      shadow(ctx,player.x,player.y+height);
 
       // The jump renderer has already raised the position. Do not apply
       // another scale, tint or rotation; standing and jumping must match.
