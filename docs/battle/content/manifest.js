@@ -9,8 +9,10 @@ import hellor from "./characters/hellor.js";
 import layeredDemo from "./characters/layered-demo.js";
 import trainingEnemies from "./enemies/training-pack.js";
 import terrainMaps from "./maps/terrain-pack.js";
+import tree from "./objects/tree.js";
+import standardObjects from "./objects/standard-pack.js";
 
-export const DEFAULT_PACKS = Object.freeze([mage, hellor, layeredDemo, trainingEnemies, terrainMaps]);
+export const DEFAULT_PACKS = Object.freeze([mage, hellor, layeredDemo, trainingEnemies, terrainMaps, tree, standardObjects]);
 
 export function createBattleContent({
   packs = DEFAULT_PACKS,
