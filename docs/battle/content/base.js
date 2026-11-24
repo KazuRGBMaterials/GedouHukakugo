@@ -13,5 +13,10 @@ export const contentBases = Object.freeze({
   maps: {
     displayName: "無題のマップ",
     terrainType: "mixed"
+  },
+  objects: {
+    displayName: "無名のオブジェクト",
+    solid: true,
+    defaultSize: [48,48]
   }
 });
