@@ -11,40 +11,11 @@ import { bindGameTaps } from "../../assets/game-taps.js?v=1";
 import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=3";
 import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
 import { createBattleAI } from "../../battle/content/ai-services.js?v=1";
+import { withWaitHealthRecovery } from "./rest-recovery.js";
 
-/**
- * NEXT-only wait HP recovery. The original VER4 rules remain unchanged.
- * Capture the current slot's committed waits before the core engine removes
- * resolved actions, then apply +2 HP only when the actor took no damage.
- *
- * Works for both grid battles and the original two-person belt screen.
- * An interrupted/cancelled wait or a defeated actor cannot recover.
- */
-export const WAIT_HP_REGEN = 2;
-export function advanceBattle(battle) {
-  if (battle.phase !== "running") return;
-  const resolvingTick = battle.tick + 1;
-  const sides = battle.grid ? gridSides(battle) : ["player","enemy"];
-  const candidates = sides.map(side => {
-    const actor=battle[side];
-    if (!actor || actor.hp <= 0) return null;
-    const wait=actor.actions.find(action =>
-      action.commandId==="wait" && action.status==="pending" &&
-      action.start <= resolvingTick && action.impact===resolvingTick
-    );
-    return wait ? {side, action:wait, hp:actor.hp} : null;
-  }).filter(Boolean);
-  advanceCoreBattle(battle);
-  if (battle.tick !== resolvingTick) return;
-  for (const {side,action,hp} of candidates) {
-    const actor=battle[side];
-    if (!actor || actor.hp<=0 || action.status!=="resolved") continue;
-    // Incoming damage, even when the combatant survives, cancels recovery.
-    // HP may remain at max; it can never exceed the maximum.
-    if (actor.hp !== hp) continue;
-    actor.hp=Math.min(actor.maxHp,actor.hp+WAIT_HP_REGEN);
-  }
-}
+const advanceBattle = withWaitHealthRecovery(advanceCoreBattle, {
+  sidesForBattle: state => state.grid ? gridSides(state) : ["player","enemy"]
+});
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
