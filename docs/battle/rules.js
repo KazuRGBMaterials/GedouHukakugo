@@ -399,7 +399,7 @@ function planGridActor(battle, side) {
     board: grid, from: grid[side], previous: actor.previousAction,
     lockedTarget: actor.hellorTarget, turn: actor.decision ?? 0,
     hp: actor.hp, stamina: actor.stamina, nextStart, opponents
-  }, canChoose) : (grid.deciders?.regular || chooseEnemyAction)({
+  }, canChoose) : (enemySide ? (grid.deciders?.regular || chooseEnemyAction) : chooseEnemyAction)({
     profile: enemySide ? grid.enemyProfile : allyProfile,
     board: grid,
     from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
