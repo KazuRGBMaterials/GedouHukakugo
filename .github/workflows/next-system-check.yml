@@ -1,0 +1,26 @@
+name: NEXT system regression
+on:
+  push:
+    paths:
+      - 'docs/next/**'
+      - 'docs/shared/modkit/**'
+      - '.github/workflows/next-system-check.yml'
+  pull_request:
+    paths:
+      - 'docs/next/**'
+      - 'docs/shared/modkit/**'
+      - '.github/workflows/next-system-check.yml'
+jobs:
+  next-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static and modular regression checks
+        run: node --experimental-default-type=module --experimental-vm-modules docs/next/tests/smoke.mjs
+      - name: Existing MODKIT regression checks
+        run: node --experimental-default-type=module docs/battle/tests/modkit-node.mjs
