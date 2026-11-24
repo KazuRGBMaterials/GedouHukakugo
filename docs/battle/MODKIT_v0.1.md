@@ -4,7 +4,7 @@
 
 - 開発ブランチ `feature/layered-sprites-modular-content-20261124` 用の追加基盤。
 - 既存のFIELD `docs/index.html`、過去のVER1〜VER4保存版、既存キャラ画像・戦闘バランス・セーブ形式は変更しない。
-- 主な対象は現在の戦闘 `docs/battle/?grid=1`。他の画面へは段階的に移植する。
+- 主な対象は現在の戦闘 `docs/battle/?grid=1`。他の画面へは段階的に移植する。マップ配置物も定義レジストリには登録済みだが、FIELD本体への配置・保存の接続は未実装。
 - **本番互換モードではMAGE/ヘルオルの従来の単一画像を維持**。試験表示は `docs/battle/?grid=1&layers=demo`（プレイヤーのみ試験用5層絵）。
 - ブラウザテスト: `docs/battle/tests/`。ブラウザ実機確認は別途必要。
 
@@ -47,7 +47,8 @@ export default {
 export default {
   characters: [{ id: "a", graphics: { mode: "legacy" } }, { id: "b" }],
   enemies: [{ id: "enemy-a", characterId: "a", ai: "standard" }],
-  maps: [{ id: "map-a", terrainType: "grassland" }]
+  maps: [{ id: "map-a", terrainType: "grassland" }],
+  objects: [{ id: "tree", fieldType: "tree", defaultSize: [54,55] }]
 };
 ```
 
@@ -69,6 +70,6 @@ export default {
 - 戦闘のレジストリ接続は完了。マップの地形計算は既存関数の注入で互換維持。
 - 敵AIのアルゴリズムは `content/ai-services.js` が選び `rules.js` へ渡すDI方式。新規AIは拡張関数をここに注入できる。ヘルオルの特殊条件（慈悲など）は既存の `rules.js` に残す。
 - マップ物理とオブジェクト挙動の完全な個別化は後続課題。既存のヘルオル固有の慈悲挙動、戦闘計算、アクション性能は変更しない。
-- FIELD、FIELD EDITORとのコンテンツ基盤統合は別フェーズ。既存のフィールド保存形式を勝手に変更しない。
+- `objects` に木・壁・水辺・宝箱・イベントキャラを独立登録可能。実際のFIELD、FIELD EDITORとのコンテンツ基盤統合は別フェーズ。既存のフィールド保存形式を勝手に変更しない。
 - 新規マップで未対応の地形タイプを使う場合は専用 terrainProvider の追加または注入が必要。
 - GUIからの5層画像編集、アセット自動読み込み、シーンごとの追加ライフサイクル管理は未実装。
