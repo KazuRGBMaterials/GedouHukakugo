@@ -26,7 +26,7 @@ export function createBattleContent({
     const selected = battle?.grid?.characterBySide?.[side];
     const enemy = side.startsWith("enemy");
     const characterId = selected || (enemy
-      ? enemyFor(battle?.grid?.enemyType)?.characterId : "mage");
+      ? enemyFor(battle?.grid?.enemyDefinitionId || battle?.grid?.enemyType)?.characterId : "mage");
     return registry.get("characters", characterId)?.graphics || null;
   };
   return Object.freeze({ registry, enemyFor, mapFor, terrainFor, visualFor });
