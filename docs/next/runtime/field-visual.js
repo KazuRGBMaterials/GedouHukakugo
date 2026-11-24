@@ -25,8 +25,10 @@ export function createFieldVisualPort({
     const graphics=fieldGraphics();
     if (graphics?.mode!=="layered") return false;
     const bob=player.moving?Math.sin(elapsed*16)*1.8:0;
-    const w=68,h=95;
-    const x=Math.round(player.x-w/2),y=Math.round(player.y-72+bob);
+    // Normal scale now matches the 0.86x jump render from the previous version.
+    // Keep the feet anchored to the same ground reference point.
+    const w=68*.86,h=95*.86;
+    const x=Math.round(player.x-w/2),y=Math.round(player.y-72*.86+bob*.86);
     if (!canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h)
       && fallbackImage?.complete && fallbackImage.naturalWidth>0) {
       const frame=frameForFacing[player.facing]??0;
@@ -85,9 +87,8 @@ export function installFieldLayeredRenderers({
       ctx.restore();
 
       ctx.save();
-      ctx.translate(player.x,player.y);
-      ctx.scale(this.characterScale || .86,this.characterScale || .86);
-      ctx.translate(-player.x,-player.y);
+      // Ground draw is now already at the former jumping size (0.86x).
+      // Do not shrink again during airborne rendering.
       // All five layers share the same subtle airborne tilt and transform.
       ctx.translate(player.x,player.y-30);
       ctx.rotate(-.08*Math.min(1,height/35));
