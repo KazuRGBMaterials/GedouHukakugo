@@ -222,7 +222,7 @@ run("BATTLE NEXT defaults to real layered MAGE and hides provisional sprite",()=
  const game=createBattle(true,{risk:"balanced",waste:"some",style:"power"},
    {players:1,enemies:1});
  assert.equal(graphicsForBattle("player",game).original,mage.original);
- assert.equal(graphicsForBattle("enemy",game).mode,"legacy");
+ assert.equal(graphicsForBattle("enemy",game).mode,"layered"); // Nameless is the new default
  assert.equal(nextContent.enemyFor("nameless").characterId,"nameless");
  assert.equal(graphicsForBattle("enemy",{grid:{enemyDefinitionId:"nameless"}}).mode,"layered");
 });
