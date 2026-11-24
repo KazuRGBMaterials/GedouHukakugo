@@ -13,12 +13,12 @@
 ```text
 battle.js (composition root / controls)
    ├── content/manifest.js (individual definitions & packs)
-   │    └── modkit/definition-registry.js (pure data)
+   │    └── ../shared/modkit/definition-registry.js (pure data)
    ├── content/ai-services.js (selects AI functions per enemy definition)
    ├── rules.js (battle mechanics, injected AI + legacy fallback)
    └── grid-ui.js (receives visualFor, terrainFor)
          └── grid-motion.js (receives visualFor, sprite renderer)
-               └── modkit/layered-sprite.js (DOM adapter only)
+               └── ../shared/modkit/layered-sprite.js (DOM adapter only)
 ```
 
 定義はゲーム内の `newBattle` や描画コードを直接 import せず、`id` によるレジストリ参照を行います。実データの読み込み、具体的な実装の選択は `content/manifest.js` が担当します。ゲームロジックをどのファイルに入れたかで挙動が変わる設計にはしません。
