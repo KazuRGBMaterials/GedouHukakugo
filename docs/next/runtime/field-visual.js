@@ -16,30 +16,26 @@ export function createFieldVisualPort({
   const fieldGraphics = () => content.registry.get("characters","mage-next")?.graphics;
   const isLayered = () => visualMode() !== "legacy";
 
-  const frameForFacing = Object.freeze({S:0,SE:1,E:2,NE:3,N:4,NW:5,W:6,SW:7});
-
-  // During the five image downloads, keep drawing the SAME authentic MAGE
-  // sheet. Never draw the temporary colored placeholder or another character.
-  function draw(ctx, player, { elapsed=0, fallbackImage=null }={}) {
+  // All states use exactly the same layered graphics. Do not fall back
+  // to the old silver-haired source image while the new textures load.
+  if (canvasLayers.load) {
+    const graphics=fieldGraphics();
+    for (const layer of Object.values(graphics?.layers || {})) {
+      const src=typeof layer==="string"?layer:layer?.src;
+      if(src)canvasLayers.load(src);
+    }
+  }
+  function draw(ctx, player, { elapsed=0 }={}) {
     if (!isLayered()) return false;
     const graphics=fieldGraphics();
     if (graphics?.mode!=="layered") return false;
     const bob=player.moving?Math.sin(elapsed*16)*1.8:0;
-    // Normal scale now matches the 0.86x jump render from the previous version.
-    // Keep the feet anchored to the same ground reference point.
-    const w=68*.86,h=95*.86;
-    const x=Math.round(player.x-w/2),y=Math.round(player.y-72*.86+bob*.86);
-    if (!canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h)
-      && fallbackImage?.complete && fallbackImage.naturalWidth>0) {
-      const frame=frameForFacing[player.facing]??0;
-      ctx.save();
-      ctx.imageSmoothingEnabled=false;
-      ctx.drawImage(fallbackImage,
-        (frame%4)*40,Math.floor(frame/4)*56,40,56,x,y,w,h);
-      ctx.restore();
-    }
-    // Even before textures finish downloading, do not switch to a
-    // mismatched third-party placeholder during takeoff/landing.
+    // Use the larger 68×95 draw scale on the ground and in the air.
+    // Gameplay coordinates and collision boxes are unchanged.
+    const w=68,h=95;
+    const x=Math.round(player.x-w/2),y=Math.round(player.y-72+bob);
+    canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h);
+    // Draw nothing until new colors are ready, never flash old colors.
     return true;
   }
 
@@ -64,7 +60,7 @@ export function installFieldLayeredRenderers({
 
   const groundLegacy = TexturedRenderer.prototype.drawPlayer;
   TexturedRenderer.prototype.drawPlayer=function(player) {
-    if (visualPort.draw(this.ctx,player,{elapsed:this.elapsed,fallbackImage:this.loaded?.("mage-8dir")})) return;
+    if (visualPort.draw(this.ctx,player,{elapsed:this.elapsed})) return;
     return groundLegacy.call(this,player);
   };
 
@@ -86,15 +82,9 @@ export function installFieldLayeredRenderers({
       ctx.fill();
       ctx.restore();
 
-      ctx.save();
-      // Ground draw is now already at the former jumping size (0.86x).
-      // Do not shrink again during airborne rendering.
-      // All five layers share the same subtle airborne tilt and transform.
-      ctx.translate(player.x,player.y-30);
-      ctx.rotate(-.08*Math.min(1,height/35));
-      ctx.translate(-player.x,-player.y+30);
-      visualPort.draw(ctx,player,{elapsed:this.elapsed,fallbackImage:this.loaded?.("mage-8dir")});
-      ctx.restore();
+      // The jump renderer has already raised the position. Do not apply
+      // another scale, tint or rotation; standing and jumping must match.
+      visualPort.draw(ctx,player,{elapsed:this.elapsed});
     };
   }
 }
