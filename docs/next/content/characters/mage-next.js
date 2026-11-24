@@ -2,7 +2,7 @@
  * Separate content file for the vNext playable visual.
  * Transparent five-part prototype, distinct from the canonical MAGE art.
  */
-const asset = name => new URL("../../battle/content/assets/layered-demo/" + name + ".svg", import.meta.url).href;
+const asset = name => new URL("../../../battle/content/assets/layered-demo/" + name + ".svg", import.meta.url).href;
 export default {
   kind:"characters",id:"mage-next",displayName:"MAGE・5層試作",
   graphics:{
