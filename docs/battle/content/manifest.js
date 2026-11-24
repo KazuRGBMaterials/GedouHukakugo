@@ -6,10 +6,11 @@ import { createDefinitionRegistry } from "../modkit/definition-registry.js";
 import { contentBases } from "./base.js";
 import mage from "./characters/mage.js";
 import hellor from "./characters/hellor.js";
+import layeredDemo from "./characters/layered-demo.js";
 import trainingEnemies from "./enemies/training-pack.js";
 import terrainMaps from "./maps/terrain-pack.js";
 
-export const DEFAULT_PACKS = Object.freeze([mage, hellor, trainingEnemies, terrainMaps]);
+export const DEFAULT_PACKS = Object.freeze([mage, hellor, layeredDemo, trainingEnemies, terrainMaps]);
 
 export function createBattleContent({
   packs = DEFAULT_PACKS,
