@@ -8,6 +8,8 @@ import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, n
 import { bindBattleGrid } from "./grid-ui.js?v=15";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
+import { createBattleContent } from "./content/manifest.js?v=1";
+import { terrainAt } from "./grid-terrain.js?v=2";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
@@ -19,9 +21,33 @@ const outcomeSounds = { 勝利: "victory", 敗北: "defeat", 相打ち: "draw" }
 const planningSeconds = 8;
 const urlParams = new URLSearchParams(window.location.search);
 const gridMode = urlParams.get("grid") === "1";
+const battleContent = createBattleContent({ terrainProvider: terrainAt });
 const enemyName = urlParams.get("encounter")?.trim().slice(0, 40);
 const enemyChoiceField = gridMode ? el("grid-enemy") : null;
 const tacticsField = gridMode ? el("grid-tactics") : null;
+if (enemyChoiceField) {
+  const previous = enemyChoiceField.value;
+  const options = battleContent.registry.list("enemies").map(enemy => {
+    const option = document.createElement("option");
+    option.value = enemy.id;
+    option.textContent = enemy.displayName;
+    return option;
+  });
+  if (options.length) enemyChoiceField.replaceChildren(...options);
+  enemyChoiceField.value = previous;
+}
+const terrainChoiceField = gridMode ? el("grid-terrain") : null;
+if (terrainChoiceField) {
+  const previous = terrainChoiceField.value;
+  const options = battleContent.registry.list("maps").map(map => {
+    const option = document.createElement("option");
+    option.value = map.id;
+    option.textContent = map.displayName;
+    return option;
+  });
+  if (options.length) terrainChoiceField.replaceChildren(...options);
+  terrainChoiceField.value = previous;
+}
 if (enemyChoiceField && enemyName) {
   if (enemyName === "ヘルオル") {
     enemyChoiceField.value = "hellor";
@@ -109,6 +135,8 @@ if (gridMode) {
   el("battle-title").textContent = "ベルトライン戦闘 VER4";
   document.body.classList.add("grid-mode");
   renderGrid = bindBattleGrid({
+    visualFor: battleContent.visualFor,
+    terrainFor: battleContent.terrainFor,
     onMove: position => queue("move", position),
     onTarget: side => {
       targets[controlled] = side;
@@ -166,10 +194,14 @@ function newBattle() {
   const rows = normalizeGridSize(rowsField.value);
   columnsField.value = columns;
   rowsField.value = rows;
+  const encounterId = enemyChoiceField.value;
+  const encounter = battleContent.enemyFor(encounterId);
   return createBattle(true, { risk: risk.value, waste: waste.value, style: style.value },
-    { players, enemies, enemyName: enemyChoiceField.value === "hellor" ? "ヘルオル"
-      : enemyChoiceField.value === "encounter" ? enemyName : undefined,
-      enemyType: enemyChoiceField.value === "hellor" ? "hellor" : "default",
+    { players, enemies,
+      enemyName: encounterId === "encounter" ? enemyName
+        : encounterId === "default" ? undefined : encounter?.displayName,
+      enemyType: encounter?.battleType === "hellor" ? "hellor" : "default",
+      enemyDefinitionId: encounterId,
       enemyTactics: tacticsField.value,
       automatic, columns, rows });
 }
