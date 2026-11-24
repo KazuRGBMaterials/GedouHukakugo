@@ -1,6 +1,8 @@
 import {SCHEMA_VERSION,STORAGE_KEY,MAP_FILE_MAX_BYTES,DEFAULT_SIZE,ALLOWED_TYPES,defaultMap,deepCopy,validateMap,collides,nearestSafeSpawn,newId} from "./map-schema.js?v=095";
-import { drawFieldObject, FIELD_OBJECT_DIALOGUE_MAX, FIELD_OBJECT_NAME_MAX, showFieldPortrait } from "../assets/field-objects.js?v=095";
+import { drawFieldObject, FIELD_OBJECT_DIALOGUE_MAX, FIELD_OBJECT_NAME_MAX, showFieldPortrait } from "../../assets/field-objects.js?v=095";
 import { readPortraitFile } from "./portrait-file.js?v=1";
+import { nextContent, objectDefinitionFor } from "../content/index.js";
+import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 
 const $=id=>document.getElementById(id);
 const canvas=$("map-canvas"),holder=$("canvas-holder"),ctx=canvas.getContext("2d");
@@ -8,19 +10,30 @@ if(!ctx)throw Error("Canvas 2D not available");
 const labels={wall:"石壁",tree:"樹木",water:"水辺",chest:"宝箱",actor:"会話オブジェクト",path:"道",spawn:"開始位置"};
 const colors={wall:"#778781",tree:"#5f925f",water:"#39899c",chest:"#c89a5c"};
 let map,tool="select",selection=null,drag=null,drawDraft=null,pathDraft=null;
+let activeDefinitionId=null;
+const layeredGraphics=nextContent.registry.get("characters","mage-next")?.graphics;
+const layeredCanvas=createLayeredCanvas({onAssetReady:()=>{if(map)render();}});
 let grid=true,snap=true,gridSize=32,zoom=.6,offsetX=0,offsetY=0,playing=false,player=null;
 let past=[],future=[],dirty=false,noticeTimer=0,lastTime=0;
 const keys=new Set(),touchDirections=new Set(),images={};
 const assetNames={ground:"ground.svg",path:"path.svg",stone:"stone.svg",water:"water.svg",tree:"tree.svg",chest:"chest.svg",mage:"mage-8dir.png"};
 for(const [key,file] of Object.entries(assetNames)){
- const image=new Image();image.src="../assets/"+file;image.onload=()=>render();images[key]=image;
+ const image=new Image();image.src="../../assets/"+file;image.onload=()=>render();images[key]=image;
 }
 const asset=key=>images[key]?.complete&&images[key].naturalWidth?images[key]:null;
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 const round=n=>Math.round(n);
 const snapNum=n=>snap?Math.round(n/gridSize)*gridSize:Math.round(n);
 function announce(message){$("status-message").textContent=message;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{$("status-message").textContent=playing?"矢印キー / WASD / 画面パッドで移動":"ツールを選んで編集してください"},3600);}
-function readLocal(){try{const s=localStorage.getItem(STORAGE_KEY);if(s){const validated=validateMap(JSON.parse(s));return validated;}}catch(e){console.warn("Invalid saved editor map",e)}return defaultMap();}
+function readLocal() {
+  try{
+    const saved=localStorage.getItem(STORAGE_KEY);
+    // If no NEXT save exists, read the original but never write back to it.
+    const raw=saved ?? localStorage.getItem("gedo-field-editor-autosave-v1");
+    if(raw)return validateMap(JSON.parse(raw));
+  }catch(error){console.warn("Invalid saved map",error);}
+  return defaultMap();
+ }
 function persist(quiet=false){
  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(map));$("last-saved").textContent="自動保存済み・この端末";dirty=false;$("dirty-mark").textContent="";if(!quiet)announce("この端末に保存しました");}
  catch(e){$("last-saved").textContent="保存できませんでした";$("dirty-mark").textContent="● 未保存";if(!quiet)announce("保存できません。JSONとして書き出してください");}
@@ -75,7 +88,7 @@ function refreshInspector(){
    showFieldPortrait($("actor-portrait-frame"),$("actor-portrait-image"),sel.portrait);
  }
  if(object){
-   $("selected-name").textContent=labels[sel.type]||sel.type;
+   $("selected-name").textContent=objectDefinitionFor(sel.definitionId||sel.type)?.displayName || labels[sel.type]||sel.type;
    for(const k of ["x","y","w","h"])$("prop-"+k).value=sel[k];
    $("prop-solid").checked=sel.solid;
  }
@@ -156,7 +169,9 @@ function drawPaths(){
  }
 }
 function drawObject(o,selected=false){
- const {x,y,w,h,type}=o;
+ const {x,y,w,h}=o;
+ const definition=objectDefinitionFor(o.definitionId||o.type);
+ const type=definition?.fieldType||o.type;
  ctx.save();
  if(type==="actor"){
   drawFieldObject(ctx,o);
@@ -190,7 +205,8 @@ function drawObject(o,selected=false){
 function drawSpawn(){
  const s=map.spawn;
  const mage=asset("mage");
- if(mage){ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(mage,0,0,40,56,s.x-17,s.y-49,34,48);ctx.restore();}
+ if(layeredGraphics&&layeredCanvas.draw(ctx,layeredGraphics,"S",s.x-17,s.y-49,34,48)){}
+ else if(mage){ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(mage,0,0,40,56,s.x-17,s.y-49,34,48);ctx.restore();}
  else{ctx.fillStyle="#d9d0f1";ctx.fillRect(s.x-12,s.y-32,24,27);}
  ctx.save();ctx.strokeStyle="#f1d37e";ctx.lineWidth=2/zoom;
  ctx.beginPath();ctx.ellipse(s.x,s.y+6,17,8,0,0,Math.PI*2);ctx.stroke();
@@ -219,7 +235,8 @@ function render(){
   ctx.save();const p=player;
   ctx.fillStyle="#15202fb0";ctx.beginPath();ctx.ellipse(p.x,p.y+7,16,6,0,0,Math.PI*2);ctx.fill();
   const sprite=asset("mage");
-  if(sprite){const facings=["S","SE","E","NE","N","NW","W","SW"],j=facings.indexOf(p.facing);
+  if(layeredGraphics&&layeredCanvas.draw(ctx,layeredGraphics,p.facing,p.x-18,p.y-47,36,50)){}
+   else if(sprite){const facings=["S","SE","E","NE","N","NW","W","SW"],j=facings.indexOf(p.facing);
     ctx.imageSmoothingEnabled=false;
     ctx.drawImage(sprite,(j%4)*40,Math.floor(j/4)*56,40,56,p.x-18,p.y-47,36,50);
   } else {ctx.fillStyle="#d7e0ea";ctx.fillRect(p.x-13,p.y-26,26,30)}
@@ -228,12 +245,15 @@ function render(){
  ctx.restore();
 }
 function addObject(type,x,y,dragSize=null){
- const [dw,dh]=DEFAULT_SIZE[type];
+ const chosen=activeDefinitionId&&objectDefinitionFor(activeDefinitionId);
+ const definition=chosen?.fieldType===type?chosen:objectDefinitionFor(type);
+ const [dw,dh]=definition?.defaultSize||DEFAULT_SIZE[type];
  const w=Math.min(map.width,Math.max(8,dragSize?.w||dw));
  const h=Math.min(map.height,Math.max(8,dragSize?.h||dh));
  const px=clamp(snapNum(x),0,map.width-w),py=clamp(snapNum(y),0,map.height-h);
- const object={id:newId("object"),type,x:px,y:py,w,h,solid:type!=="actor"};
- mutate(()=>{map.objects.push(object);selection={kind:"object",id:object.id}},labels[type]+"を配置しました");
+ const object={id:newId("object"),type,x:px,y:py,w,h,solid:definition?.solid??type!=="actor",
+   ...(definition&&{definitionId:definition.id})};
+ mutate(()=>{map.objects.push(object);selection={kind:"object",id:object.id}},(definition?.displayName||labels[type]||type)+"を配置しました");
 }
 function addPathPoint(p){
  const point={x:clamp(snapNum(p.x),0,map.width),y:clamp(snapNum(p.y),0,map.height)};
@@ -483,6 +503,34 @@ function initEvents(){
   const item=getSelected();if(!item||selection.kind!=="object")return;
   const dupe={...deepCopy(item),id:newId("object"),x:clamp(item.x+32,0,map.width-item.w),y:clamp(item.y+32,0,map.height-item.h)};
   mutate(()=>{map.objects.push(dupe);selection={kind:"object",id:dupe.id}},"複製しました");
+ });
+ const objectPicker=$("next-object-choice");
+ const models=nextContent.registry.list("objects");
+ objectPicker.replaceChildren(...models.map(def=>{
+   const opt=document.createElement("option");opt.value=def.id;opt.textContent=def.displayName;return opt;
+ }));
+ $("next-object-activate").addEventListener("click",()=>{
+   const def=nextContent.registry.get("objects",objectPicker.value);
+   if(!def)return;
+   activeDefinitionId=def.id;
+   setTool(def.fieldType);
+   announce(def.displayName+"：マップをタップして配置してください");
+ });
+ document.querySelectorAll("[data-tool]").forEach(button=>button.addEventListener("click",()=>{
+   if(button.dataset.tool)activeDefinitionId=null;
+ }));
+ const mapPicker=$("next-map-choice");
+ const maps=nextContent.registry.list("maps").filter(def=>def.file);
+ mapPicker.replaceChildren(...maps.map(def=>{
+   const opt=document.createElement("option");opt.value=def.id;opt.textContent=def.displayName;return opt;
+ }));
+ $("next-map-import").addEventListener("click",()=>{
+   const def=nextContent.registry.get("maps",mapPicker.value);
+   if(!def?.file||!confirm("現在の編集内容を選択した定義マップで置き換えますか？"))return;
+   const next=validateMap(deepCopy(def.file));
+   if(playing)setPlaying(false);
+   mutate(()=>{map=next;selection=null;pathDraft=null;},"定義マップを読み込みました");
+   fit();
  });
  $("save").addEventListener("click",()=>persist(false));
  $("play-main").addEventListener("click",()=>{
