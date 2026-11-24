@@ -1,7 +1,7 @@
 import {SCHEMA_VERSION,STORAGE_KEY,MAP_FILE_MAX_BYTES,DEFAULT_SIZE,ALLOWED_TYPES,defaultMap,deepCopy,validateMap,collides,nearestSafeSpawn,newId} from "./map-schema.js?v=095";
 import { drawFieldObject, FIELD_OBJECT_DIALOGUE_MAX, FIELD_OBJECT_NAME_MAX, showFieldPortrait } from "../../assets/field-objects.js?v=095";
 import { readPortraitFile } from "./portrait-file.js?v=1";
-import { nextContent, objectDefinitionFor } from "../content/index.js?v=3";
+import { nextContent, objectDefinitionFor } from "../content/index.js?v=5";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 
 const $=id=>document.getElementById(id);
