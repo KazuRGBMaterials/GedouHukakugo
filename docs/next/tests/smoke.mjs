@@ -151,6 +151,72 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  assert.equal(legacy.ground,1);
  assert.equal(legacy.air,1);
 });
+run("FIELD real renderer inheritance: standing, walking and jump share five-layer art and effective size",()=>{
+ const html=text("index.html");
+ const modules=JSON.parse(html.match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ const cache=new Map();
+ function load(id){
+   if(cache.has(id))return cache.get(id).exports;
+   assert(modules[id],"missing bundled module "+id);
+   const module={exports:{}};
+   cache.set(id,module);
+   const require=relative=>{
+     const target=path.posix.resolve(path.posix.dirname(id),relative);
+     return load(target.endsWith(".ts")?target:target+".ts");
+   };
+   new Function("require","module","exports",modules[id])(require,module,module.exports);
+   return module.exports;
+ }
+ const TexturedRenderer=load("/src/adapters/TexturedFieldRenderer.ts").TexturedFieldRenderer;
+ const AbilityRenderer=load("/src/adapters/AbilityFieldRenderer.ts").AbilityFieldRenderer;
+ const SkillMotionRenderer=load("/src/adapters/SkillMotionFieldRenderer.ts").SkillMotionFieldRenderer;
+ const {ArcaneFieldRenderer,ArcanePreviewRenderer}=load("/src/adapters/ArcaneSkinRenderer.ts");
+ assert.match(html,/TexturedRenderer, AbilityRenderer, SkillMotionRenderer,/);
+ let sx=1,sy=1;
+ const stack=[],draws=[];
+ const ctx={
+   save(){stack.push([sx,sy]);},restore(){[sx,sy]=stack.pop();},
+   scale(x,y){sx*=x;sy*=y;},translate(){},rotate(){},
+   beginPath(){},ellipse(){},fill(){}
+ };
+ const port=createFieldVisualPort({
+   canvasLayers:{draw(c,graphics,facing,x,y,w,h){
+     draws.push({graphics,facing,w:w*sx,h:h*sy});
+     return true;
+   }},
+   visualMode:()=>"layered"
+ });
+ installFieldLayeredRenderers({
+   TexturedRenderer,AbilityRenderer,SkillMotionRenderer,
+   ArcaneFieldRenderer,ArcanePreviewRenderer,visualPort:port
+ });
+ for(const Renderer of [ArcaneFieldRenderer,ArcanePreviewRenderer]){
+   const renderer=Object.assign(Object.create(Renderer.prototype),{
+     ctx,elapsed:0,characterScale:.86,
+     actions:{jumpElapsed:null,jumpOffset:()=>24},
+     skills:{motion:null,charge:null,fireCharge:null,aerialSlash:null},
+     loaded(){throw Error("Legacy MAGE sprite reached through real renderer");}
+   });
+   const first=draws.length;
+   for(const [moving,jump] of [[false,false],[true,false],[false,true]]){
+     const player={x:120,y:jump?136:160,facing:"SW",moving};
+     renderer.localPlayer=player;
+     renderer.actions.jumpElapsed=jump ? .1 : null;
+     renderer.drawPlayer(player);
+     assert.equal(stack.length,0);
+     assert.equal(sx,1);
+     assert.equal(sy,1);
+   }
+   const frames=draws.slice(first);
+   assert.equal(frames.length,3);
+   for(const frame of frames){
+     assert.equal(frame.graphics,frames[0].graphics);
+     assert.equal(frame.facing,"SW");
+     assert(Math.abs(frame.w-68)<1e-8,"effective width "+frame.w);
+     assert(Math.abs(frame.h-95)<1e-8,"effective height "+frame.h);
+   }
+ }
+});
 run("WAIT one slot restores +2 HP only if not damaged",()=>{
  assert.equal(WAIT_HEAL_HP,2);
  const simulate=(mode,{hp=70,maxHp=100,grid=true}={})=>{
