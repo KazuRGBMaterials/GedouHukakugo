@@ -4,7 +4,7 @@
  */
 import { createBattleContent, DEFAULT_PACKS } from "../../battle/content/manifest.js";
 import { terrainAt } from "../../battle/grid-terrain.js";
-import mageNext from "./characters/mage-next.js";
+import mageNext from "./characters/mage-next.js?v=2";
 import starterMap from "./maps/starter-map.js";
 import objectPack from "./objects/library-pack.js";
 

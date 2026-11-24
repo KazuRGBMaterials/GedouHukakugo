@@ -89,7 +89,9 @@ run("layered sprites share frame + order on canvas",()=>{
  assert.equal(r.draw(ctx,gfx,"NE",10,20,35,50),true);
  const draw=calls.filter(x=>Array.isArray(x)&&x[0]==="draw");
  assert.equal(draw.length,5);
- assert(draw.every(row=>row[2]===90&&row[3]===0&&row[4]===30&&row[5]===42));
+ assert.equal(gfx.width,40);
+ assert.equal(gfx.height,56);
+ assert(draw.every(row=>row[2]===120&&row[3]===0&&row[4]===40&&row[5]===56));
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
@@ -142,18 +144,69 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  assert.equal(legacy.ground,1);
  assert.equal(legacy.air,1);
 });
-run("FIELD NEXT layers loading never flashes a different character",()=>{
- const events=[];
+run("BATTLE NEXT defaults to real layered MAGE and hides provisional sprite",()=>{
+ const source=text("battle/battle.js");
+ assert(source.includes('characterSelect.value="mage-next";'));
+ assert(source.includes('person.id !== "layered-demo"'));
+ const mage=nextContent.registry.get("characters","mage-next").graphics;
+ assert.equal(mage.mode,"layered");
+ assert.equal(mage.width,40);
+ assert.equal(mage.height,56);
+ const game=createBattle(true,{risk:"balanced",waste:"some",style:"power"},
+   {players:1,enemies:1});
+ assert.equal(graphicsForBattle("player",game).original,mage.original);
+ assert.equal(graphicsForBattle("enemy",game).mode,"legacy");
+});
+run("FIELD NEXT loading uses same authentic MAGE, not test placeholder",()=>{
+ const calls=[];
+ const fallback={complete:true,naturalWidth:160};
  const ctx={
    save(){},restore(){},
-   fillRect(){events.push("placeholder");}
+   set imageSmoothingEnabled(value){calls.push(["smooth",value]);},
+   drawImage(...args){calls.push(["draw",...args]);},
+   fillRect(){throw new Error("Fake avatar placeholder was drawn");}
  };
  const port=createFieldVisualPort({
    canvasLayers:{draw(){return false;}},
    visualMode:()=>"layered"
  });
- assert.equal(port.draw(ctx,{x:20,y:100,facing:"S"},{elapsed:0}),true);
- assert.equal(events.length,5);
+ assert.equal(port.draw(ctx,{x:20,y:100,facing:"SW"},
+   {elapsed:0,fallbackImage:fallback}),true);
+ const callsDraw=calls.filter(event=>event[0]==="draw");
+ assert.equal(callsDraw.length,1);
+ assert.equal(callsDraw[0][1],fallback);
+ assert.equal(callsDraw[0][2],120); // SW, frame #7, x=120
+ assert.equal(callsDraw[0][3],56);  // second row
+ assert.equal(callsDraw[0][4],40);
+ assert.equal(callsDraw[0][5],56);
+});
+run("authentic 5-layer MAGE sheets cover all original pixels exactly once",()=>{
+ const kinds=["skin","eyes","clothes","hair","accessories"];
+ const original=fs.readFileSync(path.join(docs,"assets/mage-8dir.png"));
+ const covered=new Uint8Array(160*112);
+ for(const kind of kinds){
+   const svg=fs.readFileSync(path.join(next,"content/assets/mage-layers",kind+".svg"),"utf8");
+   assert.match(svg,/width="160" height="112"/);
+   const png=svg.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/);
+   assert(png,kind+" embedded original missing");
+   assert.deepEqual(Buffer.from(png[1],"base64"),original);
+   const shapes=svg.match(/<path d="([^"]+)"/);
+   assert(shapes,kind+" mask missing");
+   const tokens=[...shapes[1].matchAll(/M(\d+) (\d+)h(\d+)v1h-(\d+)z/g)];
+   assert(tokens.length>=5,kind+" has insufficient independent mask rows");
+   for(const [,xs,ys,ws,back] of tokens){
+     const x=Number(xs),y=Number(ys),width=Number(ws);
+     assert.equal(width,Number(back));
+     assert(x>=0&&x+width<=160&&y>=0&&y<112);
+     for(let px=x;px<x+width;px++)covered[y*160+px]++;
+   }
+ }
+ assert([...covered].every(count=>count===1),"Original pixel coverage must be exactly one per layer");
+ const graphics=nextContent.registry.get("characters","mage-next").graphics;
+ assert.equal(graphics.width,40);
+ assert.equal(graphics.height,56);
+ assert.equal(Object.keys(graphics.layers).length,5);
+ assert(graphics.original.endsWith("/assets/mage-8dir.png"));
 });
 run("NEXT editor map can preserve object definition IDs",()=>{
  const map=fieldMapFor("field-starter");
