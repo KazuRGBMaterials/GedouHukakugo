@@ -2,10 +2,10 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
-} from "./rules.js?v=15";
+} from "./rules.js?v=16";
 import { createBattleAudio } from "./audio.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
-import { bindBattleGrid } from "./grid-ui.js?v=15";
+import { bindBattleGrid } from "./grid-ui.js?v=16";
 import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 import { createBattleContent } from "./content/manifest.js?v=1";
@@ -135,7 +135,9 @@ if (gridMode) {
   el("battle-title").textContent = "ベルトライン戦闘 VER4";
   document.body.classList.add("grid-mode");
   renderGrid = bindBattleGrid({
-    visualFor: battleContent.visualFor,
+    visualFor: (side, battleState) => side === "player" && urlParams.get("layers") === "demo"
+      ? battleContent.registry.get("characters", "layered-demo")?.graphics
+      : battleContent.visualFor(side, battleState),
     terrainFor: battleContent.terrainFor,
     onMove: position => queue("move", position),
     onTarget: side => {
