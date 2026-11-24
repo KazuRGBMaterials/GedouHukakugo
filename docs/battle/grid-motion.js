@@ -1,14 +1,16 @@
 import { GRID_COLUMNS, GRID_ROWS, targetFor, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=7";
 import { nextAction } from "./rules.js?v=15";
+import { createLayeredSpriteRenderer } from "./modkit/layered-sprite.js?v=1";
 
 const sides = [...PARTY_SIDES, ...FOE_SIDES];
 const thrust = { quick: 9, heavy: 14, jumpSlash: 12 };
 const offset = (from, to) => ({ x: to.x - from.x, y: to.y - from.y });
 const shift = (x, y) => `translate(${x}px,${y}px)`;
 
-function face(sprite, { x, y }, isHellor = false) {
+function face(sprite, { x, y }, isHellor = false, graphics = null, layerRenderer = null) {
   if (!x && !y) return;
   const direction = (Math.round(Math.atan2(x, y) * 4 / Math.PI) + 8) % 8;
+  if (layerRenderer?.face(sprite, graphics, direction)) return;
   // Boss sheet is arranged clockwise from front; the original sheet is reversed.
   const frame = isHellor ? (8 - direction) % 8 : direction;
   const width = isHellor ? 40 : 30;
@@ -39,7 +41,10 @@ function playAction(unit, action, heading, moved) {
   }
 }
 
-export function bindGridMotion(layer) {
+export function bindGridMotion(layer, {
+  visualFor = () => null,
+  layerRenderer = createLayeredSpriteRenderer()
+} = {}) {
   const units = sides.map(side => {
     const node = document.createElement("div");
     const sprite = document.createElement("span");
@@ -81,13 +86,15 @@ export function bindGridMotion(layer) {
       const facing = previous[target] ? offset(from, previous[target]) : { x: 0, y: 1 };
 
       const isHellor = battle.grid.enemyType === "hellor" && FOE_SIDES.includes(side);
+      const graphics = visualFor(side, battle);
+      layerRenderer.prepare(sprite, graphics);
       node.classList.toggle("grid-unit-hellor", isHellor);
       node.style.gridColumn = cell.x + 1;
       node.style.gridRow = cell.y + 1;
       node.classList.toggle("grid-unit-down", battle[side].hp === 0);
       node.dataset.stance = next?.status === "pending" ? next.commandId : "";
       if (reset || processed) {
-        face(sprite, moved ? travel : facing, isHellor);
+        face(sprite, moved ? travel : facing, isHellor, graphics, layerRenderer);
         node.dataset.acting = "";
       }
 
