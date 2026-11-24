@@ -14,7 +14,8 @@
 battle.js (composition root / controls)
    ├── content/manifest.js (individual definitions & packs)
    │    └── modkit/definition-registry.js (pure data)
-   ├── rules.js (battle mechanics, unchanged decisions by default)
+   ├── content/ai-services.js (selects AI functions per enemy definition)
+   ├── rules.js (battle mechanics, injected AI + legacy fallback)
    └── grid-ui.js (receives visualFor, terrainFor)
          └── grid-motion.js (receives visualFor, sprite renderer)
                └── modkit/layered-sprite.js (DOM adapter only)
@@ -66,7 +67,8 @@ export default {
 ## 今後の拡張と未完
 
 - 戦闘のレジストリ接続は完了。マップの地形計算は既存関数の注入で互換維持。
-- 敵AI本体の高度な差し替え・マップ物理とオブジェクト挙動の完全な個別化は後続課題。既存のヘルオル特殊AIと慈悲挙動はそのまま。
+- 敵AIのアルゴリズムは `content/ai-services.js` が選び `rules.js` へ渡すDI方式。新規AIは拡張関数をここに注入できる。ヘルオルの特殊条件（慈悲など）は既存の `rules.js` に残す。
+- マップ物理とオブジェクト挙動の完全な個別化は後続課題。既存のヘルオル固有の慈悲挙動、戦闘計算、アクション性能は変更しない。
 - FIELD、FIELD EDITORとのコンテンツ基盤統合は別フェーズ。既存のフィールド保存形式を勝手に変更しない。
 - 新規マップで未対応の地形タイプを使う場合は専用 terrainProvider の追加または注入が必要。
 - GUIからの5層画像編集、アセット自動読み込み、シーンごとの追加ライフサイクル管理は未実装。
