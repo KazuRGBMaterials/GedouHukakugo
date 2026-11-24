@@ -44,6 +44,7 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     battle.grid.enemyType = gridOptions.enemyType === "hellor" ? "hellor" : "default";
     // Content ID is metadata; AI/rules still receive the established enemyType.
     battle.grid.enemyDefinitionId = gridOptions.enemyDefinitionId || battle.grid.enemyType;
+    battle.grid.deciders = gridOptions.deciders || null;
     battle.grid.enemyTactics = Object.hasOwn(ENEMY_TACTICS, gridOptions.enemyTactics)
       ? gridOptions.enemyTactics : "standard";
     // A single, non-repeatable moment of arrogance for the strongest Hellor.
@@ -385,7 +386,7 @@ function planGridActor(battle, side) {
     }
   }
   const tacticChoice = enemySide && grid.enemyTactics !== "standard"
-    ? chooseEnemyTactic({
+    ? (grid.deciders?.tactic || chooseEnemyTactic)({
         tactic: grid.enemyTactics, side, board: grid, from: grid[side],
         hp: actor.hp, stamina: actor.stamina, turn: actor.decision ?? 0,
         previous: actor.previousAction, nextStart, nowTick: battle.tick,
@@ -394,11 +395,11 @@ function planGridActor(battle, side) {
           .map(id => ({id,at:grid[id],hp:battle[id].hp,maxHp:battle[id].maxHp,actions:battle[id].actions}))
       }, canChoose)
     : null;
-  const choice = tacticChoice ?? (isHellor ? chooseHellorAction({
+  const choice = tacticChoice ?? (isHellor ? (grid.deciders?.boss || chooseHellorAction)({
     board: grid, from: grid[side], previous: actor.previousAction,
     lockedTarget: actor.hellorTarget, turn: actor.decision ?? 0,
     hp: actor.hp, stamina: actor.stamina, nextStart, opponents
-  }, canChoose) : chooseEnemyAction({
+  }, canChoose) : (grid.deciders?.regular || chooseEnemyAction)({
     profile: enemySide ? grid.enemyProfile : allyProfile,
     board: grid,
     from: grid[side], target: grid[target], previous: actor.previousAction, turn: actor.decision ?? 0,
