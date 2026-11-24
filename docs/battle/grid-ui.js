@@ -11,12 +11,15 @@ const shortNames = {
   enemy: "敵1", enemy2: "敵2", enemy3: "敵3", enemy4: "敵4"
 };
 
-export function bindBattleGrid({ onMove, onTarget, onSelect, onLanding }) {
+export function bindBattleGrid({
+  onMove, onTarget, onSelect, onLanding,
+  visualFor = () => null, terrainFor = terrainAt
+}) {
   const board = document.getElementById("grid-board");
   const cue = document.getElementById("grid-threat");
   const plan = document.getElementById("grid-plan");
   const result = document.getElementById("grid-result");
-  const renderMotion = bindGridMotion(document.getElementById("grid-units"));
+  const renderMotion = bindGridMotion(document.getElementById("grid-units"), { visualFor });
   const terrainPicker = document.getElementById("grid-terrain");
   const playfield = document.getElementById("grid-playfield");
   const viewport = document.getElementById("grid-viewport");
@@ -99,7 +102,7 @@ export function bindBattleGrid({ onMove, onTarget, onSelect, onLanding }) {
       cell.target = targetable ? id : null;
       cell.crew = selectable ? id : null;
       cell.landing = landingOption ? position : null;
-      button.className = `grid-cell terrain-${terrainAt(position.x, position.y, scene)}`;
+      button.className = `grid-cell terrain-${terrainFor(position.x, position.y, scene)}`;
       if (occupant) button.className += teamOf(id) === "player" ? " grid-player" : " grid-enemy";
       if (hazardous) button.className += " grid-danger";
       if (booked) button.className += " grid-booked";
