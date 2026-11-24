@@ -1,7 +1,7 @@
 /* Pure smoke and regression tests: node --experimental-default-type=module docs/battle/tests/modkit-node.mjs */
 import assert from "node:assert/strict";
-import { createDefinitionRegistry } from "../modkit/definition-registry.js";
-import { createLayeredSpriteRenderer } from "../modkit/layered-sprite.js";
+import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
+import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
 import { createBattleContent } from "../content/manifest.js";
 import { createBattleAI } from "../content/ai-services.js";
 import { createBattle } from "../rules.js";
