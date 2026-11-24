@@ -302,7 +302,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
   <script type="module">
 import { FieldDialogue, exampleFieldObjects, fieldObjectDetails, withFieldObjects } from "./assets/field-objects.js?v=096";
 import { bindGameTaps, isGameTouchControl } from "./assets/game-taps.js?v=1";
-import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=6";
+import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=7";
 const fieldVisualPort=createFieldVisualPort();
 window.__nextMapPort=fieldVisualPort;
 setupFieldControls(fieldVisualPort);
@@ -318,9 +318,11 @@ const localRequire=(relative)=>{const parts=(id.slice(0,id.lastIndexOf('/')+1)+r
 // The original FIELD mechanics remain unchanged. Both grounded and airborne
 // character renders use the same 5-layer port; legacy drawing is opt-in only.
 const TexturedRenderer=load('/src/adapters/TexturedFieldRenderer.ts').TexturedFieldRenderer;
+const AbilityRenderer=load('/src/adapters/AbilityFieldRenderer.ts').AbilityFieldRenderer;
+const SkillMotionRenderer=load('/src/adapters/SkillMotionFieldRenderer.ts').SkillMotionFieldRenderer;
 const arcane=load('/src/adapters/ArcaneSkinRenderer.ts');
 installFieldLayeredRenderers({
-  TexturedRenderer,
+  TexturedRenderer, AbilityRenderer, SkillMotionRenderer,
   ArcaneFieldRenderer:arcane.ArcaneFieldRenderer,
   ArcanePreviewRenderer:arcane.ArcanePreviewRenderer,
   visualPort:fieldVisualPort
