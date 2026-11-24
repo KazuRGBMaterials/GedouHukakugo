@@ -144,6 +144,19 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  assert.equal(legacy.ground,1);
  assert.equal(legacy.air,1);
 });
+run("BATTLE NEXT defaults to real layered MAGE and hides provisional sprite",()=>{
+ const source=text("battle/battle.js");
+ assert(source.includes('characterSelect.value="mage-next";'));
+ assert(source.includes('person.id !== "layered-demo"'));
+ const mage=nextContent.registry.get("characters","mage-next").graphics;
+ assert.equal(mage.mode,"layered");
+ assert.equal(mage.width,40);
+ assert.equal(mage.height,56);
+ const game=createBattle(true,{risk:"balanced",waste:"some",style:"power"},
+   {players:1,enemies:1});
+ assert.equal(graphicsForBattle("player",game).original,mage.original);
+ assert.equal(graphicsForBattle("enemy",game).mode,"legacy");
+});
 run("FIELD NEXT loading uses same authentic MAGE, not test placeholder",()=>{
  const calls=[];
  const fallback={complete:true,naturalWidth:160};
