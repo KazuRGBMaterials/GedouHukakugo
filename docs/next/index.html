@@ -302,7 +302,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
   <script type="module">
 import { FieldDialogue, exampleFieldObjects, fieldObjectDetails, withFieldObjects } from "./assets/field-objects.js?v=096";
 import { bindGameTaps, isGameTouchControl } from "./assets/game-taps.js?v=1";
-import { createFieldVisualPort, setupFieldControls } from "./next/runtime/field-visual.js";
+import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=2";
 const fieldVisualPort=createFieldVisualPort();
 window.__nextMapPort=fieldVisualPort;
 setupFieldControls(fieldVisualPort);
@@ -315,23 +315,16 @@ const cache={};
 function load(id){if(cache[id])return cache[id].exports;const code=modules[id];if(code===undefined)throw new Error('Unknown module '+id);const mod={exports:{}};cache[id]=mod;
 const localRequire=(relative)=>{const parts=(id.slice(0,id.lastIndexOf('/')+1)+relative).split('/');const out=[];for(const part of parts){if(part==='..')out.pop();else if(part&&part!=='.')out.push(part);}const canonical='/'+out.join('/')+(relative.endsWith('.ts')?'':'.ts');return load(canonical);};
 (new Function('require','module','exports',code))(localRequire,mod,mod.exports);return mod.exports;}
-// NEXT-specific dependencies are composed outside the original game classes.
+// The original FIELD mechanics remain unchanged. Both grounded and airborne
+// character renders use the same 5-layer port; legacy drawing is opt-in only.
 const TexturedRenderer=load('/src/adapters/TexturedFieldRenderer.ts').TexturedFieldRenderer;
-const previousDrawPlayer=TexturedRenderer.prototype.drawPlayer;
-TexturedRenderer.prototype.drawPlayer=function(player){
-  if(fieldVisualPort.draw(this.ctx,player,{elapsed:this.elapsed}))return;
-  return previousDrawPlayer.call(this,player);
-};
 const arcane=load('/src/adapters/ArcaneSkinRenderer.ts');
-for(const Renderer of [arcane.ArcaneFieldRenderer,arcane.ArcanePreviewRenderer]){
-  if(!Renderer?.prototype?.drawAirborne)continue;
-  const previous=Renderer.prototype.drawAirborne;
-  Renderer.prototype.drawAirborne=function(player){
-    const height=Math.max(0,this.actions?.jumpOffset?.()||0);
-    if(fieldVisualPort.draw(this.ctx,{...player,y:player.y-height},{elapsed:this.elapsed,airborne:true}))return;
-    return previous.call(this,player);
-  };
-}
+installFieldLayeredRenderers({
+  TexturedRenderer,
+  ArcaneFieldRenderer:arcane.ArcaneFieldRenderer,
+  ArcanePreviewRenderer:arcane.ArcanePreviewRenderer,
+  visualPort:fieldVisualPort
+});
 load('/src/main.ts').startField({FieldDialogue, exampleFieldObjects, fieldObjectDetails, withFieldObjects, isGameTouchControl});
 })();</script>
 <script type="module" src="./assets/multiplayer-room.js?v=060"></script>
