@@ -1,5 +1,5 @@
 import { GRID_COLUMNS, GRID_ROWS, targetFor, PARTY_SIDES, FOE_SIDES } from "./grid-rules.js?v=7";
-import { nextAction } from "./rules.js?v=15";
+import { nextAction } from "./rules.js?v=16";
 import { createLayeredSpriteRenderer } from "./modkit/layered-sprite.js?v=1";
 
 const sides = [...PARTY_SIDES, ...FOE_SIDES];
