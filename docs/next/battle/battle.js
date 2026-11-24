@@ -1,6 +1,6 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
-  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
+  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle as advanceCoreBattle, fighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
 } from "../../battle/rules.js?v=16";
 import { createBattleAudio } from "../../battle/audio.js?v=1";
@@ -8,9 +8,14 @@ import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, n
 import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
 import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
 import { bindGameTaps } from "../../assets/game-taps.js?v=1";
-import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=3";
+import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=5";
 import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
 import { createBattleAI } from "../../battle/content/ai-services.js?v=1";
+import { withWaitHealthRecovery } from "./rest-recovery.js";
+
+const advanceBattle = withWaitHealthRecovery(advanceCoreBattle, {
+  sidesForBattle: state => state.grid ? gridSides(state) : ["player","enemy"]
+});
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };

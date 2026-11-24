@@ -6,3 +6,33 @@
 }
 .grid-topline #next-character {max-width:155px}
 .grid-topline #next-visual-mode {max-width:135px}
+
+/* 40x56 (5:7) is the current MAGE's native per-direction frame.
+   Default 30x42 legacy enemy sheets have the same aspect ratio: enlarge
+   their visual scale to match MAGE, without changing old direction offsets. */
+body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite {
+  scale: 1.333333;
+  transform-origin: center bottom;
+}
+/* Hellor art is already drawn on genuine 40x56 frames; keep it at 1:1
+   with MAGE and do not apply the default enemy 4/3 enlargement. */
+body.grid-mode .grid-unit-hellor .grid-unit-sprite {
+  width: 40px;
+  height: 56px;
+  scale: 1;
+  transform-origin: center bottom;
+}
+/* In non-grid battle, use the same 40x56 proportions for all portraits. */
+body:not(.grid-mode) .pose .sprite:not(.is-layered) {
+  width: 40px;
+  height: 56px;
+  background-size: 160px 112px;
+}
+body.hellor-mode:not(.grid-mode) #enemy-pose .sprite {
+  background-image: url("../../battle/assets/hellor-8dir.png");
+  background-size: 160px 112px;
+}
+@media (max-width: 600px), (max-height: 530px) and (pointer: coarse) {
+  body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite { scale: .826667; }
+  body.grid-mode .grid-unit-hellor .grid-unit-sprite { scale: .62; }
+}

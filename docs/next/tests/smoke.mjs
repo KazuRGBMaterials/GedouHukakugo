@@ -10,6 +10,7 @@ import { createDefinitionRegistry } from "../../shared/modkit/definition-registr
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
 import { createBattle, startBattle, advanceBattle } from "../../battle/rules.js";
 import { createBattleAI } from "../../battle/content/ai-services.js";
+import { WAIT_HEAL_HP, withWaitHealthRecovery } from "../battle/rest-recovery.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const docs=path.resolve(dir,"../..");
@@ -120,14 +121,17 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const onGround={x:120,y:160,facing:"SW",moving:false};
  Textured.prototype.drawPlayer.call(runner,onGround);
  assert.equal(draws.length,1);
- assert.equal(draws[0].y,88);
+ assert.equal(draws[0].y,98);
+ assert.equal(draws[0].w,68*.86);
+ assert.equal(draws[0].h,95*.86);
  const airborne={...onGround,y:onGround.y-24};
  ArcaneField.prototype.drawAirborne.call(runner,airborne);
  assert.equal(draws.length,2);
  assert.equal(draws[1].graphics,draws[0].graphics,
    "jump changed character graphics definition");
  assert.equal(draws[1].facing,draws[0].facing);
- assert.equal(draws[1].y,64,
+ assert.equal(draws[1].y,74,
+
    "JumpRenderer already subtracts height; do not subtract again");
  assert.equal(commands.find(x=>x.op==="shadow").y,168,
    "shadow should stay anchored to ground");
@@ -143,6 +147,62 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  ArcaneField.prototype.drawAirborne.call(runner,airborne);
  assert.equal(legacy.ground,1);
  assert.equal(legacy.air,1);
+});
+run("WAIT one slot restores +2 HP only if not damaged",()=>{
+ assert.equal(WAIT_HEAL_HP,2);
+ const simulate=(mode,{hp=70,maxHp=100,grid=true}={})=>{
+   const wait={commandId:mode==="guard"?"guard":"wait",start:1,impact:1,status:"pending"};
+   const actor={hp,maxHp,actions: mode==="empty"?[]:[wait]};
+   const battle={phase:"running",tick:0,player:actor,
+     ...(grid?{grid:{}}:{enemy:{hp:100,maxHp:100,actions:[]}}),events:[]};
+   const advance=withWaitHealthRecovery(state=>{
+     state.tick++;
+     if(mode==="damaged")state.player.hp-=5;
+     if(mode==="cancelled")wait.status="stopped";
+     else wait.status="resolved";
+     state.player.actions=[];
+   },{sidesForBattle:()=>["player"]});
+   advance(battle);
+   return {actor,battle};
+ };
+ assert.equal(simulate("wait").actor.hp,72);
+ assert.equal(simulate("wait",{hp:99}).actor.hp,100);
+ assert.equal(simulate("wait",{hp:100}).actor.hp,100);
+ assert.equal(simulate("damaged").actor.hp,65);
+ assert.equal(simulate("cancelled").actor.hp,70);
+ assert.equal(simulate("guard").actor.hp,70);
+ assert.equal(simulate("empty").actor.hp,70);
+ assert.equal(simulate("wait",{hp:0}).actor.hp,0);
+ const result=simulate("wait");
+ assert.match(result.battle.events[0],/HPを2回復/);
+});
+run("WAIT recovery also covers original 2-person battle",()=>{
+ const player={hp:40,maxHp:100,actions:[{commandId:"wait",start:1,impact:1,status:"pending"}]};
+ const enemy={hp:80,maxHp:100,actions:[{commandId:"wait",start:1,impact:1,status:"pending"}]};
+ const battle={phase:"running",tick:0,player,enemy,events:[]};
+ const advance=withWaitHealthRecovery(state=>{
+   state.tick=1;
+   player.actions[0].status="resolved";
+   enemy.actions[0].status="resolved";
+   enemy.hp-=12;
+ },{sidesForBattle:()=>["player","enemy"]});
+ advance(battle);
+ assert.equal(player.hp,42);
+ assert.equal(enemy.hp,68,"hit enemy must not regenerate HP");
+});
+run("FIELD NEXT standing and jumping keep the same scale",()=>{
+ const src=text("runtime/field-visual.js");
+ assert.match(src,/const w=68\*\.86,h=95\*\.86/);
+ assert(!src.includes("ctx.scale(this.characterScale || .86"),
+   "Jump must not shrink an already normalized sprite twice");
+});
+run("MAGE gold hair and crimson mantle use five original layered assets",()=>{
+ const hair=text("content/assets/mage-layers/hair.svg");
+ const outfit=text("content/assets/mage-layers/clothes.svg");
+ assert.match(hair,/golden-hair/);
+ assert.match(outfit,/crimson-cloak/);
+ assert.match(outfit,/cloak-regions/);
+ assert.match(text("battle/next-battle.css"),/grid-unit-hellor/);
 });
 run("BATTLE NEXT defaults to real layered MAGE and hides provisional sprite",()=>{
  const source=text("battle/battle.js");
