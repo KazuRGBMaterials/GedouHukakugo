@@ -8,7 +8,7 @@ import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, n
 import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
 import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
 import { bindGameTaps } from "../../assets/game-taps.js?v=1";
-import { nextContent as battleContent, graphicsForBattle } from "../content/index.js";
+import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=3";
 import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
 import { createBattleAI } from "../../battle/content/ai-services.js?v=1";
 
@@ -33,7 +33,11 @@ const actorVisual = (side, state) => {
   return graphicsForBattle(side,state,battleContent);
 };
 if (characterSelect) {
-  const choices = battleContent.registry.list("characters").map(person => {
+  // The provisional test character must never be the default MAGE artwork.
+  const choices = battleContent.registry.list("characters")
+    .filter(person => person.id !== "layered-demo")
+    .sort((a,b)=> (b.id==="mage-next")-(a.id==="mage-next"))
+    .map(person => {
     const option=document.createElement("option");
     option.value=person.id; option.textContent=person.displayName;
     return option;
