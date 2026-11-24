@@ -1,0 +1,8 @@
+/* Battle NEXT styling. Entire VER4/legacy stylesheets remain untouched. */
+.next-layered-pose.is-layered { background: none !important; isolation: isolate; position: relative; }
+.next-layered-pose .sprite-part {
+ position:absolute;inset:0;display:block;pointer-events:none;
+ background-repeat:no-repeat;image-rendering:pixelated;
+}
+.grid-topline #next-character {max-width:155px}
+.grid-topline #next-visual-mode {max-width:135px}
