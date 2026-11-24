@@ -3,7 +3,7 @@
  * split into skin/eyes/clothes/hair/accessories SVG masks.
  * All five pieces contain original pixels, not the temporary demo character.
  */
-const asset = name => new URL("../assets/mage-layers/" + name + ".svg", import.meta.url).href;
+const asset = name => new URL("../assets/mage-layers/" + name + ".svg?v=5", import.meta.url).href;
 const original = new URL("../../../assets/mage-8dir.png", import.meta.url).href;
 export default {
   kind:"characters", id:"mage-next", displayName:"MAGE（原画5レイヤー）",
