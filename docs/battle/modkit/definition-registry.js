@@ -1,9 +1,9 @@
 /**
  * Content registry (no DOM, game rules, or network dependency).
  * One file may export one {kind,id,...} definition or any combination of
- * {characters:[], enemies:[], maps:[]}. Loading files is the caller's job.
+ * {characters:[], enemies:[], maps:[], objects:[]}. Loading files is the caller's job.
  */
-export const CONTENT_KINDS = Object.freeze(["characters", "enemies", "maps"]);
+export const CONTENT_KINDS = Object.freeze(["characters", "enemies", "maps", "objects"]);
 const record = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const forbidden = new Set(["__proto__", "prototype", "constructor"]);
 
