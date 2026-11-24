@@ -2,15 +2,15 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle, fighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
-} from "./rules.js?v=16";
-import { createBattleAudio } from "./audio.js?v=1";
-import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "./grid-rules.js?v=7";
-import { bindBattleGrid } from "./grid-ui.js?v=16";
-import { bindBattleFullscreen } from "./fullscreen.js?v=1";
-import { bindGameTaps } from "../assets/game-taps.js?v=1";
-import { createBattleContent } from "./content/manifest.js?v=1";
-import { terrainAt } from "./grid-terrain.js?v=2";
-import { createBattleAI } from "./content/ai-services.js?v=1";
+} from "../../battle/rules.js?v=16";
+import { createBattleAudio } from "../../battle/audio.js?v=1";
+import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "../../battle/grid-rules.js?v=7";
+import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
+import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
+import { bindGameTaps } from "../../assets/game-taps.js?v=1";
+import { nextContent as battleContent, graphicsForBattle } from "../content/index.js";
+import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
+import { createBattleAI } from "../../battle/content/ai-services.js?v=1";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
@@ -22,7 +22,25 @@ const outcomeSounds = { 勝利: "victory", 敗北: "defeat", 相打ち: "draw" }
 const planningSeconds = 8;
 const urlParams = new URLSearchParams(window.location.search);
 const gridMode = urlParams.get("grid") === "1";
-const battleContent = createBattleContent({ terrainProvider: terrainAt });
+const visualSelect = el("next-visual-mode");
+const characterSelect = el("next-character");
+const layerPortrait = createLayeredSpriteRenderer();
+const actorVisual = (side, state) => {
+  if (visualSelect?.value === "legacy") return battleContent.visualFor(side,state);
+  if (!side.startsWith("enemy") && characterSelect?.value)
+    return battleContent.registry.get("characters",characterSelect.value)?.graphics
+      || graphicsForBattle(side,state,battleContent);
+  return graphicsForBattle(side,state,battleContent);
+};
+if (characterSelect) {
+  const choices = battleContent.registry.list("characters").map(person => {
+    const option=document.createElement("option");
+    option.value=person.id; option.textContent=person.displayName;
+    return option;
+  });
+  characterSelect.replaceChildren(...choices);
+  characterSelect.value="mage-next";
+}
 const battleAI = createBattleAI();
 const enemyName = urlParams.get("encounter")?.trim().slice(0, 40);
 const enemyChoiceField = gridMode ? el("grid-enemy") : null;
@@ -41,7 +59,7 @@ if (enemyChoiceField) {
 const terrainChoiceField = gridMode ? el("grid-terrain") : null;
 if (terrainChoiceField) {
   const previous = terrainChoiceField.value;
-  const options = battleContent.registry.list("maps").map(map => {
+  const options = battleContent.registry.list("maps").filter(map => !map.file).map(map => {
     const option = document.createElement("option");
     option.value = map.id;
     option.textContent = map.displayName;
@@ -133,13 +151,11 @@ if (gridMode) {
   el("player-control").hidden = false;
   el("grid-link").href = "./";
   el("grid-link").textContent = "通常のベルトライン戦闘";
-  document.title = "外道不覚悟 | 戦闘VER4";
-  el("battle-title").textContent = "ベルトライン戦闘 VER4";
+  document.title = "外道不覚悟 | 戦闘 NEXT";
+  el("battle-title").textContent = "ベルトライン戦闘 NEXT";
   document.body.classList.add("grid-mode");
   renderGrid = bindBattleGrid({
-    visualFor: (side, battleState) => side === "player" && urlParams.get("layers") === "demo"
-      ? battleContent.registry.get("characters", "layered-demo")?.graphics
-      : battleContent.visualFor(side, battleState),
+    visualFor: actorVisual,
     terrainFor: battleContent.terrainFor,
     onMove: position => queue("move", position),
     onTarget: side => {
@@ -351,6 +367,12 @@ function commandName(command) {
 }
 
 function renderFighter(side) {
+  const portrait = el(`${side}-pose`)?.querySelector(".sprite");
+  if (portrait) {
+    const graphics = actorVisual(side,battle);
+    const layered = layerPortrait.face(portrait,graphics,0);
+    portrait.classList.toggle("next-layered-pose",layered);
+  }
   const pose = el(`${side}-pose`);
   const cue = el(`${side}-cue`);
   const action = battle.phase === "finished" ? null : nextAction(battle, side);
@@ -596,6 +618,8 @@ if (urlParams.get("from") && document.referrer) {
     });
   }
 }
+visualSelect?.addEventListener("change",()=>render());
+characterSelect?.addEventListener("change",()=>render());
 bindBattleFullscreen(el("battle-main"), el("battle-fullscreen"));
 bindGameTaps(document);
 render();
