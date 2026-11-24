@@ -5,6 +5,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, createNextContent } from "../content/index.js";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
+import { createFieldVisualPort, installFieldLayeredRenderers } from "../runtime/field-visual.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
 import { createBattle, startBattle, advanceBattle } from "../../battle/rules.js";
@@ -89,6 +90,70 @@ run("layered sprites share frame + order on canvas",()=>{
  const draw=calls.filter(x=>Array.isArray(x)&&x[0]==="draw");
  assert.equal(draw.length,5);
  assert(draw.every(row=>row[2]===90&&row[3]===0&&row[4]===30&&row[5]===42));
+});
+run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
+ const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
+ const mode={value:"layered"};
+ const canvasLayers={draw(ctx,graphics,facing,x,y,w,h){
+   draws.push({graphics,facing,x,y,w,h});
+   return true;
+ }};
+ const port=createFieldVisualPort({
+   canvasLayers,visualMode:()=>mode.value
+ });
+ const ctx={
+   save(){},restore(){},translate(){},scale(){},rotate(){},
+   beginPath(){},ellipse(x,y){commands.push({op:"shadow",x,y});},
+   fill(){},fillRect(){commands.push({op:"placeholder"});}
+ };
+ class Textured {drawPlayer(){legacy.ground++;}}
+ class ArcaneField {drawAirborne(){legacy.air++;}}
+ class ArcanePreview {drawAirborne(){legacy.preview++;}}
+ installFieldLayeredRenderers({
+   TexturedRenderer:Textured,ArcaneFieldRenderer:ArcaneField,
+   ArcanePreviewRenderer:ArcanePreview,visualPort:port
+ });
+ const runner={ctx,elapsed:.05,characterScale:.86,
+   actions:{jumpOffset:()=>24},skills:{aerialSlash:null}};
+ const onGround={x:120,y:160,facing:"SW",moving:false};
+ Textured.prototype.drawPlayer.call(runner,onGround);
+ assert.equal(draws.length,1);
+ assert.equal(draws[0].y,88);
+ const airborne={...onGround,y:onGround.y-24};
+ ArcaneField.prototype.drawAirborne.call(runner,airborne);
+ assert.equal(draws.length,2);
+ assert.equal(draws[1].graphics,draws[0].graphics,
+   "jump changed character graphics definition");
+ assert.equal(draws[1].facing,draws[0].facing);
+ assert.equal(draws[1].y,64,
+   "JumpRenderer already subtracts height; do not subtract again");
+ assert.equal(commands.find(x=>x.op==="shadow").y,148,
+   "shadow should stay anchored to ground");
+ assert.equal(legacy.ground,0);
+ assert.equal(legacy.air,0);
+ runner.skills.aerialSlash={height:36};
+ ArcanePreview.prototype.drawAirborne.call(runner,{...onGround,y:onGround.y-36});
+ assert.equal(draws.length,3);
+ assert.equal(draws[2].graphics,draws[0].graphics);
+ assert.equal(legacy.preview,0);
+ mode.value="legacy";
+ Textured.prototype.drawPlayer.call(runner,onGround);
+ ArcaneField.prototype.drawAirborne.call(runner,airborne);
+ assert.equal(legacy.ground,1);
+ assert.equal(legacy.air,1);
+});
+run("FIELD NEXT layers loading never flashes a different character",()=>{
+ const events=[];
+ const ctx={
+   save(){},restore(){},
+   fillRect(){events.push("placeholder");}
+ };
+ const port=createFieldVisualPort({
+   canvasLayers:{draw(){return false;}},
+   visualMode:()=>"layered"
+ });
+ assert.equal(port.draw(ctx,{x:20,y:100,facing:"S"},{elapsed:0}),true);
+ assert.equal(events.length,5);
 });
 run("NEXT editor map can preserve object definition IDs",()=>{
  const map=fieldMapFor("field-starter");
