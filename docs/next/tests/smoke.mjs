@@ -121,16 +121,19 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const onGround={x:120,y:160,facing:"SW",moving:false};
  Textured.prototype.drawPlayer.call(runner,onGround);
  assert.equal(draws.length,1);
- assert.equal(draws[0].y,98);
- assert.equal(draws[0].w,68*.86);
- assert.equal(draws[0].h,95*.86);
+ assert.equal(draws[0].y,88);
+ assert.equal(draws[0].w,68);
+ assert.equal(draws[0].h,95);
  const airborne={...onGround,y:onGround.y-24};
  ArcaneField.prototype.drawAirborne.call(runner,airborne);
  assert.equal(draws.length,2);
+ assert.equal(draws[1].w,draws[0].w);
+ assert.equal(draws[1].h,draws[0].h);
+ assert.equal(draws[1].x,draws[0].x);
  assert.equal(draws[1].graphics,draws[0].graphics,
    "jump changed character graphics definition");
  assert.equal(draws[1].facing,draws[0].facing);
- assert.equal(draws[1].y,74,
+ assert.equal(draws[1].y,64,
 
    "JumpRenderer already subtracts height; do not subtract again");
  assert.equal(commands.find(x=>x.op==="shadow").y,168,
@@ -192,16 +195,20 @@ run("WAIT recovery also covers original 2-person battle",()=>{
 });
 run("FIELD NEXT standing and jumping keep the same scale",()=>{
  const src=text("runtime/field-visual.js");
- assert.match(src,/const w=68\*\.86,h=95\*\.86/);
+ assert.match(src,/const w=68,h=95/);
+ assert(!src.includes('ctx.rotate(-.08'), 'Jump must not tilt the character graphic');
  assert(!src.includes("ctx.scale(this.characterScale || .86"),
    "Jump must not shrink an already normalized sprite twice");
 });
-run("MAGE gold hair and crimson mantle use five original layered assets",()=>{
+run("MAGE has golden hair and an eight-direction red scarf, no red cape",()=>{
  const hair=text("content/assets/mage-layers/hair.svg");
  const outfit=text("content/assets/mage-layers/clothes.svg");
+ const accessory=text("content/assets/mage-layers/accessories.svg");
  assert.match(hair,/golden-hair/);
- assert.match(outfit,/crimson-cloak/);
- assert.match(outfit,/cloak-regions/);
+ assert(!outfit.includes("crimson-cloak"));
+ assert(!outfit.includes("cloak-regions"));
+ assert.match(accessory,/Red scarf:/);
+ assert.equal([...accessory.matchAll(/<g transform="translate\(/g)].length,8);
  assert.match(text("battle/next-battle.css"),/grid-unit-hellor/);
 });
 run("BATTLE NEXT defaults to real layered MAGE and hides provisional sprite",()=>{
@@ -215,30 +222,39 @@ run("BATTLE NEXT defaults to real layered MAGE and hides provisional sprite",()=
  const game=createBattle(true,{risk:"balanced",waste:"some",style:"power"},
    {players:1,enemies:1});
  assert.equal(graphicsForBattle("player",game).original,mage.original);
- assert.equal(graphicsForBattle("enemy",game).mode,"legacy");
+ assert.equal(graphicsForBattle("enemy",game).mode,"layered"); // Nameless is the new default
+ assert.equal(nextContent.enemyFor("nameless").characterId,"nameless");
+ assert.equal(graphicsForBattle("enemy",{grid:{enemyDefinitionId:"nameless"}}).mode,"layered");
 });
-run("FIELD NEXT loading uses same authentic MAGE, not test placeholder",()=>{
- const calls=[];
- const fallback={complete:true,naturalWidth:160};
- const ctx={
-   save(){},restore(){},
-   set imageSmoothingEnabled(value){calls.push(["smooth",value]);},
-   drawImage(...args){calls.push(["draw",...args]);},
-   fillRect(){throw new Error("Fake avatar placeholder was drawn");}
- };
+run("FIELD NEXT preloads five layers and never flashes old silver MAGE",()=>{
+ const loaded=[],draws=[];
  const port=createFieldVisualPort({
-   canvasLayers:{draw(){return false;}},
+   canvasLayers:{load(src){loaded.push(src);},draw(){return false;}},
    visualMode:()=>"layered"
  });
- assert.equal(port.draw(ctx,{x:20,y:100,facing:"SW"},
-   {elapsed:0,fallbackImage:fallback}),true);
- const callsDraw=calls.filter(event=>event[0]==="draw");
- assert.equal(callsDraw.length,1);
- assert.equal(callsDraw[0][1],fallback);
- assert.equal(callsDraw[0][2],120); // SW, frame #7, x=120
- assert.equal(callsDraw[0][3],56);  // second row
- assert.equal(callsDraw[0][4],40);
- assert.equal(callsDraw[0][5],56);
+ assert.equal(loaded.length,5);
+ assert.equal(port.draw({drawImage(){draws.push("legacy");}}, {x:20,y:100,facing:"SW"},{}),true);
+ assert.deepEqual(draws,[],"No old-color fallback while textures load");
+});
+run("Nameless has its own five-layer, eight-direction graphics",()=>{
+ const enemy=nextContent.enemyFor("nameless");
+ assert.equal(enemy.displayName,"ネームレス");
+ assert.equal(enemy.characterId,"nameless");
+ assert.equal(enemy.ai,"standard");
+ const graphics=nextContent.registry.get("characters","nameless")?.graphics;
+ assert.equal(graphics.mode,"layered");
+ assert.equal(graphics.width,40);
+ assert.equal(graphics.height,56);
+ assert.equal(Object.keys(graphics.layers).length,5);
+ for(const kind of Object.keys(graphics.layers)){
+   const art=text("content/assets/nameless-layers/"+kind+".svg");
+   assert.match(art,/width="160" height="112"/);
+   assert.equal([...art.matchAll(/<g transform="translate\(/g)].length,8);
+ }
+ const ui=text("battle/index.html");
+ assert.match(ui,/value="nameless" selected>ネームレス/);
+ assert(!ui.includes("訓練用の見張り"));
+ assert.equal(nextContent.registry.get("characters","hellor").id,"hellor");
 });
 run("authentic 5-layer MAGE sheets cover all original pixels exactly once",()=>{
  const kinds=["skin","eyes","clothes","hair","accessories"];
@@ -289,7 +305,8 @@ run("enemy DI does not change battle's core initialization",()=>{
 run("NEXT module imports exist",()=>{
  const files=["battle/battle.js","editor/editor.js","editor/map-schema.js",
   "content/index.js","content/characters/mage-next.js","content/maps/starter-map.js",
-  "content/objects/library-pack.js","runtime/field-visual.js"];
+  "content/objects/library-pack.js","runtime/field-visual.js","content/enemies/nameless.js",
+   "content/characters/nameless.js","battle/rest-recovery.js"];
  for(const relative of files){
   const abs=path.join(next,relative),code=fs.readFileSync(abs,"utf8");
   new vm.SourceTextModule(code);

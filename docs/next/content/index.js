@@ -4,11 +4,13 @@
  */
 import { createBattleContent, DEFAULT_PACKS } from "../../battle/content/manifest.js";
 import { terrainAt } from "../../battle/grid-terrain.js";
-import mageNext from "./characters/mage-next.js?v=5";
+import mageNext from "./characters/mage-next.js?v=6";
+import nameless from "./characters/nameless.js";
+import namelessEnemy from "./enemies/nameless.js";
 import starterMap from "./maps/starter-map.js";
 import objectPack from "./objects/library-pack.js";
 
-export const NEXT_PACKS = Object.freeze([...DEFAULT_PACKS,mageNext,starterMap,objectPack]);
+export const NEXT_PACKS = Object.freeze([...DEFAULT_PACKS,mageNext,nameless,namelessEnemy,starterMap,objectPack]);
 export function createNextContent({packs = NEXT_PACKS, terrainProvider = terrainAt} = {}) {
   return createBattleContent({packs,terrainProvider});
 }
@@ -19,6 +21,11 @@ export function graphicsForBattle(side, battle, content = nextContent) {
   if (selected) return content.registry.get("characters",selected)?.graphics || null;
   // The next generation defaults to layered characters on the allied team.
   if (!side.startsWith("enemy")) return content.registry.get("characters","mage-next")?.graphics;
+  const enemyId = battle?.grid?.enemyDefinitionId;
+  if (!enemyId || enemyId === "default") {
+    const fallback = battle?.grid?.enemyType === "hellor" ? "hellor" : "nameless";
+    return content.registry.get("characters",fallback)?.graphics || content.visualFor(side,battle);
+  }
   return content.visualFor(side,battle);
 }
 

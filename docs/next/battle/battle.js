@@ -1,6 +1,6 @@
 import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
-  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle as advanceCoreBattle, fighterName,
+  canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle as advanceCoreBattle, fighterName as coreFighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
 } from "../../battle/rules.js?v=16";
 import { createBattleAudio } from "../../battle/audio.js?v=1";
@@ -8,7 +8,7 @@ import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, n
 import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
 import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
 import { bindGameTaps } from "../../assets/game-taps.js?v=1";
-import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=5";
+import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=6";
 import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
 import { createBattleAI } from "../../battle/content/ai-services.js?v=1";
 import { withWaitHealthRecovery } from "./rest-recovery.js";
@@ -21,7 +21,12 @@ const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
 const colorNames = { yellow: "黄", blue: "青", red: "赤" };
 const windups = { quick: "踏み込み", heavy: "振りかぶり", fire: "詠唱中", jumpSlash: "空中で構え" };
-const names = { player: "MAGE", enemy: "見張り" };
+const names = { player: "MAGE", enemy: "ネームレス" };
+const fighterName = (battle,side) => {
+  const label=coreFighterName(battle,side);
+  return side.startsWith("enemy") && !battle.grid?.enemyName
+    ? label.replace("訓練用の見張り","ネームレス") : label;
+};
 const warnings = { heavy: "heavyWarning", fire: "fireWarning" };
 const outcomeSounds = { 勝利: "victory", 敗北: "defeat", 相打ち: "draw" };
 const planningSeconds = 8;
@@ -32,6 +37,7 @@ const characterSelect = el("next-character");
 const layerPortrait = createLayeredSpriteRenderer();
 const actorVisual = (side, state) => {
   if (visualSelect?.value === "legacy") return battleContent.visualFor(side,state);
+  if (side.startsWith("enemy") && !state?.grid) return battleContent.registry.get("characters","nameless")?.graphics;
   if (!side.startsWith("enemy") && characterSelect?.value)
     return battleContent.registry.get("characters",characterSelect.value)?.graphics
       || graphicsForBattle(side,state,battleContent);
@@ -40,7 +46,7 @@ const actorVisual = (side, state) => {
 if (characterSelect) {
   // The provisional test character must never be the default MAGE artwork.
   const choices = battleContent.registry.list("characters")
-    .filter(person => person.id !== "layered-demo")
+    .filter(person => person.id !== "layered-demo" && person.id !== "nameless")
     .sort((a,b)=> (b.id==="mage-next")-(a.id==="mage-next"))
     .map(person => {
     const option=document.createElement("option");
@@ -56,14 +62,14 @@ const enemyChoiceField = gridMode ? el("grid-enemy") : null;
 const tacticsField = gridMode ? el("grid-tactics") : null;
 if (enemyChoiceField) {
   const previous = enemyChoiceField.value;
-  const options = battleContent.registry.list("enemies").map(enemy => {
+  const options = battleContent.registry.list("enemies").filter(enemy => enemy.id !== "default").map(enemy => {
     const option = document.createElement("option");
     option.value = enemy.id;
     option.textContent = enemy.displayName;
     return option;
   });
   if (options.length) enemyChoiceField.replaceChildren(...options);
-  enemyChoiceField.value = previous;
+  enemyChoiceField.value = previous==="default" ? "nameless" : previous;
 }
 const terrainChoiceField = gridMode ? el("grid-terrain") : null;
 if (terrainChoiceField) {
@@ -78,7 +84,9 @@ if (terrainChoiceField) {
   terrainChoiceField.value = previous;
 }
 if (enemyChoiceField && enemyName) {
-  if (enemyName === "ヘルオル") {
+  if (enemyName === "ネームレス") {
+    enemyChoiceField.value="nameless";
+  } else if (enemyName === "ヘルオル") {
     enemyChoiceField.value = "hellor";
   } else {
     const option = document.createElement("option");
@@ -253,7 +261,7 @@ for (const [id, command] of Object.entries(COMMANDS)) {
   if (command.color) button.className = command.color;
   button.append(command.name);
   const data = document.createElement("small");
-  data.textContent = id === "wait" ? "TC 1 · SC 0 · 回復 +1"
+  data.textContent = id === "wait" ? "TC 1 · SC 0 · ST+1／HP+2（無被弾）"
     : `${command.tc}枠 ★${command.impact} · SC${command.sc} · Lv${command.level}`;
   button.append(data);
   if (command.requires) button.title = "直前にジャンプを予約してください";

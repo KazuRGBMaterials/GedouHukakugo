@@ -10,7 +10,7 @@
 /* 40x56 (5:7) is the current MAGE's native per-direction frame.
    Default 30x42 legacy enemy sheets have the same aspect ratio: enlarge
    their visual scale to match MAGE, without changing old direction offsets. */
-body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite {
+body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite:not(.is-layered) {
   scale: 1.333333;
   transform-origin: center bottom;
 }
@@ -33,6 +33,11 @@ body.hellor-mode:not(.grid-mode) #enemy-pose .sprite {
   background-size: 160px 112px;
 }
 @media (max-width: 600px), (max-height: 530px) and (pointer: coarse) {
-  body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite { scale: .826667; }
+  body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite:not(.is-layered) { scale: .826667; }
+  body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite.is-layered { scale: .62; }
   body.grid-mode .grid-unit-hellor .grid-unit-sprite { scale: .62; }
 }
+
+/* Nameless and MAGE share exactly 40×56 native frames. No enemy zoom. */
+body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite.is-layered {scale:1;--unit-tint:brightness(1);}
+@media (max-width: 600px), (max-height:530px) and (pointer:coarse) {body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite.is-layered{scale:.62;}}
