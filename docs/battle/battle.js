@@ -10,6 +10,7 @@ import { bindBattleFullscreen } from "./fullscreen.js?v=1";
 import { bindGameTaps } from "../assets/game-taps.js?v=1";
 import { createBattleContent } from "./content/manifest.js?v=1";
 import { terrainAt } from "./grid-terrain.js?v=2";
+import { createBattleAI } from "./content/ai-services.js?v=1";
 
 const el = id => document.getElementById(id);
 const labels = { quick: "通常", heavy: "強打", fire: "火炎", guard: "防御", dodge: "回避", jump: "ジャンプ", jumpSlash: "空中斬り" };
@@ -22,6 +23,7 @@ const planningSeconds = 8;
 const urlParams = new URLSearchParams(window.location.search);
 const gridMode = urlParams.get("grid") === "1";
 const battleContent = createBattleContent({ terrainProvider: terrainAt });
+const battleAI = createBattleAI();
 const enemyName = urlParams.get("encounter")?.trim().slice(0, 40);
 const enemyChoiceField = gridMode ? el("grid-enemy") : null;
 const tacticsField = gridMode ? el("grid-tactics") : null;
@@ -204,6 +206,7 @@ function newBattle() {
         : encounterId === "default" ? undefined : encounter?.displayName,
       enemyType: encounter?.battleType === "hellor" ? "hellor" : "default",
       enemyDefinitionId: encounterId,
+      deciders: battleAI.forEnemy(encounter),
       enemyTactics: tacticsField.value,
       automatic, columns, rows });
 }
