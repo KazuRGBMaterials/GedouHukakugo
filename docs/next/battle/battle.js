@@ -8,7 +8,7 @@ import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, n
 import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
 import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
 import { bindGameTaps } from "../../assets/game-taps.js?v=1";
-import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=3";
+import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=5";
 import { createLayeredSpriteRenderer } from "../../shared/modkit/layered-sprite.js";
 import { createBattleAI } from "../../battle/content/ai-services.js?v=1";
 import { withWaitHealthRecovery } from "./rest-recovery.js";
