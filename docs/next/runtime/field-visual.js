@@ -5,7 +5,7 @@
  * old, monolithic MAGE sheet. These injected adapters keep that code intact
  * for explicit legacy mode, but never select it while five-layer mode is on.
  */
-import { nextContent, fieldMapFor } from "../content/index.js";
+import { nextContent, fieldMapFor } from "../content/index.js?v=3";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 
 export function createFieldVisualPort({
@@ -16,34 +16,29 @@ export function createFieldVisualPort({
   const fieldGraphics = () => content.registry.get("characters","mage-next")?.graphics;
   const isLayered = () => visualMode() !== "legacy";
 
-  // Loading the transparent sheets must never flash a different character.
-  // Until the sheets are ready, draw a small same-palette placeholder rather
-  // than allowing the old MAGE drawing method to take over.
-  function drawLoadingAvatar(ctx,x,y,w,h) {
-    ctx.save();
-    ctx.fillStyle="#30213d";
-    ctx.fillRect(x+w*.23,y+h*.05,w*.54,h*.49); // hair
-    ctx.fillStyle="#e5b489";
-    ctx.fillRect(x+w*.31,y+h*.12,w*.38,h*.30); // skin
-    ctx.fillStyle="#436f99";
-    ctx.fillRect(x+w*.23,y+h*.46,w*.54,h*.34); // clothes
-    ctx.fillStyle="#28384b";
-    ctx.fillRect(x+w*.27,y+h*.78,w*.2,h*.18);
-    ctx.fillRect(x+w*.53,y+h*.78,w*.2,h*.18);
-    ctx.restore();
-  }
+  const frameForFacing = Object.freeze({S:0,SE:1,E:2,NE:3,N:4,NW:5,W:6,SW:7});
 
-  function draw(ctx, player, { elapsed=0 }={}) {
+  // During the five image downloads, keep drawing the SAME authentic MAGE
+  // sheet. Never draw the temporary colored placeholder or another character.
+  function draw(ctx, player, { elapsed=0, fallbackImage=null }={}) {
     if (!isLayered()) return false;
     const graphics=fieldGraphics();
     if (graphics?.mode!=="layered") return false;
     const bob=player.moving?Math.sin(elapsed*16)*1.8:0;
     const w=68,h=95;
     const x=Math.round(player.x-w/2),y=Math.round(player.y-72+bob);
-    if (!canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h)) {
-      drawLoadingAvatar(ctx,x,y,w,h);
+    if (!canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h)
+      && fallbackImage?.complete && fallbackImage.naturalWidth>0) {
+      const frame=frameForFacing[player.facing]??0;
+      ctx.save();
+      ctx.imageSmoothingEnabled=false;
+      ctx.drawImage(fallbackImage,
+        (frame%4)*40,Math.floor(frame/4)*56,40,56,x,y,w,h);
+      ctx.restore();
     }
-    return true; // No legacy-actor fallback while layered mode is enabled.
+    // Even before textures finish downloading, do not switch to a
+    // mismatched third-party placeholder during takeoff/landing.
+    return true;
   }
 
   return Object.freeze({
@@ -67,7 +62,7 @@ export function installFieldLayeredRenderers({
 
   const groundLegacy = TexturedRenderer.prototype.drawPlayer;
   TexturedRenderer.prototype.drawPlayer=function(player) {
-    if (visualPort.draw(this.ctx,player,{elapsed:this.elapsed})) return;
+    if (visualPort.draw(this.ctx,player,{elapsed:this.elapsed,fallbackImage:this.loaded?.("mage-8dir")})) return;
     return groundLegacy.call(this,player);
   };
 
@@ -97,7 +92,7 @@ export function installFieldLayeredRenderers({
       ctx.translate(player.x,player.y-30);
       ctx.rotate(-.08*Math.min(1,height/35));
       ctx.translate(-player.x,-player.y+30);
-      visualPort.draw(ctx,player,{elapsed:this.elapsed});
+      visualPort.draw(ctx,player,{elapsed:this.elapsed,fallbackImage:this.loaded?.("mage-8dir")});
       ctx.restore();
     };
   }
