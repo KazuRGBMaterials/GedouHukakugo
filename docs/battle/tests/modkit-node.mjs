@@ -55,6 +55,7 @@ test("duplicate IDs, unsafe IDs and late additions fail", () => {
 test("manifest resolves existing enemies and map provider", () => {
   const content = createBattleContent({terrainProvider:(x,y,scene)=>scene+":"+x+":"+y});
   assert.equal(content.enemyFor("hellor").characterId,"hellor");
+  assert.equal(content.registry.get("objects","tree").fieldType,"tree");
   assert.equal(content.terrainFor(1,2,"ruins"),"ruins:1:2");
   assert.equal(content.visualFor("enemy",{grid:{enemyDefinitionId:"hellor"}}).width,40);
   assert.equal(content.visualFor("player",{grid:{characterBySide:{player:"layered-demo"}}}).mode,"layered");
