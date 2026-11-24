@@ -42,6 +42,8 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     battle.grid.enemyProfile = makeEnemyProfile(enemyProfile);
     battle.grid.enemyName = gridOptions.enemyName;
     battle.grid.enemyType = gridOptions.enemyType === "hellor" ? "hellor" : "default";
+    // Content ID is metadata; AI/rules still receive the established enemyType.
+    battle.grid.enemyDefinitionId = gridOptions.enemyDefinitionId || battle.grid.enemyType;
     battle.grid.enemyTactics = Object.hasOwn(ENEMY_TACTICS, gridOptions.enemyTactics)
       ? gridOptions.enemyTactics : "standard";
     // A single, non-repeatable moment of arrogance for the strongest Hellor.
