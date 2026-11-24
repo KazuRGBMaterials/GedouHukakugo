@@ -47,6 +47,7 @@ check("既存の敵・マップ定義", () => {
   assert(c.enemyFor("hellor").ai === "hellor", "Hellor AI mapping");
   assert(c.terrainFor(0, 0, "ruins") === "ruins", "map provider");
   assert(c.registry.has("characters","layered-demo"), "demo definition");
+  assert(c.registry.get("objects","tree").fieldType === "tree", "map object definition");
 });
 check("キャラごとの見た目選択", () => {
   const c = createBattleContent();
