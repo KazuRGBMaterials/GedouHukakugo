@@ -5,7 +5,7 @@
  * old, monolithic MAGE sheet. These injected adapters keep that code intact
  * for explicit legacy mode, but never select it while five-layer mode is on.
  */
-import { nextContent, fieldMapFor } from "../content/index.js?v=5";
+import { nextContent, fieldMapFor } from "../content/index.js?v=6";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 
 export function createFieldVisualPort({
