@@ -1,0 +1,22 @@
+name: Modkit compatibility
+on:
+  push:
+    paths:
+      - 'docs/battle/**'
+      - '.github/workflows/modkit-check.yml'
+  pull_request:
+    paths:
+      - 'docs/battle/**'
+      - '.github/workflows/modkit-check.yml'
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test modular content registry and layered sprites
+        run: node --experimental-default-type=module docs/battle/tests/modkit-node.mjs
