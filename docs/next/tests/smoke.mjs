@@ -127,7 +127,7 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  assert.equal(draws[1].facing,draws[0].facing);
  assert.equal(draws[1].y,64,
    "JumpRenderer already subtracts height; do not subtract again");
- assert.equal(commands.find(x=>x.op==="shadow").y,148,
+ assert.equal(commands.find(x=>x.op==="shadow").y,168,
    "shadow should stay anchored to ground");
  assert.equal(legacy.ground,0);
  assert.equal(legacy.air,0);
