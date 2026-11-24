@@ -1,11 +1,16 @@
 /* FIELD EDITOR v0.1 — pure map model. No browser, canvas, game-engine dependency. */
-import { exampleFieldObjects, fieldObjectDetails } from "../assets/field-objects.js?v=095";
+import { exampleFieldObjects, fieldObjectDetails } from "../../assets/field-objects.js?v=095";
+import { nextContent } from "../content/index.js";
 
 export const SCHEMA_VERSION = 1;
 export const MAP_FILE_MAX_BYTES = 2_000_000;
-export const STORAGE_KEY = "gedo-field-editor-autosave-v1";
-export const ALLOWED_TYPES = Object.freeze(["wall","tree","water","chest","actor"]);
-export const DEFAULT_SIZE = Object.freeze({wall:[160,34],tree:[54,55],water:[200,130],chest:[48,48],actor:[36,32]});
+export const STORAGE_KEY = "gedo-next-field-editor-autosave-v1";
+export const ALLOWED_TYPES = Object.freeze(
+ [...new Set(nextContent.registry.list("objects").map(def => def.fieldType))]);
+export const DEFAULT_SIZE = Object.freeze(Object.fromEntries(
+ nextContent.registry.list("objects").filter(def => ALLOWED_TYPES.includes(def.fieldType))
+   .reverse().map(def => [def.fieldType,def.defaultSize])
+ ));
 const baseObjects=[
  ["wall",225,140,330,34],["wall",225,140,34,205],
  ["wall",580,300,34,245],["wall",580,300,185,34],["wall",963,145,34,310],
@@ -54,6 +59,8 @@ export function validateMap(input){
   const x=integer(r.x,0,width-8,0),y=integer(r.y,0,height-8,0);
   const w=integer(r.w,8,width-x,48),h=integer(r.h,8,height-y,48);
   const common={id:claim(r.id,"object"),type:r.type,x,y,w,h};
+  const definition=nextContent.registry.get("objects",r.definitionId);
+  if(definition?.fieldType===r.type)common.definitionId=definition.id;
   if(r.type==="actor")return {...common,solid:r.solid===true,...fieldObjectDetails(r)};
   return {...common,solid:r.solid!==false};
  });
