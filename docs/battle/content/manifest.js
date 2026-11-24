@@ -18,23 +18,16 @@ export function createBattleContent({
 } = {}) {
   const registry = registryFactory({ bases: contentBases, packs });
   registry.seal();
-  return Object.freeze({
-    registry,
-    enemyFor(id) {
-      return registry.get("enemies", id) || registry.get("enemies", "default");
-    },
-    mapFor(id) {
-      return registry.get("maps", id) || registry.get("maps", "mixed");
-    },
-    terrainFor(x, y, scene) {
-      return terrainProvider(x, y, this.mapFor(scene)?.terrainType || "mixed");
-    },
-    visualFor(side, battle) {
-      const selected = battle?.grid?.characterBySide?.[side];
-      const enemy = side.startsWith("enemy");
-      const characterId = selected || (enemy
-        ? this.enemyFor(battle?.grid?.enemyType)?.characterId : "mage");
-      return registry.get("characters", characterId)?.graphics || null;
-    }
-  });
+  // Arrow functions remain valid even when injected without an object receiver.
+  const enemyFor = id => registry.get("enemies", id) || registry.get("enemies", "default");
+  const mapFor = id => registry.get("maps", id) || registry.get("maps", "mixed");
+  const terrainFor = (x, y, scene) => terrainProvider(x, y, mapFor(scene)?.terrainType || "mixed");
+  const visualFor = (side, battle) => {
+    const selected = battle?.grid?.characterBySide?.[side];
+    const enemy = side.startsWith("enemy");
+    const characterId = selected || (enemy
+      ? enemyFor(battle?.grid?.enemyType)?.characterId : "mage");
+    return registry.get("characters", characterId)?.graphics || null;
+  };
+  return Object.freeze({ registry, enemyFor, mapFor, terrainFor, visualFor });
 }
