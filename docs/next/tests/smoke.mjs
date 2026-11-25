@@ -94,6 +94,69 @@ run("layered sprites share frame + order on canvas",()=>{
  assert.equal(gfx.height,56);
  assert(draw.every(row=>row[2]===120&&row[3]===0&&row[4]===40&&row[5]===56));
 });
+run("segmented 5-layer renderer crops the same frame for each clothing layer",()=>{
+ const calls=[];
+ class ImageMock {complete=true;naturalWidth=160;set src(value){this._src=value;}}
+ const draw=createLayeredCanvas({imageFactory:()=>new ImageMock()});
+ const graphics=nextContent.registry.get("characters","mage-next").graphics;
+ const ctx={save(){},restore(){},set imageSmoothingEnabled(_){},
+   set globalAlpha(_){},drawImage(...args){calls.push(args);}};
+ assert.equal(draw.drawSegment(ctx,graphics,"SW",
+   {x:20,y:30,w:20,h:26},{x:20,y:45,w:34,h:43}),true);
+ assert.equal(calls.length,5);
+ for(const args of calls){
+   assert.equal(args[1],140); // SW frame#7 at x 120 plus right leg x 20
+   assert.equal(args[2],86); // SW second row at y 56 plus leg y 30
+   assert.equal(args[3],20);
+   assert.equal(args[4],26);
+   assert.equal(args[5],20);
+   assert.equal(args[7],34);
+ }
+ assert.equal(draw.drawSegment(ctx,graphics,"S",
+   {x:32,y:50,w:9,h:6},{x:1,y:1,w:10,h:10}),false,
+   "Prevent drawing a region beyond native sprite boundary");
+});
+run("FIELD NEXT three gait poses move the legs, not slide a static body",()=>{
+ const segments=[],full=[];
+ const canvasLayers={
+   draw(ctx,graphics,facing,x,y,w,h){full.push({graphics,facing,x,y,w,h});return true;},
+   drawSegment(ctx,graphics,facing,source,destination){
+     segments.push({graphics,facing,source,destination});return true;
+   }
+ };
+ const port=createFieldVisualPort({
+   canvasLayers,visualMode:()=>"layered"
+ });
+ const actor={x:160,y:180,facing:"NE",moving:true};
+ for(const time of [0,.11,.21]){
+   const before=segments.length;
+   assert.equal(port.draw({},actor,{walkingTime:time}),true);
+   assert.equal(segments.length,before+3);
+ }
+ assert.equal(full.length,0,"Walking must use articulated pieces instead of full static sprite");
+ for(let frame=0;frame<3;frame++){
+   const three=segments.slice(frame*3,frame*3+3);
+   assert.equal(three[0].source.x,0);
+   assert.equal(three[0].source.y,30);
+   assert.equal(three[1].source.x,20);
+   assert.equal(three[1].source.y,30);
+   assert.equal(three[2].source.y,0);
+   assert(three.every(row=>row.graphics===three[0].graphics&&row.facing==="NE"),
+     "All five layer pieces must use the same character and facing");
+ }
+ assert.notEqual(segments[0].destination.x,segments[3].destination.x);
+ assert.notEqual(segments[1].destination.y,segments[4].destination.y);
+ assert.notEqual(segments[6].destination.x,segments[3].destination.x);
+ const now=segments.length;
+ port.draw({}, {...actor,moving:false},{walkingTime:.31});
+ assert.equal(segments.length,now,"Stopping must restore full idle frame");
+ assert.equal(full.length,1);
+ port.draw({},actor,{walkingTime:.41,airborne:true});
+ assert.equal(segments.length,now,"Jumping while moving must not play ground walk cycle");
+ assert.equal(full.length,2);
+ assert.equal(full[0].w,68);
+ assert.equal(full[0].h,95);
+});
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
  const mode={value:"layered"};
