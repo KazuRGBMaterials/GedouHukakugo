@@ -6,7 +6,7 @@
  * for explicit legacy mode, but never select it while five-layer mode is on.
  */
 import { nextContent, fieldMapFor } from "../content/index.js?v=6";
-import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
+import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js?v=2";
 
 export function createFieldVisualPort({
   content = nextContent,
@@ -25,17 +25,38 @@ export function createFieldVisualPort({
       if(src)canvasLayers.load(src);
     }
   }
-  function draw(ctx, player, { elapsed=0 }={}) {
-    if (!isLayered()) return false;
+  // Three genuine gait poses from AbilityFieldRenderer, remapped to five
+  // independent transparent layers. All poses remain the same 68×95 size.
+  const walkPoses = Object.freeze([
+    {l:-3,r:2,ly:-3,ry:1,head:1,bob:-1},
+    {l:0,r:0,ly:0,ry:0,head:0,bob:0},
+    {l:2,r:-3,ly:1,ry:-3,head:-1,bob:-1}
+  ]);
+  function drawWalk(ctx,graphics,facing,x,y,w,h,time) {
+    if(typeof canvasLayers.drawSegment!=="function")return false;
+    const pose=walkPoses[Math.floor(Math.max(0,time)*10)%walkPoses.length];
+    // Existing walk frame was 42×59. Scale its articulated leg/torso
+    // sections to the current 68×95 MAGE size, with no gameplay change.
+    const dx=w/42,dy=h/59;
+    const part=(sx,sy,sw,sh,tx,ty,tw,th)=>
+      canvasLayers.drawSegment(ctx,graphics,facing,
+        {x:sx,y:sy,w:sw,h:sh},
+        {x:x+tx*dx,y:y+ty*dy,w:tw*dx,h:th*dy});
+    const left=part(0,30,20,26,pose.l,32+pose.ly+pose.bob,21,27);
+    const right=part(20,30,20,26,21+pose.r,32+pose.ry+pose.bob,21,27);
+    const torso=part(0,0,40,33,pose.head,pose.bob,42,35);
+    return left&&right&&torso;
+  }
+  function draw(ctx,player,{elapsed=0,walkingTime,airborne=false}={}) {
+    if(!isLayered())return false;
     const graphics=fieldGraphics();
-    if (graphics?.mode!=="layered") return false;
-    const bob=player.moving?Math.sin(elapsed*16)*1.8:0;
-    // Use the larger 68×95 draw scale on the ground and in the air.
-    // Gameplay coordinates and collision boxes are unchanged.
+    if(graphics?.mode!=="layered")return false;
     const w=68,h=95;
-    const x=Math.round(player.x-w/2),y=Math.round(player.y-72+bob);
+    const x=Math.round(player.x-w/2),y=Math.round(player.y-72);
+    const time=Number.isFinite(walkingTime)?walkingTime:elapsed;
+    if(player.moving&&!airborne && drawWalk(ctx,graphics,player.facing,x,y,w,h,time))return true;
     canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h);
-    // Draw nothing until new colors are ready, never flash old colors.
+    // During image loading never fall back to silver-haired legacy MAGE.
     return true;
   }
 
@@ -97,7 +118,7 @@ export function installFieldLayeredRenderers({
           ctx.translate(-player.x,-player.y);
         }
         shadow(ctx,player.x,player.y);
-        if (visualPort.draw(ctx,player,{elapsed:this.elapsed})) return;
+        if (visualPort.draw(ctx,player,{elapsed:this.elapsed,walkingTime:this.walkTimer})) return;
       } finally { ctx.restore(); }
       return groundLegacy.call(this,player);
     };
@@ -118,7 +139,7 @@ export function installFieldLayeredRenderers({
 
       // The jump renderer has already raised the position. Do not apply
       // another scale, tint or rotation; standing and jumping must match.
-      visualPort.draw(ctx,player,{elapsed:this.elapsed});
+      visualPort.draw(ctx,player,{elapsed:this.elapsed,walkingTime:this.walkTimer,airborne:true});
     };
   }
 }
