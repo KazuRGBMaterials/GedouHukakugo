@@ -145,7 +145,8 @@ run("FIELD NEXT three gait poses move the legs, not slide a static body",()=>{
      "All five layer pieces must use the same character and facing");
  }
  assert.notEqual(segments[0].destination.x,segments[3].destination.x);
- assert.notEqual(segments[1].destination.y,segments[4].destination.y);
+ assert.notEqual(segments[1].destination.x,segments[4].destination.x);
+ assert.notEqual(segments[0].destination.y,segments[3].destination.y);
  assert.notEqual(segments[6].destination.x,segments[3].destination.x);
  const now=segments.length;
  port.draw({}, {...actor,moving:false},{walkingTime:.31});
