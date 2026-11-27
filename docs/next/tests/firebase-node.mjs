@@ -162,7 +162,34 @@ run("Realtime Database rules remain unchanged for multiplayer, Firestore rules r
  assert(arena.state[".write"].includes("meta/owner"));
  assert(arena.inputs["$uid"][".write"].includes("auth.uid == $uid"));
  assert(arena.members["$uid"][".write"].includes("auth.uid == $uid"));
- assert.equal(arena.meta["$extra"],undefined);
+ // RuleDataSnapshot has hasChildren() but NOT DataSnapshot.numChildren().
+ // Prevent errors at publish time and enforce allowed field schemas instead.
+ const allRuleExpressions=[];
+ const inspect=value=>{
+  if(typeof value==="string")allRuleExpressions.push(value);
+  else if(value&&typeof value==="object")Object.values(value).forEach(inspect);
+ };
+ inspect(rules);
+ assert(!allRuleExpressions.some(text=>/\\.numChildren\\s*\\(/.test(text)),
+   "RTDB Security Rules must not call client-only DataSnapshot.numChildren()");
+ const assertExactFields=(node,fields)=>{
+  for(const field of fields)
+   assert(node[field] && node[field][".validate"]!==false,
+     "Known field must not match catch-all deny rule: "+field);
+  assert.equal(node["$other"][".validate"],false,
+   "Unknown data fields must still be rejected");
+ };
+ assertExactFields(arena.meta,["owner","mode","createdAt"]);
+ assertExactFields(arena.members["$uid"],["label","joinedAt"]);
+ assertExactFields(arena.inputs["$uid"],["seq","dx","dy","attack","updatedAt"]);
+ assertExactFields(arena.state,["tick","payload","updatedAt"]);
+ assertExactFields(rules.cloudSaves["$uid"]["$slot"],
+   ["schemaVersion","slotId","revision","deviceId","updatedAt","payload"]);
+ assertExactFields(rules.rooms["$room"].players["$connection"],
+   ["owner","label","color","x","y","facing","moving","seq","updatedAt"]);
+ // With no child-count primitive in RTDB Rules, a strict room-size limit
+ // cannot be safely expressed with this UID-keyed structure. Arena engine
+ // still simulates at most four; server-side slots need future redesign.
  const firestoreRules=fs.readFileSync(path.join(docs,"firebase/firestore.rules"),"utf8");
  assert.match(firestoreRules,/service cloud.firestore/);
  assert.match(firestoreRules,/request.auth.uid == userId/);
