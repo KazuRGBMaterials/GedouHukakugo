@@ -1,4 +1,4 @@
-import { firebaseConfig } from "../../assets/firebase-config.js";
+import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
  * Firebase Realtime Database transport — separate from game engine and sprite renderer.
