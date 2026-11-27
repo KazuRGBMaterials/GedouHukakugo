@@ -1,0 +1,30 @@
+/* FIELD NEXT menu-only status panel. Visual layer: no game-core changes. */
+.next-field-status{
+ margin:12px 0 16px;padding:11px 12px;
+ border:1px solid #6c9590;border-radius:9px;
+ background:linear-gradient(135deg,#10272be8,#182c3ae8);
+ color:#ecf4ef;text-align:left;font-size:12px;line-height:1.45;
+}
+.next-field-status-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;
+ padding-bottom:6px;border-bottom:1px solid #45655d;color:#adddd1}
+.next-field-status-heading span{font-size:9px;letter-spacing:.1em;color:#97afb6}
+.next-field-status-name{display:flex;align-items:center;justify-content:space-between;gap:8px;
+ padding:9px 0 7px;font-size:14px}
+.next-field-status-name strong{color:#ffe8a5}
+.next-field-status-name span{font-size:12px;color:#c4d7d2}
+.next-field-status-name small,.next-field-status-meters small{color:#b0b4ba;font-size:9px}
+.next-field-status-meters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 9px}
+.next-field-status-meters>div{padding:7px;background:#0c1c28;border-radius:5px;min-width:0}
+.next-field-status-meters span{display:block;color:#a4b6be;font-size:10px}
+.next-field-status-meters strong{display:block;color:#f2ead4;font-size:12px}
+.next-field-status-values{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;margin:0;
+ padding-top:8px;border-top:1px solid #425b5a}
+.next-field-status-values dt{color:#adc4bf}
+.next-field-status-values dd{margin:0;color:#f2ead4;text-align:right;
+ overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.next-field-status-note{margin:9px 0 0!important;padding-top:8px;border-top:1px solid #334a50;
+ color:#b8c7ca;font-size:10px!important;line-height:1.5}
+@media(max-width:440px){
+ .next-field-status{padding:10px;margin:10px 0}
+ .next-field-status-values{gap:7px}
+}

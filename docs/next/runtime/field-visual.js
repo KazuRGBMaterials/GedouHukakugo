@@ -8,6 +8,10 @@
 import { nextContent, fieldMapFor } from "../content/index.js?v=6";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js?v=2";
 
+// Visual-only change. World coordinates, collision body and skill hitboxes
+// keep their existing dimensions. Bottom edge stays anchored at player.y+23.
+export const FIELD_AVATAR_SIZE=Object.freeze({width:52,height:73,baselineOffset:23});
+
 export function createFieldVisualPort({
   content = nextContent,
   canvasLayers = createLayeredCanvas(),
@@ -26,7 +30,7 @@ export function createFieldVisualPort({
     }
   }
   // Three genuine gait poses from AbilityFieldRenderer, remapped to five
-  // independent transparent layers. All poses remain the same 68×95 size.
+  // independent layers. Walk, idle and jump share the same smaller size.
   const walkPoses = Object.freeze([
     {l:-3,r:2,ly:-3,ry:1,head:1,bob:-1},
     {l:0,r:0,ly:0,ry:0,head:0,bob:0},
@@ -35,8 +39,8 @@ export function createFieldVisualPort({
   function drawWalk(ctx,graphics,facing,x,y,w,h,time) {
     if(typeof canvasLayers.drawSegment!=="function")return false;
     const pose=walkPoses[Math.floor(Math.max(0,time)*10)%walkPoses.length];
-    // Existing walk frame was 42×59. Scale its articulated leg/torso
-    // sections to the current 68×95 MAGE size, with no gameplay change.
+    // Existing walk frame was 42×59. Scale articulated parts to the
+    // FIELD_AVATAR_SIZE body, with no movement or collision changes.
     const dx=w/42,dy=h/59;
     const part=(sx,sy,sw,sh,tx,ty,tw,th)=>
       canvasLayers.drawSegment(ctx,graphics,facing,
@@ -51,8 +55,8 @@ export function createFieldVisualPort({
     if(!isLayered())return false;
     const graphics=fieldGraphics();
     if(graphics?.mode!=="layered")return false;
-    const w=68,h=95;
-    const x=Math.round(player.x-w/2),y=Math.round(player.y-72);
+    const {width:w,height:h,baselineOffset}=FIELD_AVATAR_SIZE;
+    const x=Math.round(player.x-w/2),y=Math.round(player.y-h+baselineOffset);
     const time=Number.isFinite(walkingTime)?walkingTime:elapsed;
     if(player.moving&&!airborne && drawWalk(ctx,graphics,player.facing,x,y,w,h,time))return true;
     canvasLayers.draw(ctx,graphics,player.facing,x,y,w,h);

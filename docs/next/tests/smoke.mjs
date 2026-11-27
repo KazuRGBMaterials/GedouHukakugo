@@ -5,7 +5,8 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, createNextContent } from "../content/index.js";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
-import { createFieldVisualPort, installFieldLayeredRenderers } from "../runtime/field-visual.js";
+import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
+import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
 import { createBattle, startBattle, advanceBattle } from "../../battle/rules.js";
@@ -155,8 +156,41 @@ run("FIELD NEXT three gait poses move the legs, not slide a static body",()=>{
  port.draw({},actor,{walkingTime:.41,airborne:true});
  assert.equal(segments.length,now,"Jumping while moving must not play ground walk cycle");
  assert.equal(full.length,2);
- assert.equal(full[0].w,68);
- assert.equal(full[0].h,95);
+ assert.equal(full[0].w,FIELD_AVATAR_SIZE.width);
+ assert.equal(full[0].h,FIELD_AVATAR_SIZE.height);
+});
+run("FIELD NEXT renders smaller 52×73 MAGE while preserving standing baseline",()=>{
+ assert.deepEqual(FIELD_AVATAR_SIZE,{width:52,height:73,baselineOffset:23});
+ const frames=[];
+ const port=createFieldVisualPort({
+  canvasLayers:{draw(_ctx,_gfx,_face,x,y,w,h){frames.push({x,y,w,h});return true;}},
+  visualMode:()=>"layered"
+ });
+ const player={x:120,y:160,facing:"S",moving:false};
+ port.draw({},player);
+ assert.deepEqual(frames[0],{x:94,y:110,w:52,h:73});
+ assert.equal(frames[0].y+frames[0].h,183,
+  "Body bottom must stay at world position +23 (hitbox stays unchanged)");
+});
+run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat numbers provisional",()=>{
+ const status=summarizeFieldStatus({
+  player:{x:219.7,y:330.8,facing:"NE",moving:true},
+  hudText:"SKILL 3 · レーザー",query:"?map=old-town"
+ });
+ assert.deepEqual(status,{
+  position:"X 220 / Y 331",facing:"北東",action:"移動中",
+  skill:"レーザー",field:"old-town"
+ });
+ assert.equal(summarizeFieldStatus({}).position,"取得待ち");
+ assert.equal(summarizeFieldStatus({player:{x:1,y:2,facing:"W",moving:false},
+   hudText:"SKILL 4 · 突撃",query:"?editorMap=1"}).field,"エディタ試遊");
+ const html=text("index.html");
+ assert(html.includes('./next/runtime/field-status.css?v=1'));
+ assert(html.includes('./next/runtime/field-status.js?v=1'));
+ assert(html.includes('field-visual.js?v=9'));
+ const source=text("runtime/field-status.js");
+ assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
+ assert(source.includes('doc.getElementById("game-menu")'));
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
@@ -185,9 +219,9 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const onGround={x:120,y:160,facing:"SW",moving:false};
  Textured.prototype.drawPlayer.call(runner,onGround);
  assert.equal(draws.length,1);
- assert.equal(draws[0].y,88);
- assert.equal(draws[0].w,68);
- assert.equal(draws[0].h,95);
+ assert.equal(draws[0].y,110);
+ assert.equal(draws[0].w,FIELD_AVATAR_SIZE.width);
+ assert.equal(draws[0].h,FIELD_AVATAR_SIZE.height);
  const airborne={...onGround,y:onGround.y-24};
  ArcaneField.prototype.drawAirborne.call(runner,airborne);
  assert.equal(draws.length,2);
@@ -197,7 +231,7 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  assert.equal(draws[1].graphics,draws[0].graphics,
    "jump changed character graphics definition");
  assert.equal(draws[1].facing,draws[0].facing);
- assert.equal(draws[1].y,64,
+ assert.equal(draws[1].y,86,
 
    "JumpRenderer already subtracts height; do not subtract again");
  assert.equal(commands.find(x=>x.op==="shadow").y,168,
@@ -276,8 +310,8 @@ run("FIELD real renderer inheritance: standing, walking and jump share five-laye
    for(const frame of frames){
      assert.equal(frame.graphics,frames[0].graphics);
      assert.equal(frame.facing,"SW");
-     assert(Math.abs(frame.w-68)<1e-8,"effective width "+frame.w);
-     assert(Math.abs(frame.h-95)<1e-8,"effective height "+frame.h);
+     assert(Math.abs(frame.w-FIELD_AVATAR_SIZE.width)<1e-8,"effective width "+frame.w);
+     assert(Math.abs(frame.h-FIELD_AVATAR_SIZE.height)<1e-8,"effective height "+frame.h);
    }
  }
 });
@@ -325,7 +359,7 @@ run("WAIT recovery also covers original 2-person battle",()=>{
 });
 run("FIELD NEXT standing and jumping keep the same scale",()=>{
  const src=text("runtime/field-visual.js");
- assert.match(src,/const w=68,h=95/);
+ assert(src.includes("const {width:w,height:h,baselineOffset}=FIELD_AVATAR_SIZE"));
  assert(!src.includes('ctx.rotate(-.08'), 'Jump must not tilt the character graphic');
  assert(!src.includes("ctx.scale(this.characterScale || .86"),
    "Jump must not shrink an already normalized sprite twice");
