@@ -359,7 +359,7 @@ run("WAIT recovery also covers original 2-person battle",()=>{
 });
 run("FIELD NEXT standing and jumping keep the same scale",()=>{
  const src=text("runtime/field-visual.js");
- assert.match(src,/const w=68,h=95/);
+ assert.match(src,/const \\{width:w,height:h,baselineOffset\\}=FIELD_AVATAR_SIZE/);
  assert(!src.includes('ctx.rotate(-.08'), 'Jump must not tilt the character graphic');
  assert(!src.includes("ctx.scale(this.characterScale || .86"),
    "Jump must not shrink an already normalized sprite twice");
