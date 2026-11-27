@@ -601,3 +601,17 @@ map=readLocal();
 initEvents();
 requestAnimationFrame(()=>{fit();refreshInfo();render();requestAnimationFrame(tick)});
 announce("マップを読み込みました。地形や会話オブジェクトを配置できます。");
+/** Opt-in cloud save port, separate from the editor engine itself. */
+window.__gedoNextEditorCloudPort=Object.freeze({
+ capture:()=>deepCopy(validateMap(map)),
+ restore:input=>{
+  const next=validateMap(input);
+  if(playing)setPlaying(false);
+  const before=deepCopy(map);
+  map=next;selection=null;pathDraft=null;
+  commit(before,{message:"クラウドのマップを読み込みました"});
+  fit();
+  return true;
+ }
+});
+

@@ -1,0 +1,9 @@
+.gedo-cloud-save{margin:10px 0;padding:9px;background:#111f2b;border:1px solid #647983;border-radius:8px;color:#f1f4ed;font:13px/1.55 system-ui,sans-serif;max-width:100%}
+.gedo-cloud-save summary{cursor:pointer;color:#d4e9e8;font-weight:700;font-size:13px;min-height:34px;align-content:center}
+.gedo-cloud-save .cloud-hint{font-size:11px;color:#d0dbdb;margin:7px 0;line-height:1.55}
+.gedo-cloud-save .cloud-hint input{margin-right:8px}
+.gedo-cloud-save .cloud-buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.gedo-cloud-save button{min-height:44px;white-space:normal;cursor:pointer;border:1px solid #799c9e;border-radius:6px;background:#2b4351;color:#fff;padding:5px;font:600 12px system-ui,sans-serif}
+.gedo-cloud-save button:disabled{opacity:.48;cursor:default}
+.gedo-cloud-save [data-cloud="connect"]{grid-column:span 2;background:#37604f}
+.gedo-cloud-save .cloud-status{margin:8px 0 0;padding:8px;background:#11192a;border-left:3px solid #6b9c97;overflow-wrap:anywhere;font-size:11px}

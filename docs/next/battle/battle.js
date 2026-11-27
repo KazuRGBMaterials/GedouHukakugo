@@ -640,3 +640,34 @@ characterSelect?.addEventListener("change",()=>render());
 bindBattleFullscreen(el("battle-main"), el("battle-fullscreen"));
 bindGameTaps(document);
 render();
+/**
+ * Save only battle settings. In-progress combat stays local to the current
+ * BATTLE instance; the online arena owns its own multiplayer snapshots.
+ */
+window.__gedoNextBattleCloudPort=Object.freeze({
+ capture:()=>{
+  const fields=["grid-size","grid-enemy","grid-terrain","grid-tactics",
+    "grid-columns","grid-rows","grid-risk","grid-waste","grid-style",
+    "next-character","next-visual-mode"];
+  return {schema:"gedo-battle-setup",version:1,gridMode,
+    settings:Object.fromEntries(fields.filter(id=>el(id))
+      .map(id=>[id,el(id).value]))};
+ },
+ restore:data=>{
+  if(data?.schema!=="gedo-battle-setup"||data.version!==1
+    ||data.gridMode!==gridMode||!data.settings||typeof data.settings!=="object")
+    throw new Error("この戦闘モードに対応していない保存形式です");
+  const fields=Object.entries(data.settings);
+  // Validate ALL values before touching the live battle.
+  for(const [id,value] of fields){
+    const input=el(id);
+    if(!input||typeof value!=="string"||
+      !Array.from(input.options||[]).some(option=>option.value===value))
+      throw new Error("非対応の戦闘設定："+id);
+  }
+  for(const [id,value] of fields)el(id).value=value;
+  el("reset").click();
+  return true;
+ }
+});
+
