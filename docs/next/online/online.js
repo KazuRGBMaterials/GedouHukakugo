@@ -1,4 +1,4 @@
-import {createFirebaseGateway} from "../cloud/firebase-service.js?v=2";
+import {createFirebaseGateway} from "../cloud/firebase-service.js?v=4";
 import {createOnlineRoom} from "./room-adapter.js?v=3";
 import {initialArena,ARENA_COLUMNS,ARENA_ROWS,crystalPositions} from "./arena-engine.js?v=3";
 import {nextContent} from "../content/index.js?v=6";
