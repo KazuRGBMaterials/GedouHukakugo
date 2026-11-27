@@ -1,3 +1,5 @@
+> **旧資料（v0.1）**：現在の保存構成はFirestore＋Realtime Database併用（v0.2）です。オンラインアリーナの4人上限も撤廃されています。最新情報は [ONLINE_HYBRID_v0.2.md](./ONLINE_HYBRID_v0.2.md) を参照してください。
+
 # 外道不覚悟 NEXT — Firebase保存とオンライン協力／対戦 v0.1
 
 状態（2026-11-28）：**Firebase Webアプリ「gedouhukakugo」の公開設定をコードに登録済み。Realtime DatabaseのURL・認証有効化・ルール適用は未確認。** `databaseURL: null` のため実通信は意図的に無効。設定完了まではローカル専用。
