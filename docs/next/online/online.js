@@ -1,6 +1,6 @@
 import {createFirebaseGateway} from "../cloud/firebase-service.js?v=2";
-import {createOnlineRoom} from "./room-adapter.js";
-import {initialArena,ARENA_COLUMNS,ARENA_ROWS,crystalPositions} from "./arena-engine.js";
+import {createOnlineRoom} from "./room-adapter.js?v=3";
+import {initialArena,ARENA_COLUMNS,ARENA_ROWS,crystalPositions} from "./arena-engine.js?v=3";
 import {nextContent} from "../content/index.js?v=6";
 import {createLayeredCanvas} from "../../shared/modkit/layered-canvas.js";
 const $=id=>document.getElementById(id);
