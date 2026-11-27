@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>外道不覚悟 NEXT · オンライン協力／対戦</title>
+<link rel="stylesheet" href="./online.css?v=1"></head>
+<body>
+<main>
+<header><div><small>GEDOU FUKAKUGO · NEXT</small><h1>オンライン協力・対戦</h1><p>クラウドに接続した参加者が同じ盤面で遊びます。従来の戦闘システムとは別の試験用アリーナです。</p></div>
+<nav><a href="../">FIELD NEXT</a><a href="../battle/?grid=1">BATTLE NEXT</a><a href="../editor/">EDITOR NEXT</a></nav></header>
+<section class="lobby" aria-label="オンラインルーム">
+ <label>表示名<input id="online-name" maxlength="16" placeholder="プレイヤー" value="プレイヤー"></label>
+ <label>招待コード<input id="online-code" maxlength="12" placeholder="12文字" autocapitalize="characters" spellcheck="false"></label>
+ <div class="actions">
+ <button id="create-coop" type="button">協力ルーム作成</button>
+ <button id="create-pvp" type="button">対戦ルーム作成</button>
+ <button id="join-room" type="button">コードで参加</button>
+ <button id="copy-room" type="button" disabled>招待URLをコピー</button>
+ <button id="leave-room" type="button" disabled>退出</button>
+ </div>
+ <p id="online-status" role="status" aria-live="polite">Firebaseの設定を確認中…</p>
+ <p id="online-players">参加者：未接続</p>
+</section>
+<section class="play">
+ <div class="board-wrap"><canvas id="arena" width="960" height="640" aria-label="オンラインゲーム盤面"></canvas></div>
+ <div class="controls" aria-label="移動操作">
+  <button data-dir="0,-1" type="button" aria-label="上に移動">▲</button>
+  <div class="three">
+   <button data-dir="-1,0" type="button" aria-label="左に移動">◀</button>
+   <button data-dir="0,1" type="button" aria-label="下に移動">▼</button>
+   <button data-dir="1,0" type="button" aria-label="右に移動">▶</button>
+  </div>
+  <button id="online-attack" class="attack" type="button">⚔ 攻撃（対戦）</button>
+ </div>
+ <p class="guide">PC：矢印キー／WASDで移動・スペースで攻撃。スマホ：方向ボタン・攻撃ボタン。協力では宝石6個をみんなで回収、対戦では隣接して攻撃します。</p>
+ <p class="guide">同じ匿名ID（同一ブラウザの別タブ）は同一参加者扱いです。ホストが退出すると進行が停止します。勝敗の改ざん防止や完全なベルトライン戦闘のオンライン化は今後の開発対象です。</p>
+</section>
+<footer>クラウド未設定時はログインせず、データも送信しません。端末識別子はアプリが発行するランダムIDであり、端末の追跡情報ではありません。</footer>
+</main>
+<script type="module" src="./online.js?v=1"></script>
+</body></html>
