@@ -8,12 +8,15 @@ import {initialArena,updateArena} from "./arena-engine.js";
 export function createOnlineRoom({connection,onStatus=()=>{},onState=()=>{},onMembers=()=>{}}){
  const {api,db,uid}=connection;
  let active=null,unsub=[],timer=null,writing=false,sequence=Math.floor(Date.now()/1000)%1000000000,lastSent=0;
+ // Reduce no-op traffic as the room grows; movement still sends every tick.
+ let lastInputKind=null,lastIdleAt=0;
  const roomRef=(code,field)=>api.ref(db,"arenaRooms/"+code+(field?"/"+field:""));
  const status=(message)=>onStatus(message);
  async function leave() {
   if(timer){clearInterval(timer);timer=null;}
   unsub.forEach(fn=>fn());unsub=[];
   const previous=active;active=null;
+  lastInputKind=null;lastIdleAt=0;lastSent=0;
   if(previous){
    try{await api.remove(roomRef(previous.code,"members/"+uid));}catch{}
    try{await api.onDisconnect(roomRef(previous.code,"members/"+uid)).cancel();}catch{}
@@ -83,16 +86,24 @@ export function createOnlineRoom({connection,onStatus=()=>{},onState=()=>{},onMe
    unsub.push(api.onValue(roomRef(code,"inputs"),snap=>{
      if(active===session)session.inputs=snap.val()||{};
    },e=>status("操作受信エラー："+e.message)));
+   let lastPublishedFingerprint=null,lastPublishedAt=0;
    timer=setInterval(async()=>{
     if(active!==session||writing)return;
     writing=true;
     try{
      session.state=updateArena(session.state,session.members,session.inputs);
+     // Game tick counts advance locally for cooldowns, but idle ticks do
+     // not justify resending the full roster to every participant.
+     const fingerprint=JSON.stringify({...session.state,tick:0});
+     const now=Date.now();
+     if(fingerprint===lastPublishedFingerprint && now-lastPublishedAt<15000)return;
      const payload=JSON.stringify(session.state);
-     if(payload.length>18000)throw Error("ルーム状態が大きすぎます");
+     if(payload.length>18000)
+      throw Error("ルーム状態が18KBを超えました。参加人数に合わせて同期方式の見直しが必要です");
      await api.set(roomRef(code,"state"),{
        tick:session.state.tick,payload,updatedAt:api.serverTimestamp()
      });
+     lastPublishedFingerprint=fingerprint;lastPublishedAt=Date.now();
      onState(session.state,session);
     }catch(e){status("ホスト同期エラー："+e.message)}
     finally{writing=false;}
@@ -104,12 +115,18 @@ export function createOnlineRoom({connection,onStatus=()=>{},onState=()=>{},onMe
   if(!active)return;
   const now=Date.now();
   if(now-lastSent<120)return;
-  lastSent=now;
-  const intent={seq:++sequence,
-   dx:Math.max(-1,Math.min(1,Math.trunc(dx))),
-   dy:Math.max(-1,Math.min(1,Math.trunc(dy))),
-   attack:!!attack,updatedAt:api.serverTimestamp()};
+  const safeDx=Math.max(-1,Math.min(1,Math.trunc(dx)));
+  const safeDy=Math.max(-1,Math.min(1,Math.trunc(dy)));
+  const action=!!attack;
+  const kind=safeDx+","+safeDy+","+Number(action);
+  // An unchanged, idle input is sent just once and then every 15 seconds.
+  // Holding a direction or attack continues sending distinct sequences.
+  if(!safeDx&&!safeDy&&!action&&kind===lastInputKind&&now-lastIdleAt<15000)return;
+  const intent={seq:++sequence,dx:safeDx,dy:safeDy,
+   attack:action,updatedAt:api.serverTimestamp()};
   await api.set(roomRef(active.code,"inputs/"+uid),intent);
+  lastSent=now;lastInputKind=kind;
+  if(!safeDx&&!safeDy&&!action)lastIdleAt=now;
  }
  return Object.freeze({create,join,leave,sendInput,
    getSession:()=>active,getSelfId:()=>uid});
