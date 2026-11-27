@@ -29,6 +29,8 @@ run("registered Firebase supports Firestore but keeps RTDB disabled until real U
  assert.equal(firebaseConfig.authDomain,"gedouhukakugo.firebaseapp.com");
  assert.equal(firebaseConfig.appId,"1:471281241263:web:63d1527b81bdcc6c2dd85a");
  assert.equal(firebaseConfig.databaseURL,null,"Never infer the Realtime Database region");
+ assert.equal(firebaseConfig.verifiedRealtimeDatabaseURL,
+   "https://gedouhukakugo-default-rtdb.asia-southeast1.firebasedatabase.app/");
  assert.equal(firebaseConfigured,true,"Web app can connect to Firestore after enabling it in Console");
  assert.equal(realtimeConfigured,false,"RTDB must remain disabled until its URL is known");
  assert.equal(Object.isFrozen(firebaseConfig),true);
