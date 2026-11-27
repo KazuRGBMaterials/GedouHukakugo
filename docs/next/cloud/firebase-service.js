@@ -3,7 +3,7 @@
  * Firestore holds private durable saves; RTDB holds only live multiplayer data.
  * Neither SDK is imported until the user selects the relevant online feature.
  */
-import {firebaseConfig} from "../../assets/firebase-config.js";
+import {firebaseConfig} from "../../assets/firebase-config.js?v=4";
 import {installationId} from "./identity.js";
 const SDK="https://www.gstatic.com/firebasejs/12.11.0/";
 const hasWebConfig=config=>Boolean(config?.apiKey&&config?.projectId&&config?.appId);
@@ -40,7 +40,7 @@ export function createFirebaseGateway({
   async connect(service="firestore") {
    if(service!=="firestore"&&service!=="realtime")throw new Error("Unknown Firebase service");
    if(!configured)throw new Error("Firebase Webアプリの設定がありません");
-   // Do not sign in or load the RTDB SDK until the actual database URL is known.
+   // RTDB is available only after verified config; sign-in still waits for explicit user action.
    if(service==="realtime"&&!realtimeReady)
     throw new Error("Realtime Databaseの実際のURLが未設定です");
    const base=await identity();
