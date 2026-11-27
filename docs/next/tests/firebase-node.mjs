@@ -117,6 +117,10 @@ run("database rules keep original field rooms and restrict owner/host writes",()
  assert.match(room.state[".write"],/meta\/owner/);
  assert.match(room.inputs["$uid"][".write"],/auth.uid == \$uid/);
  assert.match(room.members["$uid"][".write"],/auth.uid == \$uid/);
+ assert.equal(rules.cloudSaves["$uid"]["$slot"]["$extra"],undefined,
+   "Wildcard false validation would reject all required save fields");
+ assert.equal(room.meta["$extra"],undefined,
+   "Wildcard false validation would reject valid room metadata");
 });
 run("existing game engines and legacy entrypoints remain untouched",()=>{
  for(const p of ["index.html","battle/index.html","editor/index.html"])
