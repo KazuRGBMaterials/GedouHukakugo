@@ -9,6 +9,24 @@ const crystals=Object.freeze([[3,2],[8,2],[5,4],[2,6],[9,6],[6,1]]);
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const cleanLabel=value=>String(value||"プレイヤー").slice(0,16).replace(/[\u0000-\u001f<>]/g,"");
 const directions=Object.freeze({S:[0,1],SE:[1,1],E:[1,0],NE:[1,-1],N:[0,-1],NW:[-1,-1],W:[-1,0],SW:[-1,1]});
+// New arrivals receive a free tile instead of sharing the original four spawns.
+// Existing player positions and team membership never shift when someone joins.
+const spawnY=Object.freeze([2,5,3,4,1,6,0,7]);
+function spawnLocation(players,team,mode){
+ const occupied=new Set(Object.values(players).map(p=>p.x+","+p.y));
+ const xs=Array.from({length:ARENA_COLUMNS},(_,x)=>x);
+ if(mode==="versus"&&team===1)xs.reverse();
+ const crystalCells=new Set(crystals.map(([x,y])=>x+","+y));
+ for(const avoidCrystal of [true,false])
+  for(const x of xs)for(const y of spawnY){
+   const key=x+","+y;
+   if(!occupied.has(key)&&(!avoidCrystal||!crystalCells.has(key)))return {x,y};
+  }
+ // More participants than map cells can still join: an overlapping visual
+ // spawn is preferable to silently excluding the 97th member.
+ const n=Object.keys(players).length;
+ return {x:n%ARENA_COLUMNS,y:Math.floor(n/ARENA_COLUMNS)%ARENA_ROWS};
+}
 export function initialArena(mode) {
  if(!["coop","versus"].includes(mode))throw Error("Unknown arena mode");
  return {schemaVersion:1,mode,tick:0,phase:"playing",winner:null,
@@ -19,18 +37,30 @@ export function updateArena(current,members={},inputs={}) {
  const state={...current,tick:current.tick+1,
    players:{...current.players},collected:[...current.collected]};
  if(state.phase!=="playing")return state;
- const ids=Object.keys(members).filter(x=>x.length<=128).sort().slice(0,4);
- for(const [idx,uid] of ids.entries()){
+ const ids=Object.keys(members).filter(x=>x.length<=128).sort();
+ const activeIds=new Set(ids);
+ for(const uid of Object.keys(state.players))
+  if(!activeIds.has(uid))delete state.players[uid];
+ // Team assignments remain stable for returning players, while new arrivals
+ // join the smaller team. No fixed roster-size cap is imposed by the engine.
+ const teamSize=[0,0];
+ for(const player of Object.values(state.players))
+  if(player.team===0||player.team===1)teamSize[player.team]++;
+ for(const uid of ids){
   const original=state.players[uid];
-  if(original){state.players[uid]={...original,label:cleanLabel(members[uid]?.label)};continue;}
+  if(original){
+   state.players[uid]={...original,label:cleanLabel(members[uid]?.label)};
+   continue;
+  }
+  const team=current.mode==="coop"?0:(teamSize[0]<=teamSize[1]?0:1);
+  teamSize[team]++;
+  const {x,y}=spawnLocation(state.players,team,current.mode);
   state.players[uid]={
-    x:idx%2===0?1:10,y:idx<2?2:6,
-    hp:100,team:current.mode==="coop"?0:idx%2,
+    x,y,hp:100,team,
     facing:"S",label:cleanLabel(members[uid]?.label),
     lastSeq:0,lastAttackTick:-20
   };
  }
- for(const uid of Object.keys(state.players))if(!ids.includes(uid))delete state.players[uid];
  const inBounds=(x,y)=>x>=0&&x<ARENA_COLUMNS&&y>=0&&y<ARENA_ROWS;
  for(const uid of ids){
   const player=state.players[uid],intent=inputs[uid];

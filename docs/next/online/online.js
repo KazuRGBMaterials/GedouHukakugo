@@ -17,7 +17,10 @@ const status=message=>{$("online-status").textContent=message;lastMessage=messag
 function displayMembers(value){
  members=value||{};
  const labels=Object.values(members).map(m=>String(m.label||"プレイヤー").slice(0,16));
- $("online-players").textContent="参加者 "+labels.length+"/4："+(labels.join("、")||"なし");
+ const names=labels.slice(0,12).join("、");
+ $("online-players").textContent="参加者 "+labels.length+"人："+(names||"なし")+
+   (labels.length>12?" ほか"+(labels.length-12)+"人":"");
+ $("online-players").title=labels.join("、");
 }
 function draw(){
  const w=960,h=640,left=45,top=30,cell=67;
