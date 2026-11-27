@@ -15,12 +15,12 @@ function run(name,fn){awaitable.push(Promise.resolve().then(fn).then(()=>console
 const awaitable=[];
 
 run("no Firebase traffic, identity generation or auth before opt-in",async()=>{
- assert.equal(firebaseConfigured,false,"Unconfigured Firebase must stay disabled");
+ assert.equal(firebaseConfigured,true,"Registered Web app may support Firestore after setup");
  let imports=0,created=0;
  const client=createFirebaseGateway({config:null,importer:()=>{imports++;},
   storage:{getItem(){created++;},setItem(){created++;}}});
  assert.equal(client.configured,false);
- await assert.rejects(()=>client.connect(),/Firebase未設定/);
+ await assert.rejects(()=>client.connect(),/Webアプリの設定がありません/);
  assert.equal(imports,0);
  assert.equal(created,0);
 });
@@ -157,9 +157,9 @@ run("Realtime Database rules remain unchanged for multiplayer, Firestore rules r
  assert(rules.rooms["$room"].players);
  const arena=rules.arenaRooms["$room"];
  assert.match(arena.meta[".write"],/auth.uid/);
- assert.match(arena.state[".write"],/meta\\/owner/);
- assert.match(arena.inputs["$uid"][".write"],/auth.uid == \\$uid/);
- assert.match(arena.members["$uid"][".write"],/auth.uid == \\$uid/);
+ assert(arena.state[".write"].includes("meta/owner"));
+ assert(arena.inputs["$uid"][".write"].includes("auth.uid == $uid"));
+ assert(arena.members["$uid"][".write"].includes("auth.uid == $uid"));
  assert.equal(arena.meta["$extra"],undefined);
  const firestoreRules=fs.readFileSync(path.join(docs,"firebase/firestore.rules"),"utf8");
  assert.match(firestoreRules,/service cloud.firestore/);
@@ -167,8 +167,8 @@ run("Realtime Database rules remain unchanged for multiplayer, Firestore rules r
  assert.match(firestoreRules,/allow list: if false/);
  assert.match(firestoreRules,/allow create:/);
  assert.match(firestoreRules,/allow update:/);
- assert.match(firestoreRules,/request.resource.data.revision == resource.data.revision \\+ 1/);
- assert.match(firestoreRules,/data.payload.size\\(\\) <= 200000/);
+ assert(firestoreRules.includes("request.resource.data.revision == resource.data.revision + 1"));
+ assert(firestoreRules.includes("data.payload.size() <= 200000"));
 });
 run("existing game engines and legacy entrypoints remain untouched",()=>{
  for(const p of ["index.html","battle/index.html","editor/index.html"])
