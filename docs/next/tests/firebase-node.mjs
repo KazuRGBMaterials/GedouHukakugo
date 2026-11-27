@@ -130,6 +130,50 @@ run("host-only deterministic arena: cooperation collects shared objectives",()=>
  const after=updateArena(state,members,{});
  assert.equal(after.collected.length,6);
 });
+run("online cooperation allows more than four players with distinct positions",()=>{
+ const members=Object.fromEntries(Array.from({length:24},(_,i)=>[
+   "player-"+String(i).padStart(2,"0"),{label:"仲間"+i}
+ ]));
+ const state=updateArena(initialArena("coop"),members,{});
+ assert.equal(Object.keys(state.players).length,24,"All 24 participants must join the simulation");
+ const positions=Object.values(state.players).map(p=>p.x+","+p.y);
+ assert.equal(new Set(positions).size,24,"All new arrivals must get a distinct initial tile");
+ assert(Object.values(state.players).every(p=>p.team===0));
+ assert(JSON.stringify(state).length<18000,"24 players must fit current RTDB rules");
+});
+run("online versus balances larger teams and keeps team assignments stable",()=>{
+ const members=Object.fromEntries(Array.from({length:17},(_,i)=>[
+   "p-"+String(i).padStart(2,"0"),{label:"相手"+i}
+ ]));
+ let state=updateArena(initialArena("versus"),members,{});
+ assert.equal(Object.keys(state.players).length,17);
+ const team0=Object.values(state.players).filter(p=>p.team===0).length;
+ const team1=Object.values(state.players).filter(p=>p.team===1).length;
+ assert(Math.abs(team0-team1)<=1,"Teams must remain balanced when many players join");
+ const existing=Object.fromEntries(Object.entries(state.players)
+   .map(([uid,p])=>[uid,{team:p.team,x:p.x,y:p.y}]));
+ members["a-late"]={label:"途中参加"};
+ state=updateArena(state,members,{});
+ assert.equal(Object.keys(state.players).length,18);
+ for(const [uid,before] of Object.entries(existing)){
+  assert.equal(state.players[uid].team,before.team,"New join must not reshuffle teams");
+  assert.equal(state.players[uid].x,before.x,"New join must not teleport player");
+  assert.equal(state.players[uid].y,before.y,"New join must not teleport player");
+ }
+ assert.equal(new Set(Object.values(state.players).map(p=>p.x+","+p.y)).size,18);
+ delete members["p-03"];
+ state=updateArena(state,members,{});
+ assert.equal(Object.keys(state.players).length,17,"Players who leave must be removed");
+ assert.equal(state.players["p-03"],undefined);
+});
+run("online UI no longer advertises a four-person room cap",()=>{
+ const html=fs.readFileSync(path.join(root,"online/index.html"),"utf8");
+ const js=fs.readFileSync(path.join(root,"online/online.js"),"utf8");
+ const engine=fs.readFileSync(path.join(root,"online/arena-engine.js"),"utf8");
+ assert(!js.includes('labels.length+"/4'));
+ assert(!engine.includes("slice(0,4)"));
+ assert(html.includes("固定4人制限はありません"));
+});
 run("versus attack only targets opponent, validated adjacency & cooldown",()=>{
  let world=initialArena("versus");
  const members={alpha:{label:"MAGE"},beta:{label:"敵"}};
