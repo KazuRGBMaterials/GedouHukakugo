@@ -4,6 +4,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {installationId,makeRoomCode,normalizeRoomCode,INSTALLATION_KEY} from "../cloud/identity.js";
 import {createFirebaseGateway,firebaseConfigured} from "../cloud/firebase-service.js";
+import {firebaseConfig} from "../../assets/firebase-config.js";
 import {createCloudSaveStore,SaveConflictError,SLOT_NAMES} from "../cloud/save-store.js";
 import {initialArena,updateArena,crystalPositions,ARENA_COLUMNS,ARENA_ROWS} from "../online/arena-engine.js";
 
@@ -22,6 +23,14 @@ run("no Firebase traffic, identity generation or auth before opt-in",async()=>{
  await assert.rejects(()=>client.connect(),/Firebase未設定/);
  assert.equal(imports,0);
  assert.equal(created,0);
+});
+run("registered Firebase Web app remains offline until real RTDB URL is configured",()=>{
+ assert.equal(firebaseConfig.projectId,"gedouhukakugo");
+ assert.equal(firebaseConfig.authDomain,"gedouhukakugo.firebaseapp.com");
+ assert.equal(firebaseConfig.appId,"1:471281241263:web:63d1527b81bdcc6c2dd85a");
+ assert.equal(firebaseConfig.databaseURL,null,"Never infer the Realtime Database region");
+ assert.equal(firebaseConfigured,false,"Do not enable online without a verified Realtime Database URL");
+ assert.equal(Object.isFrozen(firebaseConfig),true);
 });
 run("opaque device ID stable across reloads, without fingerprint",()=>{
  const map=new Map(),storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};

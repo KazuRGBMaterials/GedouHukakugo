@@ -4,11 +4,15 @@ on:
     branches: [main]
     paths:
       - 'docs/next/**'
+      - 'docs/assets/firebase-config.js'
+      - 'docs/firebase/database.rules.json'
       - 'docs/shared/modkit/**'
       - '.github/workflows/next-system-check.yml'
   pull_request:
     paths:
       - 'docs/next/**'
+      - 'docs/assets/firebase-config.js'
+      - 'docs/firebase/database.rules.json'
       - 'docs/shared/modkit/**'
       - '.github/workflows/next-system-check.yml'
 jobs:
