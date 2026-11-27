@@ -208,6 +208,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
 <link rel="stylesheet" href="./assets/multiplayer.css?v=060" />
 <link rel="stylesheet" href="./assets/arcane-theme.css?v=080" />
 <link rel="stylesheet" href="./assets/field-portrait.css?v=1" />
+<link rel="stylesheet" href="./next/runtime/field-status.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -254,7 +255,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
             <button id="dialogue-advance" type="button">次へ</button>
           </div>
         </section>
-        <div id="game-menu" class="game-menu" hidden><div class="menu-title">メニュー（仮）</div><p>フィールド操作テスト NEXT v1.0</p>
+        <div id="game-menu" class="game-menu" hidden><div class="menu-title">メニュー</div><p>フィールド操作テスト NEXT v1.0</p>
 <p class="next-mode-choices" style="padding:7px;background:#101f28;border:1px solid #61736e;border-radius:6px;display:flex;flex-wrap:wrap;align-items:center;gap:9px;">
   <label for="next-visual-mode">描画方式</label>
   <select id="next-visual-mode" style="padding:7px"><option value="layered" selected>肌・目・服・髪・装飾（5層）</option><option value="legacy">以前の一枚絵</option></select>
@@ -302,7 +303,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
   <script type="module">
 import { FieldDialogue, exampleFieldObjects, fieldObjectDetails, withFieldObjects } from "./assets/field-objects.js?v=096";
 import { bindGameTaps, isGameTouchControl } from "./assets/game-taps.js?v=1";
-import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=8";
+import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=9";
 const fieldVisualPort=createFieldVisualPort();
 window.__nextMapPort=fieldVisualPort;
 setupFieldControls(fieldVisualPort);
@@ -331,6 +332,7 @@ load('/src/main.ts').startField({FieldDialogue, exampleFieldObjects, fieldObject
 })();</script>
 <link rel="stylesheet" href="./next/cloud/cloud-save.css?v=1" />
 <script type="module" src="./next/cloud/init-field.js?v=4"></script>
+<script type="module" src="./next/runtime/field-status.js?v=1"></script>
 <script type="module" src="./next/cloud/multiplayer-room-next.js?v=4"></script>
 </body>
 </html>
