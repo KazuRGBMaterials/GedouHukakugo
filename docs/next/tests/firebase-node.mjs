@@ -170,7 +170,7 @@ run("Realtime Database rules remain unchanged for multiplayer, Firestore rules r
   else if(value&&typeof value==="object")Object.values(value).forEach(inspect);
  };
  inspect(rules);
- assert(!allRuleExpressions.some(text=>/\\.numChildren\\s*\\(/.test(text)),
+ assert(!allRuleExpressions.some(rule=>rule.includes(".numChildren(")),
    "RTDB Security Rules must not call client-only DataSnapshot.numChildren()");
  const assertExactFields=(node,fields)=>{
   for(const field of fields)
