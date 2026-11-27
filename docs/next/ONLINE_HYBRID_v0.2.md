@@ -18,7 +18,7 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
 
 地域の推奨（未作成なら）：**Firestore (default) は東京 `asia-northeast1`、Realtime Databaseはシンガポール `asia-southeast1`**。Firebase公式によるとこれらのサービスの地域は独立。選択時に地域を確認すること。
 
-**重要：現時点の公開Webアプリ設定は登録済み、Realtime Database URL は `null`。** URLを推測して入力しない。Realtime Databaseの機能は実URL登録まで無効。一方、FirestoreはWebアプリ設定があるためFirebase ConsoleでFirestoreと匿名認証および正しいRulesを設定後に利用できる。
+**重要：実際のRealtime Database URLはユーザーから受領済みです。** `https://gedouhukakugo-default-rtdb.asia-southeast1.firebasedatabase.app/` を公開設定の `verifiedRealtimeDatabaseURL` に記録しました。Firebaseコンソールで匿名認証と正しいRTDBルールが公開されたと確認できるまでは `databaseURL: null` の安全ゲートを維持し、オンラインルームを無効にします。一方、FirestoreはWebアプリ設定があるためFirebase ConsoleでFirestoreと匿名認証および正しいRulesを設定後に利用できる。
 
 ## 2. Firebase Consoleでのセットアップ（Spark無料プランのまま）
 
@@ -28,7 +28,7 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
 4. Firestoreの**「ルール」タブ**で [`docs/firebase/firestore.rules`](../../firebase/firestore.rules) の全文を登録して **「公開」**。このルールは `cloudSaves/{uid}/slots/{slot}` の本人アクセスと厳密な型/サイズ/リビジョンを制限。**JSONではなくFirestore Rules言語**。
 5. [Realtime Database](https://console.firebase.google.com/project/gedouhukakugo/database) を作成。**シンガポール、ロックモード**（選択できる場合）。既存作成済みならその地域を尊重する。
 6. Realtime Databaseの**「ルール」タブ**で [`docs/firebase/database.rules.json`](../../firebase/database.rules.json) の全文を登録して **「公開」**。このファイルは**JSON**であり、Firestoreのルールとは別。相互に貼り間違えない。
-7. Realtime Databaseの「データ」タブに表示された**実際のデータベースURL**（`https://...firebasedatabase.app` 等）をコピーし、コード `docs/assets/firebase-config.js` の `databaseURL: null` を置き換える。GitHub PR → CI成功 → mainへマージ → Pagesへ反映。（ユーザーがURLを伝えればChatGPT側でGitHub編集可能。管理者鍵は不要。）
+7. Realtime Databaseの**実際のURLは受領・記録済み**。コンソールで **匿名認証とRTDBルールを公開したことを確認できたら** `docs/assets/firebase-config.js` の `databaseURL: null` を、記録済みの `verifiedRealtimeDatabaseURL` と同じURLへ変更する。GitHub PR → CI成功 → mainへマージ → Pagesへ反映。管理者鍵は不要。
 8. GitHub Pages [FIELD NEXT](https://kazurgbmaterials.github.io/GedouHukakugo/next/) > Xメニュー >「Cloud Firestore保存」を開き、「クラウド利用を有効にする」でゲストサインイン → セーブ → 読込を検証。途中でセーブ競合になる場合は新しいデータを確認して再読み込みする。
 9. 同じURLを2台の異なる端末で開き、[ONLINE NEXT](https://kazurgbmaterials.github.io/GedouHukakugo/next/online/) でルーム作成・招待コード参加・位置/コマンド/協力/対戦状態を確認する。
 
@@ -66,7 +66,8 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
 - [ ] Firebase Consoleの匿名認証有効化（実環境）
 - [ ] Firestore `(default)` の作成とRules公開
 - [ ] Realtime Databaseの作成とRules公開
-- [ ] Realtime Databaseの正確なURL確認とGitHubへの登録
+- [x] Realtime Databaseの正確なURL受領と安全な非アクティブ設定への記録
+- [ ] 匿名認証と両DBのルール公開を確認し、`databaseURL` を有効化
 - [ ] Firestore Rules・Realtime Database Rulesの実エミュレーター認可テスト
 - [ ] iPhone Safari/PC間のクラウドセーブと協力・対戦の実機確認
 
