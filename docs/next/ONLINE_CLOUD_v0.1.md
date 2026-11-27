@@ -1,6 +1,6 @@
 # 外道不覚悟 NEXT — Firebase保存とオンライン協力／対戦 v0.1
 
-状態（2026-11-28）：**GitHub Pagesに配布可能なコードとFirebaseルールを実装。実Firebaseプロジェクトはまだ未接続。** 設定完了前はローカル専用。オンライン機能は動作しない。
+状態（2026-11-28）：**Firebase Webアプリ「gedouhukakugo」の公開設定をコードに登録済み。Realtime DatabaseのURL・認証有効化・ルール適用は未確認。** `databaseURL: null` のため実通信は意図的に無効。設定完了まではローカル専用。
 
 ## 機能の区分と公開URL
 
@@ -13,21 +13,15 @@
 
 ## Firebaseセットアップ（管理者が1回のみ実行）
 
+現在のプロジェクト：[Firebase Console / gedouhukakugo](https://console.firebase.google.com/project/gedouhukakugo/overview)
+
+Webアプリは登録済みです。残る作業は匿名認証の有効化、Realtime Databaseの作成、ルールのFirebase側への公開、実際のデータベースURL取得です。
+
 1. [Firebase Console](https://console.firebase.google.com/)でプロジェクトを作成し、Webアプリ登録を実施。**既存のWeb設定があるならその値を使用**する。未確認のIDを推測して埋めない。
 2. Authentication > Sign-in method > **Anonymous** を有効にする。ゲストの端末引継ぎをGoogleログインで行う予定なら **Google** も有効にする（本版のUIにはGoogleリンク処理はまだ未接続）。
 3. **Realtime Database** を有効化する。テストモードの全公開ルールのまま使わない。
 4. `docs/firebase/database.rules.json` のルール全体をRealtime Databaseの「ルール」へ反映して**公開**する。既存`rooms`ルールも含むため部分差し替えではなく現行データベースのルールを確認して統合する。ルールの不一致・拒否は画面上のエラーとなる。
-5. `docs/assets/firebase-config.js` の `export const firebaseConfig = null;` をWeb SDKの**公開設定オブジェクト**に置き換える：
-   ```js
-   export const firebaseConfig = {
-     apiKey: "WebアプリのapiKey",
-     authDomain: "プロジェクト.firebaseapp.com",
-     databaseURL: "https://実際のプロジェクトID-default-rtdb.地域.firebasedatabase.app",
-     projectId: "実際のプロジェクトID",
-     appId: "WebアプリのappId"
-   };
-   ```
-   これは例であり、**実在の値がないままでは動かない**。サービスアカウント、管理者秘密鍵、OAuthシークレット、管理APIトークンは**リポジトリに絶対に置かない**。
+5. Webアプリの公開設定は `docs/assets/firebase-config.js` に登録済み。**残作業は、Firebase Realtime Database >「データ」タブ上部に表示される実際のデータベースURLを確認し、`databaseURL: null` をそのURLに置き換えること。** プロジェクトIDから地域やURLを推測してはいけない。匿名認証の有効化とルール公開を確認するまでは実接続を有効にしない。サービスアカウント、管理者秘密鍵、OAuthシークレット、管理APIトークンは**リポジトリに絶対に置かない**。
 6. GitHub Pages上で異なる2ブラウザ/2端末を開き、匿名認証とルールを確認。Firebase側のAuthenticationユーザー一覧、Realtime Databaseの`cloudSaves`、`arenaRooms`を確認する。初回の書込みには通信が必要。
 7. Firebaseの利用量・請求アラート、App Checkの導入、悪用対策、不要ルームの期限付き削除を運用前に検討する。**ルームに有効期限はまだない**。
 
