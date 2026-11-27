@@ -7,7 +7,7 @@ import {makeRoomCode,normalizeRoomCode} from "../cloud/identity.js";
 import {initialArena,updateArena} from "./arena-engine.js";
 export function createOnlineRoom({connection,onStatus=()=>{},onState=()=>{},onMembers=()=>{}}){
  const {api,db,uid}=connection;
- let active=null,unsub=[],timer=null,writing=false,sequence=0,lastSent=0;
+ let active=null,unsub=[],timer=null,writing=false,sequence=Math.floor(Date.now()/1000)%1000000000,lastSent=0;
  const roomRef=(code,field)=>api.ref(db,"arenaRooms/"+code+(field?"/"+field:""));
  const status=(message)=>onStatus(message);
  async function leave() {
