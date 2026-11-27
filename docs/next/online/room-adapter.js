@@ -4,7 +4,7 @@
  * bounded inputs; Security Rules prevent writing other players' inputs.
  */
 import {makeRoomCode,normalizeRoomCode} from "../cloud/identity.js";
-import {initialArena,updateArena} from "./arena-engine.js";
+import {initialArena,updateArena} from "./arena-engine.js?v=3";
 export function createOnlineRoom({connection,onStatus=()=>{},onState=()=>{},onMembers=()=>{}}){
  const {api,db,uid}=connection;
  let active=null,unsub=[],timer=null,writing=false,sequence=Math.floor(Date.now()/1000)%1000000000,lastSent=0;
