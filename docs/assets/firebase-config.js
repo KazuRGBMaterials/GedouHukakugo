@@ -6,8 +6,9 @@
  * Authentication > Sign-in method > Anonymous; publish the security
  * rules in docs/firebase/database.rules.json before any online access.
  *
- * databaseURL is intentionally null until the real URL has been read
- * from Realtime Database > Data. Never guess the database region.
+ * Realtime Database URL was provided by the project owner. It is staged under
+ * verifiedRealtimeDatabaseURL but databaseURL remains null until actual
+ * server-side access rules and anonymous auth are configured and checked.
  *
  * Public client keys are not Firebase administrator credentials.
  * Never commit a service account JSON file or private server key.
@@ -16,7 +17,11 @@
 export const firebaseConfig = Object.freeze({
   apiKey: "AIzaSyBkl9VumBiQV4bDI4hclIfg3M2thb_Ht7A",
   authDomain: "gedouhukakugo.firebaseapp.com",
-  databaseURL: null, // Await actual Realtime Database URL
+  // Realtime Database URI provided by the project owner; do not enable
+  // online writes until BOTH Authentication and database.rules.json are
+  // confirmed published in Firebase Console.
+  verifiedRealtimeDatabaseURL: "https://gedouhukakugo-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  databaseURL: null, // Intentional safety gate until RTDB rules are published
   projectId: "gedouhukakugo",
   storageBucket: "gedouhukakugo.firebasestorage.app",
   messagingSenderId: "471281241263",

@@ -1,4 +1,4 @@
-import {createFirebaseGateway} from "../cloud/firebase-service.js";
+import {createFirebaseGateway} from "../cloud/firebase-service.js?v=2";
 import {createOnlineRoom} from "./room-adapter.js";
 import {initialArena,ARENA_COLUMNS,ARENA_ROWS,crystalPositions} from "./arena-engine.js";
 import {nextContent} from "../content/index.js?v=6";
@@ -67,12 +67,12 @@ function draw(){
  }
 }
 function setConnected(active){
- for(const id of ["create-coop","create-pvp","join-room"])$(id).disabled=active||!gateway.configured;
+ for(const id of ["create-coop","create-pvp","join-room"])$(id).disabled=active||!gateway.realtimeConfigured;
  $("copy-room").disabled=!active;
  $("leave-room").disabled=!active;
 }
 setConnected(false);
-if(!gateway.configured)status("Firebase未設定：現在はオフライン画面です。設定後にルーム作成・参加が可能になります");
+if(!gateway.realtimeConfigured)status("Realtime DatabaseのURLが未設定：オンラインルームは無効です。Firestoreのクラウドセーブは別途利用できます");
 else status("オンライン機能は任意です。作成または参加すると匿名認証が始まります");
 const prefill=new URLSearchParams(location.search).get("room");
 if(prefill)$("online-code").value=prefill.toUpperCase().slice(0,12);
@@ -86,7 +86,7 @@ function callbacks(connection){
 async function connectRoom(kind){
  setConnected(true);status("Firebase認証とルーム接続を確認しています…");
  try{
-  const connection=await gateway.connect();
+  const connection=await gateway.connect("realtime");
   if(!room)room=callbacks(connection);
   const name=$("online-name").value.trim().slice(0,16)||"プレイヤー";
   const code=kind==="join"?await room.join($("online-code").value,name)

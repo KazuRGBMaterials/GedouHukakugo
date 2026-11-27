@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Private saves only. Multiplayer room state lives exclusively in RTDB.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    function allowedSlot(slotId) {
+      return slotId in ['field-main', 'field-preview', 'editor-map', 'battle-setup'];
+    }
+    function validSave(slotId) {
+      let data = request.resource.data;
+      return allowedSlot(slotId)
+        && data.keys().hasAll(['schemaVersion', 'slotId', 'revision',
+                               'deviceId', 'updatedAt', 'payload'])
+        && data.keys().hasOnly(['schemaVersion', 'slotId', 'revision',
+                                'deviceId', 'updatedAt', 'payload'])
+        && data.schemaVersion == 1
+        && data.slotId == slotId
+        && data.revision is int
+        && data.revision >= 1
+        && data.deviceId is string
+        && data.deviceId.matches('^[a-f0-9]{32}$')
+        && data.updatedAt == request.time
+        && data.payload is string
+        && data.payload.size() <= 200000;
+    }
+    match /cloudSaves/{userId}/slots/{slotId} {
+      allow get: if isOwner(userId) && allowedSlot(slotId);
+      allow list: if false;
+      allow create: if isOwner(userId)
+        && validSave(slotId)
+        && request.resource.data.revision == 1;
+      allow update: if isOwner(userId)
+        && validSave(slotId)
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if isOwner(userId) && allowedSlot(slotId);
+    }
+    // All other documents and collections are inaccessible by default.
+  }
+}

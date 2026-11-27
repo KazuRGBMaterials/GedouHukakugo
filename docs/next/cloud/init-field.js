@@ -1,4 +1,4 @@
-import {mountCloudSavePanel} from "./save-panel.js";
+import {mountCloudSavePanel} from "./save-panel.js?v=2";
 const port=window.__gedoNextCloudPort;
 const container=document.querySelector(".save-options");
 if(port && container)mountCloudSavePanel({container,slot:port.slot,port});

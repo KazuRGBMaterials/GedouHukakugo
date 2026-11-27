@@ -2,15 +2,15 @@
  * Independent save UI injected at the composition edge.
  * Local play remains default. No network until player clicks cloud enable.
  */
-import {createFirebaseGateway} from "./firebase-service.js";
-import {createCloudSaveStore,SaveConflictError} from "./save-store.js";
+import {createFirebaseGateway} from "./firebase-service.js?v=2";
+import {createCloudSaveStore,SaveConflictError} from "./save-store.js?v=2";
 export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseGateway(),onMessage=()=>{}}) {
  if(!container||!port?.capture||!port?.restore)throw new Error("Save UI requires a game state port");
  const section=document.createElement("section");
  section.className="gedo-cloud-save";
  section.innerHTML=`<details>
- <summary>☁ クラウド保存・端末引継ぎ</summary>
- <p class="cloud-hint">初期設定はローカル専用です。利用を有効にするとFirebase匿名IDと、このブラウザ専用のランダムIDを使います。端末情報・IP・機種名は収集しません。</p>
+ <summary>☁ Firestore保存・端末引継ぎ</summary>
+ <p class="cloud-hint">初期設定はローカル専用です。クラウド保存だけはCloud Firestoreを使用します。利用を有効にするとFirebase匿名IDと、このブラウザ専用のランダムIDを使います。端末情報・IP・機種名は収集しません。</p>
  <p class="cloud-hint">ゲスト保存はブラウザのデータ削除や端末変更で復旧不能になることがあります。別端末への移行はJSON書き出しで可能です。</p>
  <div class="cloud-buttons">
  <button type="button" data-cloud="connect">クラウド利用を有効にする</button>
@@ -56,7 +56,7 @@ export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseG
  pick("connect").disabled=!gateway.configured;
  if(!gateway.configured)inform("Firebase未設定：クラウド機能は無効です。ローカルのセーブは利用できます");
  pick("connect").addEventListener("click",()=>exclusive(async()=>{
-  inform("Firebaseへ接続中…");
+  inform("Cloud Firestoreへ接続中…");
   const connection=await gateway.connect();
   store=createCloudSaveStore(connection);
   await refresh();
