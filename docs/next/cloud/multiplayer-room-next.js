@@ -88,6 +88,7 @@ if(!configured){
   // Explicit opt-in: do not load Firebase SDK or authenticate just because
   // a player opened the field. Loading begins only after Create/Join.
   setAvailable(true);
+  ui.leave.disabled=true;ui.share.disabled=true;
   say("ルーム機能を利用する場合は、作成または参加を選んでください");
 }
 async function initFirebase(){
