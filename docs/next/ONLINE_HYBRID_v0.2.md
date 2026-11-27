@@ -28,6 +28,10 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
 4. Firestoreの**「ルール」タブ**で [`docs/firebase/firestore.rules`](../../firebase/firestore.rules) の全文を登録して **「公開」**。このルールは `cloudSaves/{uid}/slots/{slot}` の本人アクセスと厳密な型/サイズ/リビジョンを制限。**JSONではなくFirestore Rules言語**。
 5. [Realtime Database](https://console.firebase.google.com/project/gedouhukakugo/database) を作成。**シンガポール、ロックモード**（選択できる場合）。既存作成済みならその地域を尊重する。
 6. Realtime Databaseの**「ルール」タブ**で [`docs/firebase/database.rules.json`](../../firebase/database.rules.json) の全文を登録して **「公開」**。このファイルは**JSON**であり、Firestoreのルールとは別。相互に貼り間違えない。
+
+   **2026-11-28 修正:** 初版に誤って含まれた `numChildren()` はRealtime Database **Security Rulesでは使用できない**ため、公式の `hasChildren([...])` と各フィールドの明示的な `.validate` および `$other: {".validate": false}` に置き換えた。Firebase Consoleの「ルール」へ必ず **更新後のmain版全文** を貼る。古いコードの貼り付けや、一部行だけの修正はしない。
+
+   **制約:** ルール内で `numChildren()` に依存していた参加人数4名の**DB側の厳密な人数制限は現時点では実装できていない**。ホストのゲーム処理では最大4名のみシミュレーションするが、5人目の入室データの登録まで防げるわけではない。厳密な上限は固定4スロット方式へのルーム設計変更で別途対応する。
 7. Realtime Databaseの**実際のURLは受領・記録済み**。コンソールで **匿名認証とRTDBルールを公開したことを確認できたら** `docs/assets/firebase-config.js` の `databaseURL: null` を、記録済みの `verifiedRealtimeDatabaseURL` と同じURLへ変更する。GitHub PR → CI成功 → mainへマージ → Pagesへ反映。管理者鍵は不要。
 8. GitHub Pages [FIELD NEXT](https://kazurgbmaterials.github.io/GedouHukakugo/next/) > Xメニュー >「Cloud Firestore保存」を開き、「クラウド利用を有効にする」でゲストサインイン → セーブ → 読込を検証。途中でセーブ競合になる場合は新しいデータを確認して再読み込みする。
 9. 同じURLを2台の異なる端末で開き、[ONLINE NEXT](https://kazurgbmaterials.github.io/GedouHukakugo/next/online/) でルーム作成・招待コード参加・位置/コマンド/協力/対戦状態を確認する。
