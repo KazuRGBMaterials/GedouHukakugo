@@ -176,7 +176,7 @@ run("Realtime Database rules remain unchanged for multiplayer, Firestore rules r
   for(const field of fields)
    assert(node[field] && node[field][".validate"]!==false,
      "Known field must not match catch-all deny rule: "+field);
-  assert.equal(node["$other"][".validate"],false,
+  assert.equal((node["$other"]||node["$extra"])?.[".validate"],false,
    "Unknown data fields must still be rejected");
  };
  assertExactFields(arena.meta,["owner","mode","createdAt"]);
