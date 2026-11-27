@@ -188,13 +188,16 @@
         <p class="hint">★は発動枠。黄は青に、青は赤に、赤は黄に有利。待機1枠でスタミナを1回復できます。</p>
         <p class="hint" id="grid-instructions" hidden>味方の名前や盤面の味方をタップして操作キャラを選び、横のボタンで各キャラの手動／AUTOを切り替えます。敵の攻撃対象は自動選択され、★の1枠前に敵をタップすると次の攻撃だけ変更できます。ジャンプ斬りの着地点は緑の候補マスから変更できます。予約済みの行動は切り替えても先に実行されます。</p>
         <p class="hint">マス目版では青枠をタップすると、1枠・スタミナ0.5で移動を予約します。赤いマスは敵の攻撃範囲です。火炎は術者を中心に縦横各2マスと斜め4マスに届きます。敵が複数いるときは敵をタップして攻撃対象を選べます。最大4対4まで編成できます。盤面は横5～15列・縦5～15行をプルダウンで指定できます。広い盤面は指でスクロールできます。地形は見た目のみで、移動・攻撃のルールは変わりません。</p>
-        <p class="hint battle-links"><a class="version-link" href="../../battle/?grid=1">旧戦闘版</a> <a class="version-link" href="../editor/">次版エディタ</a> <a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="?grid=1&amp;layers=demo">5層描画デモ</a> <a class="version-link" href="../../battle/ver1/">VER1（保存版）</a> <a class="version-link" href="../../battle/ver2/?grid=1">VER2（保存版）</a> <a class="version-link" href="../../battle/ver3/">VER3（保存版）</a> <a class="version-link" href="../../battle/ver4/">VER4（保存版）</a></p>
+        <p class="hint battle-links"><a class="version-link" href="../../battle/?grid=1">旧戦闘版</a> <a class="version-link" href="../editor/">次版エディタ</a> <a class="version-link" href="../online/">🌐 オンライン協力・対戦（試験版）</a> <a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="?grid=1&amp;layers=demo">5層描画デモ</a> <a class="version-link" href="../../battle/ver1/">VER1（保存版）</a> <a class="version-link" href="../../battle/ver2/?grid=1">VER2（保存版）</a> <a class="version-link" href="../../battle/ver3/">VER3（保存版）</a> <a class="version-link" href="../../battle/ver4/">VER4（保存版）</a></p>
         <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
       </div>
     </details>
+  <section id="battle-cloud-target" style="max-width:650px;margin:10px auto"></section>
   </main>
   <audio id="battle-bgm" src="../../battle/battle-loop.wav" preload="none" loop></audio>
   <link rel="stylesheet" href="./next-battle.css?v=6">
-  <script type="module" src="./battle.js?v=6"></script>
+  <link rel="stylesheet" href="../cloud/cloud-save.css?v=1" />
+<script type="module" src="./battle.js?v=8"></script>
+<script type="module" src="../cloud/init-battle.js?v=1"></script>
 </body>
 </html>
