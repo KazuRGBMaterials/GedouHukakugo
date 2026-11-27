@@ -48,10 +48,7 @@
         ".read": "auth != null && auth.uid == $uid",
         "$slot": {
           ".write": "auth != null && auth.uid == $uid && ($slot == 'field-main' || $slot == 'field-preview' || $slot == 'editor-map' || $slot == 'battle-setup')",
-          ".validate": "newData.hasChildren(['schemaVersion','slotId','revision','deviceId','updatedAt','payload']) && newData.numChildren() == 6 && newData.child('schemaVersion').val() == 1 && newData.child('slotId').val() == $slot && newData.child('revision').isNumber() && ((!data.exists() && newData.child('revision').val() == 1) || (data.exists() && newData.child('revision').val() == data.child('revision').val() + 1)) && newData.child('deviceId').isString() && newData.child('deviceId').val().matches(/^[a-f0-9]{32}$/) && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 30000 && newData.child('updatedAt').val() >= now - 120000 && newData.child('payload').isString() && newData.child('payload').val().length <= 200000",
-          "$extra": {
-            ".validate": false
-          }
+          ".validate": "newData.hasChildren(['schemaVersion','slotId','revision','deviceId','updatedAt','payload']) && newData.numChildren() == 6 && newData.child('schemaVersion').val() == 1 && newData.child('slotId').val() == $slot && newData.child('revision').isNumber() && ((!data.exists() && newData.child('revision').val() == 1) || (data.exists() && newData.child('revision').val() == data.child('revision').val() + 1)) && newData.child('deviceId').isString() && newData.child('deviceId').val().matches(/^[a-f0-9]{32}$/) && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 30000 && newData.child('updatedAt').val() >= now - 120000 && newData.child('payload').isString() && newData.child('payload').val().length <= 200000"
         }
       }
     },
@@ -60,38 +57,26 @@
         "meta": {
           ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/)",
           ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && !data.exists() && newData.child('owner').val() == auth.uid",
-          ".validate": "newData.hasChildren(['owner','mode','createdAt']) && newData.numChildren() == 3 && newData.child('owner').isString() && newData.child('owner').val() == auth.uid && (newData.child('mode').val() == 'coop' || newData.child('mode').val() == 'versus') && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 30000 && newData.child('createdAt').val() >= now - 120000",
-          "$extra": {
-            ".validate": false
-          }
+          ".validate": "newData.hasChildren(['owner','mode','createdAt']) && newData.numChildren() == 3 && newData.child('owner').isString() && newData.child('owner').val() == auth.uid && (newData.child('mode').val() == 'coop' || newData.child('mode').val() == 'versus') && newData.child('createdAt').isNumber() && newData.child('createdAt').val() <= now + 30000 && newData.child('createdAt').val() >= now - 120000"
         },
         "members": {
           ".read": "auth != null && (root.child('arenaRooms/'+$room+'/meta/owner').val() == auth.uid || root.child('arenaRooms/'+$room+'/members/'+auth.uid).exists())",
           "$uid": {
             ".write": "auth != null && auth.uid == $uid && root.child('arenaRooms/'+$room+'/meta').exists() && (data.exists() || root.child('arenaRooms/'+$room+'/members').numChildren() < 4)",
-            ".validate": "newData.hasChildren(['label','joinedAt']) && newData.numChildren() == 2 && newData.child('label').isString() && newData.child('label').val().length >= 1 && newData.child('label').val().length <= 16 && newData.child('joinedAt').isNumber() && newData.child('joinedAt').val() <= now + 30000 && newData.child('joinedAt').val() >= now - 120000",
-            "$extra": {
-              ".validate": false
-            }
+            ".validate": "newData.hasChildren(['label','joinedAt']) && newData.numChildren() == 2 && newData.child('label').isString() && newData.child('label').val().length >= 1 && newData.child('label').val().length <= 16 && newData.child('joinedAt').isNumber() && newData.child('joinedAt').val() <= now + 30000 && newData.child('joinedAt').val() >= now - 120000"
           }
         },
         "inputs": {
           ".read": "auth != null && root.child('arenaRooms/'+$room+'/meta/owner').val() == auth.uid",
           "$uid": {
             ".write": "auth != null && auth.uid == $uid && root.child('arenaRooms/'+$room+'/members/'+auth.uid).exists()",
-            ".validate": "newData.hasChildren(['seq','dx','dy','attack','updatedAt']) && newData.numChildren() == 5 && newData.child('seq').isNumber() && newData.child('seq').val() >= 0 && newData.child('seq').val() <= 1000000000 && newData.child('dx').isNumber() && newData.child('dx').val() >= -1 && newData.child('dx').val() <= 1 && newData.child('dy').isNumber() && newData.child('dy').val() >= -1 && newData.child('dy').val() <= 1 && newData.child('attack').isBoolean() && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 30000 && newData.child('updatedAt').val() >= now - 120000",
-            "$extra": {
-              ".validate": false
-            }
+            ".validate": "newData.hasChildren(['seq','dx','dy','attack','updatedAt']) && newData.numChildren() == 5 && newData.child('seq').isNumber() && newData.child('seq').val() >= 0 && newData.child('seq').val() <= 1000000000 && newData.child('dx').isNumber() && newData.child('dx').val() >= -1 && newData.child('dx').val() <= 1 && newData.child('dy').isNumber() && newData.child('dy').val() >= -1 && newData.child('dy').val() <= 1 && newData.child('attack').isBoolean() && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 30000 && newData.child('updatedAt').val() >= now - 120000"
           }
         },
         "state": {
           ".read": "auth != null && (root.child('arenaRooms/'+$room+'/meta/owner').val() == auth.uid || root.child('arenaRooms/'+$room+'/members/'+auth.uid).exists())",
           ".write": "auth != null && root.child('arenaRooms/'+$room+'/meta/owner').val() == auth.uid",
-          ".validate": "newData.hasChildren(['tick','payload','updatedAt']) && newData.numChildren() == 3 && newData.child('tick').isNumber() && newData.child('tick').val() >= 0 && newData.child('tick').val() <= 1000000000 && newData.child('payload').isString() && newData.child('payload').val().length <= 18000 && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 30000 && newData.child('updatedAt').val() >= now - 120000",
-          "$extra": {
-            ".validate": false
-          }
+          ".validate": "newData.hasChildren(['tick','payload','updatedAt']) && newData.numChildren() == 3 && newData.child('tick').isNumber() && newData.child('tick').val() >= 0 && newData.child('tick').val() <= 1000000000 && newData.child('payload').isString() && newData.child('payload').val().length <= 18000 && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 30000 && newData.child('updatedAt').val() >= now - 120000"
         }
       }
     }
