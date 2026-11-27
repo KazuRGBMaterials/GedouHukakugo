@@ -2,7 +2,7 @@
  * Independent save UI injected at the composition edge.
  * Local play remains default. No network until player clicks cloud enable.
  */
-import {createFirebaseGateway} from "./firebase-service.js?v=2";
+import {createFirebaseGateway} from "./firebase-service.js?v=4";
 import {createCloudSaveStore,SaveConflictError} from "./save-store.js?v=2";
 export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseGateway(),onMessage=()=>{}}) {
  if(!container||!port?.capture||!port?.restore)throw new Error("Save UI requires a game state port");

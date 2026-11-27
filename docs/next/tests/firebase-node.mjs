@@ -24,15 +24,15 @@ run("no Firebase traffic, identity generation or auth before opt-in",async()=>{
  assert.equal(imports,0);
  assert.equal(created,0);
 });
-run("registered Firebase supports Firestore but keeps RTDB disabled until real URL",()=>{
+run("registered Firebase uses owner's exact Singapore RTDB URL with realtime enabled",()=>{
  assert.equal(firebaseConfig.projectId,"gedouhukakugo");
  assert.equal(firebaseConfig.authDomain,"gedouhukakugo.firebaseapp.com");
  assert.equal(firebaseConfig.appId,"1:471281241263:web:63d1527b81bdcc6c2dd85a");
- assert.equal(firebaseConfig.databaseURL,null,"Never infer the Realtime Database region");
- assert.equal(firebaseConfig.verifiedRealtimeDatabaseURL,
+ assert.equal(firebaseConfig.databaseURL,
    "https://gedouhukakugo-default-rtdb.asia-southeast1.firebasedatabase.app/");
- assert.equal(firebaseConfigured,true,"Web app can connect to Firestore after enabling it in Console");
- assert.equal(realtimeConfigured,false,"RTDB must remain disabled until its URL is known");
+ assert.equal(firebaseConfig.databaseURL,firebaseConfig.verifiedRealtimeDatabaseURL);
+ assert.equal(firebaseConfigured,true,"Firestore client is configured");
+ assert.equal(realtimeConfigured,true,"RTDB client is configured after Rules and Anonymous Auth owner confirmation");
  assert.equal(Object.isFrozen(firebaseConfig),true);
 });
 run("Firestore connection uses Auth once and never imports RTDB",async()=>{
@@ -57,6 +57,32 @@ run("Firestore connection uses Auth once and never imports RTDB",async()=>{
  assert.equal(connection.firestore.kind,"firestore");
  assert.equal(connection.api,undefined,"No RTDB SDK in save connection");
  assert(!imports.includes("firebase-database.js"));
+});
+run("RTDB multiplayer connection loads only after opt-in and reuses anonymous Auth",async()=>{
+ let signIns=0;
+ const imports=[],auth={currentUser:null,authStateReady:async()=>{}};
+ const app={options:{projectId:"gedouhukakugo"}};
+ const db={kind:"realtime"};
+ const mock={
+  "firebase-app.js":{getApps:()=>[],initializeApp:()=>app},
+  "firebase-auth.js":{getAuth:()=>auth,signInAnonymously:async()=>{signIns++;auth.currentUser={uid:"mock-uid-123456"};}},
+  "firebase-database.js":{getDatabase:()=>db,ref:()=>({})}
+ };
+ const gateway=createFirebaseGateway({
+  config:firebaseConfig,
+  importer:async url=>{const key=url.split("/").pop();imports.push(key);return mock[key];},
+  storage:{getItem:()=>null,setItem:()=>{}}
+ });
+ assert.equal(gateway.realtimeConfigured,true);
+ assert.equal(imports.length,0,"No SDK or auth loads before player clicks Online");
+ const first=await gateway.connect("realtime");
+ const second=await gateway.connect("realtime");
+ assert.equal(first.db,db);
+ assert.equal(first.api,mock["firebase-database.js"]);
+ assert.equal(first.uid,"mock-uid-123456");
+ assert.equal(second.uid,first.uid);
+ assert.equal(signIns,1,"One anonymous identity per browser session");
+ assert(!imports.includes("firebase-firestore.js"),"Multiplayer must not require Firestore");
 });
 run("opaque device ID stable across reloads, without fingerprint",()=>{
  const map=new Map(),storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};

@@ -16,15 +16,15 @@
 
 Authは**共通のFirebase Authentication匿名UID**。個人セーブはルーム参加者から読めない。匿名UIDはブラウザごとに異なり、単にルームへ入っただけで個人セーブの共有・移管はされない。別端末への引継ぎはJSON書出し・取込みを使う。Google/メール連携と期限付き引継ぎコードは未実装。
 
-地域の推奨（未作成なら）：**Firestore (default) は東京 `asia-northeast1`、Realtime Databaseはシンガポール `asia-southeast1`**。Firebase公式によるとこれらのサービスの地域は独立。選択時に地域を確認すること。
+地域の候補（未作成なら）：**Firestore (default) は大阪 `asia-northeast2` または東京 `asia-northeast1`、Realtime Databaseはシンガポール `asia-southeast1`**。Firebase公式によるとこれらのサービスの地域は独立。選択時に地域を確認すること。
 
-**重要：実際のRealtime Database URLはユーザーから受領済みです。** `https://gedouhukakugo-default-rtdb.asia-southeast1.firebasedatabase.app/` を公開設定の `verifiedRealtimeDatabaseURL` に記録しました。Firebaseコンソールで匿名認証と正しいRTDBルールが公開されたと確認できるまでは `databaseURL: null` の安全ゲートを維持し、オンラインルームを無効にします。一方、FirestoreはWebアプリ設定があるためFirebase ConsoleでFirestoreと匿名認証および正しいRulesを設定後に利用できる。
+**重要：2026-11-28にRealtime Databaseを有効化しました。** ユーザーから確認した `https://gedouhukakugo-default-rtdb.asia-southeast1.firebasedatabase.app/` を公開Web設定の `databaseURL` に登録しています。ユーザーから **匿名認証を有効化済み、RTDBセキュリティルールを公開済み** と報告を受けました。現在、ONLINE/フィールドのルーム参加ボタンから明示的に接続可能です。ただしFirebase実環境での2端末接続検証は未実施。Firestoreはデータベース作成とRules公開の確認待ちです。
 
 ## 2. Firebase Consoleでのセットアップ（Spark無料プランのまま）
 
 1. [プロジェクト概要](https://console.firebase.google.com/project/gedouhukakugo/overview)で現在のプランが**Spark（無料）**であることを確認。不要な請求先アカウント連携はしない。Firebase Consoleには管理者としてログインして操作する。
 2. [Authentication](https://console.firebase.google.com/project/gedouhukakugo/authentication/providers) > ログイン方法 > 「匿名」を**有効にする**。ユーザーはゲームでクラウド機能を押したときだけ匿名サインインする。
-3. [Cloud Firestore](https://console.firebase.google.com/project/gedouhukakugo/firestore) > データベース作成。**Standardエディション、デフォルトDB `(default)`、東京 `asia-northeast1`、本番/ロック（限定的なルール）モード**を選ぶ。すでに作成済みなら変更不要。**この段階で自由な読み書きを許可する「テストモード」にしない。**
+3. [Cloud Firestore](https://console.firebase.google.com/project/gedouhukakugo/firestore) > データベース作成。**Standardエディション、デフォルトDB `(default)`、大阪 `asia-northeast2` （希望の場合）、本番/ロック（限定的なルール）モード**を選ぶ。すでに作成済みなら変更不要。**この段階で自由な読み書きを許可する「テストモード」にしない。**
 4. Firestoreの**「ルール」タブ**で [`docs/firebase/firestore.rules`](../../firebase/firestore.rules) の全文を登録して **「公開」**。このルールは `cloudSaves/{uid}/slots/{slot}` の本人アクセスと厳密な型/サイズ/リビジョンを制限。**JSONではなくFirestore Rules言語**。
 5. [Realtime Database](https://console.firebase.google.com/project/gedouhukakugo/database) を作成。**シンガポール、ロックモード**（選択できる場合）。既存作成済みならその地域を尊重する。
 6. Realtime Databaseの**「ルール」タブ**で [`docs/firebase/database.rules.json`](../../firebase/database.rules.json) の全文を登録して **「公開」**。このファイルは**JSON**であり、Firestoreのルールとは別。相互に貼り間違えない。
@@ -34,13 +34,13 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
    **2026-11-28 追記：4名上限を解除。** オンラインアリーナのホスト側が全参加者をシミュレーションし、5人目以降も初期配置する。対戦では途中参加時にチーム人数を均等化し、すでに入室したプレイヤーの所属と位置は維持する。UIにも参加者総数を表示する。DBルールも人数4名という条件は持たない。
    
    **実用上の制約:** 固定の「4人」制限はないが、試験用盤面は12×8マス、1件のルーム状態データは最大18,000文字（Realtime Databaseの現行ルール）。非常に多くなると初期配置の重複や通信・表示負荷が生じ得るため、無制限の人数を保証するものではない。人数が多い本番向けには状態を分割した同期、人数・通信量の監視、参加枠やルーム分割を別途設計する。
-7. Realtime Databaseの**実際のURLは受領・記録済み**。コンソールで **匿名認証とRTDBルールを公開したことを確認できたら** `docs/assets/firebase-config.js` の `databaseURL: null` を、記録済みの `verifiedRealtimeDatabaseURL` と同じURLへ変更する。GitHub PR → CI成功 → mainへマージ → Pagesへ反映。管理者鍵は不要。
+7. **完了：** Realtime Databaseの実際のURLを受領し、ユーザーが匿名認証とRTDBルールの公開を確認したので `docs/assets/firebase-config.js` の `databaseURL` に実URLを設定した。GitHub CIとPagesへの配信を行った。実際のオンライン通信テストは次の手順で行う。
 8. GitHub Pages [FIELD NEXT](https://kazurgbmaterials.github.io/GedouHukakugo/next/) > Xメニュー >「Cloud Firestore保存」を開き、「クラウド利用を有効にする」でゲストサインイン → セーブ → 読込を検証。途中でセーブ競合になる場合は新しいデータを確認して再読み込みする。
 9. 同じURLを2台の異なる端末で開き、[ONLINE NEXT](https://kazurgbmaterials.github.io/GedouHukakugo/next/online/) でルーム作成・招待コード参加・位置/コマンド/協力/対戦状態を確認する。
 
-### なぜ今はFirestoreだけ接続可能にするのか
+### Firebaseへの接続を自動実行しない理由
 
-`docs/next/cloud/firebase-service.js` はサービス別の遅延ロード方式。ゲーム起動直後にはどちらのSDKも認証も動かない。クラウド保存ボタンからは `connect('firestore')`、ONLINEからは `connect('realtime')` を呼ぶ。後者は `databaseURL` 未確認の場合、**SDKを読み込む前に停止**する。ユーザーがオンラインを選ばない限り、勝手にクラウドへ進行を送信しない。
+`docs/next/cloud/firebase-service.js` はサービス別の遅延ロード方式。ゲーム起動直後にはどちらのSDKも認証も動かない。クラウド保存ボタンからは `connect('firestore')`、ONLINEからは `connect('realtime')` を呼ぶ。後者は登録済みの実URLへ明示的に接続する。ユーザーがオンラインを選ばない限り、勝手にクラウドへ進行を送信しない。
 
 ## 3. 既存コードへの影響
 
@@ -49,7 +49,7 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
 | `docs/next/cloud/firebase-service.js` | Firebase Authを共通化し、Firestore/Realtime Databaseの接続を分岐 |
 | `docs/next/cloud/save-store.js` | Realtime Databaseトランザクションを**Firestoreトランザクション**に置換 |
 | `docs/next/cloud/save-panel.js` | Firestore利用と明示したUI。保存・読込・削除・バックアップ操作は維持 |
-| `docs/next/online/online.js` | 対戦/協力は明示的にRealtime Databaseへ接続。URL未設定なら無効表示 |
+| `docs/next/online/online.js` | 対戦/協力は明示的にRealtime Databaseへ接続。URL設定済みで参加ボタンが使用可能 |
 | `docs/firebase/firestore.rules` | 新規。個人セーブの認可、サイズ・形式・世代を検証 |
 | `.github/workflows/next-system-check.yml` | Firestoreルールの変更時も自動検証 |
 | `docs/next/tests/firebase-node.mjs` | Firestoreトランザクション・匿名認証・アクセス境界の回帰テスト |
@@ -72,15 +72,15 @@ Authは**共通のFirebase Authentication匿名UID**。個人セーブはルー�
 - エンジン・UIの**固定4名上限を解除**。新しい参加者は空きマスに配置し、協力・対戦の全参加者を同期対象とする。
 - **通信費用対策**：操作がないときの重複入力送信を抑え、ホストから同じ盤面を繰り返し配信する代わりに15秒周期の維持通知を使う。操作中は従来の約320msごとの状態更新を維持。
 - 24名の協力プレイと18名の対戦（途中参加・退出・チーム維持）のNodeテストを追加。現実の多人数・回線・料金の実測は未実施。
-- Firebase ConsoleでRealtime Databaseルール公開済みとの利用者報告を受領。匿名認証が有効かどうかの確認と、Firestore側ルール公開は引き続き必要。
+- Firebase ConsoleでRealtime Databaseルール公開済み・匿名認証有効化済みとの利用者報告を受領。Firestore側データベースとRules公開は引き続き確認が必要。
 
 ## 6. 未完了・受入れ検証
 
-- [ ] Firebase Consoleの匿名認証有効化（実環境）
+- [x] Firebase Consoleの匿名認証有効化（ユーザー報告）
 - [ ] Firestore `(default)` の作成とRules公開
-- [ ] Realtime Databaseの作成とRules公開
+- [x] Realtime Databaseの作成とRules公開（ユーザー報告）
 - [x] Realtime Databaseの正確なURL受領と安全な非アクティブ設定への記録
-- [ ] 匿名認証と両DBのルール公開を確認し、`databaseURL` を有効化
+- [x] 匿名認証とRTDBルール公開を確認し、`databaseURL` を有効化。Firestore側のルール公開は別途確認待ち
 - [ ] Firestore Rules・Realtime Database Rulesの実エミュレーター認可テスト
 - [ ] iPhone Safari/PC間のクラウドセーブと協力・対戦の実機確認
 
