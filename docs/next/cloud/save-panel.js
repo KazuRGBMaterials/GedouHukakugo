@@ -27,6 +27,7 @@ export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseG
  container.append(section);
  const pick=name=>section.querySelector('[data-cloud="'+name+'"]');
  const status=pick("status"),buttons=["save","load","delete","autosave"].map(pick);
+ const stableState=data=>JSON.stringify(data,(key,value)=>key==="savedAt"?undefined:value);
  let store=null,revision=null,remoteExists=false,hasReviewed=false,
    lastPayload=null,pending=false;
  const inform=(msg)=>{status.textContent=msg;onMessage(msg)};
@@ -71,13 +72,14 @@ export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseG
    if(!confirm("クラウド側の既存セーブを上書きします。内容を確認していない場合は先に『読込』してください。続けますか？"))return;
   }
   const data=snapshot(),json=JSON.stringify(data);
-  if(auto&&lastPayload===json)return;
+  const currentState=stableState(data);
+  if(auto&&lastPayload===currentState)return;
   // If network fails, do not report 'saved'. Transactions detect concurrent devices.
   const next=await store.save(slot,data,revision);
   revision=next.revision;
   hasReviewed=true;
   remoteExists=true;
-  lastPayload=json;
+  lastPayload=currentState;
   inform("☁ クラウド保存済み · revision "+revision+"（"+new Date().toLocaleTimeString("ja-JP")+"）");
  }
  pick("save").addEventListener("click",()=>exclusive(()=>save()));
@@ -89,7 +91,7 @@ export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseG
   const result=port.restore(record.data);
   if(result===false)throw new Error("現在のマップや形式と一致せず復元できません");
   revision=record.revision;
-  lastPayload=JSON.stringify(snapshot());
+  lastPayload=stableState(snapshot());
   hasReviewed=true;
   inform("☁ セーブを読み込みました · revision "+revision);
  }));
@@ -126,7 +128,7 @@ export function mountCloudSavePanel({container,slot,port,gateway=createFirebaseG
  pick("file").addEventListener("change",()=>exclusive(async()=>{
   const file=pick("file").files?.[0];pick("file").value="";
   if(!file)return;
-  if(file.size>225000)throw new Error("225KBを超えるバックアップは読み込めません");
+  if(file.size>2100000)throw new Error("2.1MBを超えるバックアップは読み込めません");
   const archive=JSON.parse(await file.text());
   if(archive?.schema!=="gedo-cloud-backup"||archive.version!==1||archive.slot!==slot)
    throw new Error("別種類または不正なバックアップです");
