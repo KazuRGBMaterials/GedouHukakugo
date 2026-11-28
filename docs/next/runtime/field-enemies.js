@@ -1,5 +1,5 @@
 /** Local FIELD enemies. No DOM, database, or renderer dependencies in the AI. */
-import {FieldCombat,attackPacket} from "./field-combat.js?v=5";
+import {FieldCombat,attackPacket} from "./field-combat.js?v=6";
 export const LASER_CHARGE_SECONDS=1.5;
 export const ENEMY_SPAWNS=Object.freeze([
  {id:"slash1",type:"slash",label:"近接型",x:1220,y:140,hp:55,halfSize:15,speed:165},
@@ -105,6 +105,7 @@ export class FieldEnemies{
     }
    }
   }
+  this.enemies=this.enemies.filter(e=>e.hp>0);
  }
 }
 /** Uses existing graphics via injected drawing port; fallback visible during loading. */
