@@ -295,6 +295,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
         </div>
         <div class="room-code-row"><label>ルームコード<input id="room-code" maxlength="8" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="例：ABCD2345" /></label></div>
         <div class="room-buttons"><button id="room-create" type="button" class="primary" disabled>新しい部屋を作る</button><button id="room-join" type="button" disabled>コードで参加</button><button id="room-share" type="button" disabled>招待URLをコピー</button><button id="room-leave" type="button" disabled>退出</button></div>
+        <label id="room-invite-label" hidden style="margin-top:8px">招待URL（長押しでコピー可能）<input id="room-invite-url" type="url" readonly style="display:block;width:100%;min-height:44px;margin-top:4px;user-select:text;-webkit-user-select:text" /></label>
         <div id="room-status" class="room-status" role="status" aria-live="polite">同期サービスを確認しています…</div>
         <p class="room-hint">自分の操作は自分のキャラだけに反映。他の参加者には名前と色付き目印が付きます。ルームコードを知る相手が参加できます。</p>
         </section>
@@ -335,6 +336,6 @@ load('/src/main.ts').startField({FieldDialogue, exampleFieldObjects, fieldObject
 <link rel="stylesheet" href="./next/cloud/cloud-save.css?v=1" />
 <script type="module" src="./next/cloud/init-field.js?v=4"></script>
 <script type="module" src="./next/runtime/field-status.js?v=1"></script>
-<script type="module" src="./next/cloud/multiplayer-room-next.js?v=4"></script>
+<script type="module" src="./next/cloud/multiplayer-room-next.js?v=5"></script>
 </body>
 </html>
