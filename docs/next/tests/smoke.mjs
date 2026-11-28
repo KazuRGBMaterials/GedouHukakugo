@@ -205,7 +205,7 @@ run("FIELD NEXT avatar slider changes only visual size without moving player fee
  assert.equal(rows[0].y+rows[0].h,player.y+FIELD_AVATAR_SIZE.baselineOffset);
  const html=text("index.html");
  assert(html.includes('id="next-avatar-scale"'));
- assert(html.includes('field-controls-responsive.css?v=1'));
+ assert(html.includes('field-controls-responsive.css?v=2'));
  const css=text("runtime/field-controls-responsive.css");
  for(const term of [
   "grid-template-columns:repeat(3,var(--field-face))",
