@@ -10,9 +10,9 @@ import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from
 import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
 import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
-import {createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop} from "../runtime/field-coop-sync.js";
+import {createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop,readHitEvents} from "../runtime/field-coop-sync.js";
 import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS,enemySnapshot,enemyMirror,initialEnemySnapshot} from "../runtime/field-enemies.js";
-import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
+import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, LASER_RADIUS, HIT_SOUND, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
@@ -553,7 +553,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=17"));
+ assert(html.includes("multiplayer-room-next.js?v=18"));
  assert(source.includes('url.hash=(session?.mode==="coop"?"coop=":"room=")+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -925,7 +925,7 @@ await (async()=>{
  const model=new FieldEnemies();let role=null,active=false,paused=true,mirror=null;
  const port={getSelf:()=>({x:100,y:100,facing:"E",moving:false}),getHp:()=>100,getWorldBounds:()=>({width:1600,height:1000}),getMotion:()=>({}),setPeers(){},clearPeers(){},setRoomActive:v=>{active=v;changes.push({active:v,seeded:[...nodes.keys()].some(p=>p.endsWith("/state"))});},setCoopRole:r=>{role=r;paused=false;},pauseCoop:()=>paused=true,getInitialCoopSnapshot:initialEnemySnapshot,restoreCoopSnapshot:rows=>rows===null?(model.reset(),true):model.restore(rows),getCoopSnapshot:()=>role==="host"?enemySnapshot(model):null,setCoopSnapshot:rows=>{mirror=rows;},receiveAttack:()=>true,enableCombat(){},disableCombat(){},setPeerHp(){},setPeerMotion(){}};
  const window={__gedoRoomPort:port,addEventListener:(event,cb)=>windowEvents.set(event,cb)};
- const context={window,document:{getElementById:elem},localStorage:{getItem:()=>null,setItem(){}},location:{hash:"#room=ABCD2345",href:"https://example.test/next/#room=ABCD2345",pathname:"/next/",search:""},history:{replaceState(){}},crypto:{getRandomValues:b=>b.fill(1)},URL,console,Date,Math,JSON,Promise,Map,Set,setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},queueMicrotask,bootstrapCoop,createNpcJournal,readNpcSnapshot,chooseCoopLeader,attackPacket,motionPacket,attackPatch,recentAttackEvents,firebaseConfig:{apiKey:"a",projectId:"p",appId:"a",databaseURL:"d"},shareInvite:async()=>{},fakeApi:api};
+ const context={window,document:{getElementById:elem},localStorage:{getItem:()=>null,setItem(){}},location:{hash:"#room=ABCD2345",href:"https://example.test/next/#room=ABCD2345",pathname:"/next/",search:""},history:{replaceState(){}},crypto:{getRandomValues:b=>b.fill(1)},URL,console,Date,Math,JSON,Promise,Map,Set,setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},queueMicrotask,bootstrapCoop,createNpcJournal,readNpcSnapshot,chooseCoopLeader,readHitEvents,attackPacket,motionPacket,attackPatch,recentAttackEvents,firebaseConfig:{apiKey:"a",projectId:"p",appId:"a",databaseURL:"d"},shareInvite:async()=>{},fakeApi:api};
  let code=text("cloud/multiplayer-room-next.js").replace(/^import .*;$/gm,"");
  const start=code.indexOf("async function initFirebase()"),end=code.indexOf("async function ensureReady()",start);
  code=code.slice(0,start)+'async function initFirebase(){api=fakeApi;db={};auth={currentUser:{uid:"host"},authStateReady:async()=>{}};}\n'+code.slice(end);
@@ -942,3 +942,37 @@ await (async()=>{
  assert(!changes.some(c=>c.active));assert.equal(active,false);assert(elem("room-status").textContent.includes("CPU初期化"));
  console.log("PASS browser transport creates actual five-enemy checkpoint before switching view; denied initialization returns to solo");
 })();
+
+run("FIELD thick laser penetrates targets, and fire hits only the first target",()=>{
+ const world={width:1600,height:1000,obstacles:[]},hits=[];
+ const c=new FieldCombat(()=>{},100,{onHit:h=>hits.push(h)});c.enable();
+ assert.equal(LASER_RADIUS,12);assert.equal(attackPacket({index:2,x:100,y:100,facing:"E"}).radius,12);
+ c.receive({index:2,x:100,y:100,facing:"E"},{source:"local",seq:1});
+ const p={x:200,y:125,halfSize:15};
+ for(let i=0;i<19;i++)c.tick(.05,world,p);
+ assert.equal(c.hp,70);assert.equal(hits.length,6);assert(c.effects[0].life>0);
+ c.reset();hits.length=0;c.receive({index:2,x:100,y:100,facing:"E"});for(let i=0;i<20;i++)c.tick(.05,world,{...p,y:128});assert.equal(c.hp,100);assert.equal(hits.length,0);
+ const spawns=[{...ENEMY_SPAWNS[0],x:180,y:100},{...ENEMY_SPAWNS[1],x:260,y:100}];
+ const system=new FieldEnemies({spawns,onHit:h=>hits.push(h)});
+ system.receive({index:0,x:100,y:100,facing:"E",radius:8},{source:"local",seq:7});
+ for(let i=0;i<30;i++)system.tickParty(.05,world,[]);
+ assert.equal(system.enemies[0].hp,45);assert.equal(system.enemies[1].hp,55);assert.equal(system.fires.length,0);
+ assert.equal(hits.length,1);assert.equal(hits[0].seq,7);assert.equal(hits[0].target,spawns[0].id);
+ system.receive({index:2,x:100,y:100,facing:"E"},{source:"local",seq:8});
+ for(let i=0;i<20;i++)system.tickParty(.05,world,[]);
+ assert.equal(system.enemies[0].hp,15);assert.equal(system.enemies[1].hp,25);assert.equal(hits.filter(x=>x.seq===8).length,12);
+ c.reset();c.receive({index:0,x:100,y:100,facing:"E",radius:8},{source:"local",seq:9});c.tick(.05,world,{x:150,y:100,halfSize:15});assert.equal(c.hp,90);assert.equal(c.effects.length,0);
+ assert.deepEqual(HIT_SOUND,["hitFire","hitSlash","hitLaser","hitCharge"]);
+});
+run("FIELD confirmed hit journal deduplicates, persists across handover, and stops only matching fire",()=>{
+ const j=createNpcJournal(),hit={source:"P"+"1".repeat(24),seq:7,index:0,x:170,y:100,damage:10};
+ assert(j.appendHit(hit,1000));const data=readNpcSnapshot(j.serialize([]));
+ const first=readHitEvents(data.hits,0,false,1000);assert.equal(first.events.length,1);
+ assert.equal(readHitEvents(data.hits,first.lastSeq,false,1000).events.length,0);
+ const next=createNpcJournal(j.serialize([]));next.appendHit({...hit,seq:8},1100);
+ const result=readHitEvents(readNpcSnapshot(next.serialize([])).hits,first.lastSeq,false,1100);
+ assert.equal(result.events.length,1);assert.equal(result.lastSeq,2);
+ const c=new FieldCombat();c.enable();const fire={index:0,x:100,y:100,facing:"E",radius:8};
+ c.receive(fire,{source:hit.source,seq:7,visualOnly:true});c.receive(fire,{source:hit.source,seq:8,visualOnly:true});
+ c.stopFire(hit.source,7);assert.equal(c.effects.length,1);assert.equal(c.effects[0].seq,8);
+});
