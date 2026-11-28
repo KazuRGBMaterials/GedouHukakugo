@@ -107,3 +107,126 @@
  .game-frame .control-panel{left:7px;}
  .game-frame .game-actions{width:calc(100% - 133px);}
 }
+
+
+/* Safari 100% layout: X-menu cannot cover the X button.
+ * The menu has a scrollable content area and a sticky, always-visible close.
+ * Do not scale the canvas or touch target coordinates. */
+#app .game-frame .game-menu .menu-toolbar{
+ position:sticky;top:0;z-index:2;display:flex;align-items:center;
+ justify-content:space-between;gap:8px;margin:-4px -4px 9px;
+ padding:5px 5px 8px;background:#1c233b;border-bottom:1px solid #6c6783;
+}
+#app .game-frame .game-menu .menu-toolbar #menu-close{
+ flex:none;min-height:36px;padding:5px 10px;font-size:12px;
+ font-weight:700;white-space:nowrap;touch-action:manipulation;
+}
+/* Prioritize the in-game X key while an overlay menu is open. */
+#app .game-frame:has(#game-menu:not([hidden])) .action-panel{z-index:9;}
+#app .game-frame:has(#game-menu:not([hidden])) .action-panel .face-btn:not(.face-x),
+#app .game-frame:has(#game-menu:not([hidden])) .action-panel .shoulder-btn{
+ opacity:.35;pointer-events:none;
+}
+/* On phone screens the menu uses space ABOVE the controls rather than
+ * floating over the bottom-right X key. */
+@media (max-width:740px), (pointer:coarse) and (max-height:600px){
+ #app .topbar{height:45px;min-height:45px;padding:4px 8px;gap:6px;}
+ #app .brand{gap:7px;}
+ #app .brand-mark{width:29px;height:29px;font-size:17px;}
+ #app .brand h1{font-size:15px;letter-spacing:.01em;}
+ #app .brand h1 span{font-size:9px;letter-spacing:.04em;}
+ #app .brand p{font-size:8px;letter-spacing:.01em;margin-top:1px;}
+ #app .game-area{padding:4px;}
+ #app .footer{min-height:23px;padding:3px 7px;gap:2px 8px;font-size:8px;line-height:1.35;}
+ #app .game-frame .character-hud{
+  top:6px;left:7px;width:145px;max-width:45%;
+  padding:3px 5px;gap:6px;
+ }
+ #app .game-frame .mage-portrait{width:28px;height:36px;}
+ #app .game-frame .mage-ident{gap:2px;min-width:0;}
+ #app .game-frame .mage-ident strong{font-size:12px;}
+ #app .game-frame .mage-ident span{font-size:9px;}
+ #app .game-frame .game-actions{top:6px;right:7px;gap:3px;}
+ #app .game-frame .game-actions button{
+  font-size:9px!important;padding:4px 5px!important;
+  min-height:30px;line-height:1.15;
+ }
+ #app .game-frame .control-panel{left:9px;bottom:7px;gap:3px;}
+ #app .game-frame .joystick{width:97px;height:97px;}
+ #app .game-frame .joystick-knob{width:45px;height:45px;}
+ #app .game-frame .joystick-caption{font-size:8px;}
+ #app .game-frame .action-panel{
+  --field-face:49px;--field-face-gap:6px;
+  width:179px;right:8px;bottom:7px;gap:5px;
+ }
+ #app .game-frame .action-panel .shoulder-btn{height:35px;min-height:33px;font-size:14px;}
+ #app .game-frame .action-panel .diamond .face-btn{font-size:18px!important;}
+ #app .game-frame .action-panel .diamond .face-btn small{font-size:8px;}
+ #app .game-frame .game-menu{
+  left:7px;right:7px;top:7px;bottom:216px;
+  transform:none;width:auto;max-width:none;max-height:none;
+  min-height:0;overflow:auto;overscroll-behavior:contain;
+  padding:10px;font-size:11px;line-height:1.5;
+ }
+ #app .game-frame .game-menu .menu-title{font-size:15px;}
+ #app .game-frame .game-menu p{margin:7px 0;}
+ #app .game-frame .next-mode-choices{padding:6px!important;gap:5px!important;}
+ #app .game-frame .save-options{margin:8px 0;padding:8px;}
+ #app .game-frame .audio-options{margin:8px 0;padding:8px;gap:6px;}
+}
+@media (max-width:480px){
+ #app .topbar{height:48px;min-height:48px;}
+ #app .brand h1{font-size:14px;}
+ #app .brand p{font-size:7.5px;}
+ #app .footer{min-height:29px;padding:4px 7px;}
+ #app .game-frame .character-hud{width:125px;max-width:38%;}
+ #app .game-frame .game-actions{
+  width:min(178px,calc(100% - 146px));max-width:none;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:3px;top:5px;right:6px;
+ }
+ #app .game-frame .game-actions button{
+  min-height:30px;padding:4px 2px!important;font-size:9px!important;
+ }
+ #app .game-frame .room-summary{top:74px;right:7px;}
+ #app .game-frame .action-panel{
+  --field-face:49px;--field-face-gap:5px;width:176px;right:6px;bottom:7px;
+ }
+ #app .game-frame .game-menu{bottom:212px;}
+}
+@media (max-height:600px){
+ #app .topbar{height:39px;min-height:39px;padding:3px 7px;}
+ #app .brand-mark{width:26px;height:26px;font-size:16px;}
+ #app .brand h1{font-size:14px;}
+ #app .brand p{font-size:7.5px;}
+ #app .game-area{padding:3px;}
+ #app .footer{
+  height:20px;min-height:20px;max-height:20px;
+  overflow:hidden;padding:2px 6px;font-size:8px;gap:5px;
+ }
+ #app .game-frame .character-hud{width:129px;max-width:39%;padding:2px 4px;}
+ #app .game-frame .mage-portrait{width:24px;height:30px;}
+ #app .game-frame .mage-ident strong{font-size:11px;}
+ #app .game-frame .action-panel{
+  --field-face:44px;--field-face-gap:5px;width:160px;
+  right:6px;bottom:5px;gap:4px;
+ }
+ #app .game-frame .action-panel .shoulder-btn{height:32px;min-height:30px;}
+ #app .game-frame .joystick{width:88px;height:88px;}
+ #app .game-frame .joystick-knob{width:42px;height:42px;}
+ #app .game-frame .room-summary{display:none;}
+ #app .game-frame .game-menu{bottom:194px;}
+}
+/* Landscape: fit menu to the LEFT of the controller, so the X button
+ * stays exposed even at Safari 100% on a 667×375 display. */
+@media (orientation:landscape) and (max-height:600px){
+ #app .game-frame .game-menu{
+  left:7px;right:177px;top:6px;bottom:6px;
+  width:auto;max-width:none;max-height:none;transform:none;
+ }
+}
+@media (max-width:340px){
+ #app .game-frame .character-hud{width:113px;}
+ #app .game-frame .action-panel{--field-face:44px;--field-face-gap:4px;width:154px;right:4px;}
+ #app .game-frame .game-menu{bottom:192px;}
+}

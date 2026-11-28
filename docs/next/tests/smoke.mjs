@@ -205,7 +205,7 @@ run("FIELD NEXT avatar slider changes only visual size without moving player fee
  assert.equal(rows[0].y+rows[0].h,player.y+FIELD_AVATAR_SIZE.baselineOffset);
  const html=text("index.html");
  assert(html.includes('id="next-avatar-scale"'));
- assert(html.includes('field-controls-responsive.css?v=1'));
+ assert(html.includes('field-controls-responsive.css?v=2'));
  const css=text("runtime/field-controls-responsive.css");
  for(const term of [
   "grid-template-columns:repeat(3,var(--field-face))",
@@ -222,6 +222,42 @@ run("FIELD NEXT avatar slider changes only visual size without moving player fee
  const grid=(side,gap)=>side*3+gap*2;
  for(const [side,gap,panel] of [[58,8,216],[52,6,184],[44,5,160],[42,5,150]])
   assert(grid(side,gap)<=panel,"Four face-buttons must fit their own panel");
+});
+run("FIELD NEXT Safari 100% X-menu always has a close control and keeps X exposed",()=>{
+ const html=text("index.html");
+ const opening=html.indexOf('id="game-menu"');
+ const close=html.indexOf('id="menu-close"',opening);
+ const settings=html.indexOf('id="next-visual-mode"',opening);
+ assert(opening>0&&close>opening&&close<settings,
+   "Close must appear before scrollable menu contents, not at the bottom");
+ assert.equal((html.match(/id="menu-close"/g)||[]).length,1);
+ assert(html.includes('field-controls-responsive.css?v=2'),
+   "Safari must fetch the updated stylesheet instead of a cached copy");
+ const css=text("runtime/field-controls-responsive.css");
+ for(const fragment of [
+  ".game-menu .menu-toolbar", "position:sticky;top:0",
+  "game-menu .menu-toolbar #menu-close",
+  ".game-frame:has(#game-menu:not([hidden])) .action-panel{z-index:9;}",
+  "left:7px;right:7px;top:7px;bottom:216px",
+  "left:7px;right:177px;top:6px;bottom:6px",
+  "@media (orientation:landscape) and (max-height:600px)",
+  "max-height:none", "transform:none"
+ ])assert(css.includes(fragment),"Missing 100% Safari menu guarantee: "+fragment);
+ // Layout geometry: portrait menu stops before the bottom controller;
+ // landscape menu stays to the LEFT of the right-hand controller.
+ const portraits=[
+  {height:812,frame:727,menuBottom:212,face:49,gap:5,panelGap:5,shoulder:35,controlBottom:7},
+  {height:568,frame:503,menuBottom:192,face:44,gap:4,panelGap:4,shoulder:32,controlBottom:5}
+ ];
+ for(const p of portraits){
+  const menuEnd=p.frame-p.menuBottom;
+  const controlsStart=p.frame-p.controlBottom-p.shoulder-p.panelGap-(3*p.face+2*p.gap);
+  assert(menuEnd+5<=controlsStart,"Menu must never cover X at Safari 100% portrait");
+ }
+ const landscape={width:667,padding:3,menuRight:177,controllerRight:6,controllerWidth:160};
+ assert(landscape.width-landscape.padding-landscape.menuRight+5<=
+        landscape.width-landscape.padding-landscape.controllerRight-landscape.controllerWidth,
+   "667×375 landscape menu must not obscure the X button");
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
