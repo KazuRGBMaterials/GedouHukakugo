@@ -10,7 +10,7 @@ import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from
 import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
 import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
-import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
+import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
@@ -551,7 +551,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=11"));
+ assert(html.includes("multiplayer-room-next.js?v=12"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -587,8 +587,8 @@ run("FIELD remote attacks hit once, respect obstacle and reset HP",()=>{
  assert(combat.receive(a));for(let i=0;i<20;i++)combat.tick(.05,{...world,obstacles:[{x:132,y:75,w:10,h:50}]},target);
  assert.equal(combat.hp,100);
  assert(combat.receive({index:2,x:100,y:100,facing:"E"}));
- for(let i=0;i<8;i++)combat.tick(.05,world,target);
- assert.equal(combat.hp,80);
+ for(let i=0;i<20;i++)combat.tick(.05,world,target);
+ assert.equal(combat.hp,70);
  assert.equal(attackPacket({index:99,x:100,y:100}),null);
  assert.equal(attackPacket({index:0,x:100,y:100,dx:100,dy:0}).dx,1);
  const rules=JSON.parse(text("../firebase/database.rules.json"));
@@ -760,4 +760,31 @@ run("FIELD hit effect remains visible even on immediate contact",()=>{
  assert.equal(combat.hp,88);assert(combat.effects[0].stopped);assert(combat.effects[0].life>0);
  combat.tick(.05,{width:1600,height:1000,obstacles:[]},{x:128,y:100,halfSize:15});assert.equal(combat.hp,88);
  assert(text("cloud/multiplayer-room-next.js").includes("active.receivedAttacks++"));
+});
+
+run("FIELD fire power scales with radius; laser pulses six times; slash pushes away without crossing walls",()=>{
+ assert.equal(fireDamage(4.5),6);assert.equal(fireDamage(8),10);assert.equal(fireDamage(22),30);
+ const world={width:1600,height:1000,obstacles:[]};
+ const target={x:150,y:100,halfSize:15};const c=new FieldCombat();c.enable();
+ c.receive({index:0,x:100,y:100,facing:"E",radius:22});for(let i=0;i<30;i++)c.tick(.05,world,target);assert.equal(c.hp,70);
+ c.reset();c.receive({index:2,x:100,y:100,facing:"E"});
+ c.tick(.01,world,target);assert.equal(c.hp,95);
+ for(let i=0;i<25;i++)c.tick(.04,world,target);assert.equal(c.hp,100-5*LASER_MAX_HITS);
+ c.reset();c.receive({index:1,x:100,y:100,facing:"E",combo:3});
+ for(let i=0;i<15;i++){c.tick(.02,world,target);c.applyKnockback(.02,world,target);}
+ assert.equal(c.hp,88);assert(Math.abs(target.x-150-SLASH_KNOCKBACK[2])<.01);
+ c.reset();target.x=150;const w={...world,obstacles:[{x:180,y:70,w:10,h:60}]};
+ c.receive({index:1,x:100,y:100,facing:"E"});for(let i=0;i<15;i++){c.tick(.02,w,target);c.applyKnockback(.02,w,target);}
+ assert(target.x>150&&target.x<=165);assert.equal(c.hp,88);
+});
+run("FIELD laser must charge before releasing and local beam duration matches remote",()=>{
+ const modules=JSON.parse(text("index.html").match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ const cache={};function load(name){if(cache[name])return cache[name].exports;const module={exports:{}};cache[name]=module;const dir=name.slice(0,name.lastIndexOf("/"));new Function("require","module","exports",modules[name])(id=>{const parts=(dir+"/"+id).split("/"),out=[];for(const p of parts){if(p==="..")out.pop();else if(p!==".")out.push(p);}return load(out.join("/")+".ts");},module,module.exports);return module.exports;}
+ const {SkillSystem}=load("/src/skills/SkillSystem.ts"),{ChargedFireSkillSystem}=load("/src/skills/ChargedFireSkillSystem.ts"),{ActionState}=load("/src/actions/ActionState.ts"),{ActionButtons}=load("/src/actions/ActionButtons.ts");
+ const skills=new ChargedFireSkillSystem(new SkillSystem(),new ActionState()),player={x:100,y:100,facing:"E"},world={width:1600,height:1000,obstacles:[]};
+ const a=Object.create(ActionButtons.prototype);a.skills=skills;a.gestures=new Map();a.getPlayer=()=>player;a.state={skillIndex:()=>2};a.win={};a.notify=()=>{};let fired=0;a.execute=(i)=>{fired++;return skills.cast(i,player);};
+ assert(a.beginGesture(1,"X",0,0));a.endGesture(1,0,0);assert.equal(fired,0);
+ assert(a.beginGesture(2,"X",0,0));for(let i=0;i<15;i++)skills.update(.05,world);a.endGesture(2,0,0);assert.equal(fired,1);
+ assert.equal(skills.beams[0].life,LASER_DURATION);
+ assert.equal(skills.recovery,LASER_DURATION);
 });
