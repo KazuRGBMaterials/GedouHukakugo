@@ -61,6 +61,9 @@ export function mountFieldStatusMenu({
   const summary=summarizeFieldStatus({player,hudText:hud,query:win.location?.search||""});
   for(const name of ["position","facing","action","skill","field"])
    field(name).textContent=summary[name];
+  const combat=win.__gedoRoomPort?.isCombatEnabled?.();
+  const note=section.querySelector(".next-field-status-note");
+  if(note)note.textContent=combat?"HPはフィールド対戦の試験用実数値。Lv・MPは仮表示です。":"Lv・HP・MPは既存HUDに合わせた仮表示です。";
   // Keep the prototype values consistent with the existing top-left HUD.
   const meters=doc.querySelectorAll(".character-hud .mage-meter-head span");
   if(meters[0])field("hp").textContent=meters[0].textContent;
@@ -72,9 +75,10 @@ export function mountFieldStatusMenu({
  if(skillHud)observer.observe(skillHud,{subtree:true,childList:true,characterData:true});
  const onFocus=()=>update();
  doc.addEventListener("visibilitychange",onFocus);
+ win.addEventListener("gedo-field-hp",onFocus);
  update();
  return Object.freeze({element:section,refresh:update,destroy(){
-  observer.disconnect();doc.removeEventListener("visibilitychange",onFocus);section.remove();
+  observer.disconnect();doc.removeEventListener("visibilitychange",onFocus);win.removeEventListener("gedo-field-hp",onFocus);section.remove();
  }});
 }
 if(typeof document!=="undefined" && typeof window!=="undefined")
