@@ -27,7 +27,7 @@
 <div class="row"><label>表示名<input id="name" maxlength="16" value="MAGE" autocomplete="off"></label><label>招待コード<input id="code" maxlength="12" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label></div>
 <div class="row"><button id="coop">協力ルーム作成</button><button id="versus">対戦ルーム作成</button><button id="join">コードで参加</button><button id="leave" disabled>退出</button></div>
 <label id="invite-label" hidden>招待URL<input id="invite" type="url" readonly><button id="copy" type="button">招待URLを共有</button></label>
-<p id="status" role="status">未接続</p><p id="members"></p>
+<p id="status" role="status">未接続</p><p id="members"></p><p id="online-command-status" role="status" aria-live="polite"></p>
 <div id="host-controls" hidden><div class="row"><label>盤面<select id="size"><option>5</option><option selected>7</option><option>9</option><option>11</option></select></label><label>協力時の敵数<select id="enemies"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label><button id="prepare">準備開始（参加者確定）</button><button id="online-start" disabled>戦闘開始</button></div></div>
 <p class="sub">協力は最大4人の操作枠、対戦は最大4対4の操作枠。追加参加者は観戦になります。ホスト切断時は進行停止。</p>
 </div></details>
