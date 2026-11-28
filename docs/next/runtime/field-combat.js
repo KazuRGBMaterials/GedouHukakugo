@@ -3,7 +3,7 @@
  */
 const dirs={N:[0,-1],NE:[Math.SQRT1_2,-Math.SQRT1_2],E:[1,0],SE:[Math.SQRT1_2,Math.SQRT1_2],S:[0,1],SW:[-Math.SQRT1_2,Math.SQRT1_2],W:[-1,0],NW:[-Math.SQRT1_2,-Math.SQRT1_2]};
 export const FIELD_DAMAGE=Object.freeze([10,12,5,15]);
-export const LASER_DURATION=1.0, LASER_INTERVAL=.18, LASER_MAX_HITS=6, LASER_WIDTH_SCALE=3, LASER_RADIUS=9;
+export const LASER_DURATION=1.0, LASER_INTERVAL=.18, LASER_MAX_HITS=6, LASER_WIDTH_SCALE=2, LASER_RADIUS=6;
 export const HIT_SOUND=Object.freeze(['hitFire','hitSlash','hitLaser','hitCharge']);
 export const SLASH_KNOCKBACK=Object.freeze([38,48,66]);
 export function fireDamage(radius=8){
