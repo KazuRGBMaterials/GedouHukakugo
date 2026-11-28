@@ -1,7 +1,7 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
 import { attackPacket } from "../runtime/field-combat.js?v=7";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
-import { createNpcJournal,readNpcSnapshot } from "../runtime/field-coop-sync.js?v=1";
+import { createNpcJournal,readNpcSnapshot,chooseCoopLeader } from "../runtime/field-coop-sync.js?v=2";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
@@ -108,6 +108,8 @@ ui.share.addEventListener("click",async()=>{
     say("招待URLを選択しました。長押ししてコピーしてください","online");
   }
 });
+function updateModeLabel(){ui.create.textContent=ui.mode.value==="coop"?"協力部屋を作る（CPU敵あり）":"対人部屋を作る（CPU敵なし）";}
+ui.mode.addEventListener("change",updateModeLabel);updateModeLabel();
 ui.create.addEventListener("click",()=>joinRoom(randomCode(),true));
 ui.join.addEventListener("click",()=>{
   const code=validCode(ui.code.value);
@@ -141,6 +143,7 @@ async function initFirebase(){
 }
 async function ensureReady(){
   if(!api)throw new Error("Firebaseの読み込み中です");
+  await auth.authStateReady?.();
   if(!auth.currentUser)await api.signInAnonymously(auth);
   if(!auth.currentUser)throw new Error("匿名認証に失敗しました");
 }
@@ -149,11 +152,13 @@ function setAvailable(connected){
   ui.leave.disabled=!connected;ui.share.disabled=!session?.connected;
 }
 async function leaveRoom(){
+  const leaving=session;
+  if(leaving?.host&&leaving.connected&&leaving.combatReady){port.pauseCoop?.();await Promise.race([(async()=>{try{await leaving.npcWritePromise;}catch{}await publishNpc(leaving,true);})(),new Promise(resolve=>setTimeout(resolve,1000))]);}
   ++token;stopCombatRetry();
   if(sendTimer){clearInterval(sendTimer);sendTimer=null;}
   if(unsubConnection){unsubConnection();unsubConnection=null;}
   if(unsubRoom){unsubRoom();unsubRoom=null;}
-  if(session?.unsubNpc)session.unsubNpc();
+  stopNpcSync(session);
   const old=session;session=null;lastSent=null;lastWriteAt=0;
   port.clearPeers();port.setRoomActive?.(false);
   if(unsubCombat){unsubCombat();unsubCombat=null;}
@@ -193,11 +198,11 @@ async function joinRoom(raw,creating=false) {
     let meta=null;
     if(mode==="coop"){
       const metaRef=api.ref(db,"fieldCoop/"+code+"/meta");
-      const snap=await api.get(metaRef);
+      const snap=await api.get(metaRef).catch(e=>{throw Error("協力部屋確認（fieldCoop/meta）："+e.message+"（最新Firebaseルール確認）");});
       if(creating){
         if(snap.exists())throw Error("コードが既に存在します。新規作成をやり直してください");
         meta={owner:auth.currentUser.uid,connection:id,createdAt:api.serverTimestamp()};
-        await api.set(metaRef,meta);
+        await api.set(metaRef,meta).catch(e=>{throw Error("協力部屋作成（fieldCoop/meta）："+e.message+"（最新Firebaseルール確認）");});
       }else{
         if(!snap.exists())throw Error("協力部屋が見つかりません。モードとコードを確認してください");
         meta=snap.val();
@@ -206,7 +211,7 @@ async function joinRoom(raw,creating=false) {
     }
     const playersRef=api.ref(db,(mode==="coop"?"coopPlayers/":"rooms/")+code+"/players");
     const selfRef=api.child(playersRef,id);
-    session={code,id,selfRef,playersRef,mode,host:mode==="coop"&&creating,hostId:meta?.connection,count:0,connected:false,publishing:false,
+    session={code,id,selfRef,playersRef,mode,host:false,meta,hostId:meta?.connection,players:{},count:0,connected:false,publishing:false,
       npcJournal:createNpcJournal(),npcRevision:0,npcWriting:false,npcLastAt:0,npcSeen:0,npcBaseline:true,hostPresent:false,npcReady:false,npcReceivedAt:0};
     ui.code.value=code;
     ui.name.value=ui.name.value.trim().slice(0,16)||"プレイヤー";
@@ -217,8 +222,8 @@ async function joinRoom(raw,creating=false) {
       if(current!==token)return;
       const items=snap.val()||{},entries=Object.entries(items).slice(0,40).map(([id,item])=>({id,...item}));
       session.count=entries.length;
-      session.hostPresent=entries.some(p=>p.id===session.hostId);
-      if(session.mode==="coop"&&!session.host&&session.npcReady&&!session.hostPresent){session.npcReady=false;port.pauseCoop?.();npcSay("ホストの接続待ち（CPU停止）");}
+      session.players=items;
+      if(session.mode==="coop")void reconcileNpc(session);
       port.setPeers(entries,id);
       if(session.connected)say("接続中："+session.count+"人が同じフィールドにいます","online");
     },e=>say("共有フィールドの読込エラー："+e.message,"error"));
@@ -227,7 +232,7 @@ async function joinRoom(raw,creating=false) {
       if(current!==token)return;
       if(!snap.val()){
         stopCombatRetry();session.connected=false;session.publishing=false;showInvite();
-        session.combatReady=false;port.pauseCoop?.();if(session.unsubNpc){session.unsubNpc();session.unsubNpc=null;}session.npcReady=false;port.disableCombat?.();if(unsubCombat){unsubCombat();unsubCombat=null;}combatSay('攻撃同期：再接続待ち');
+        session.combatReady=false;port.pauseCoop?.();stopNpcSync(session);session.host=false;session.npcReady=false;port.disableCombat?.();if(unsubCombat){unsubCombat();unsubCombat=null;}combatSay('攻撃同期：再接続待ち');
         say("通信が切れました。自動再接続を試みます","error");
         return;
       }
@@ -237,7 +242,7 @@ async function joinRoom(raw,creating=false) {
         if(current!==token)return;
         await api.set(selfRef,selfState());
         if(current!==token)return;
-        port.setRoomActive?.(true);if(mode==="coop"){port.setCoopRole?.(session.host?"host":"guest");port.pauseCoop?.();npcSay("協力戦闘：同期準備中");}session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
+        port.setRoomActive?.(true);if(mode==="coop"){port.setCoopRole?.("guest");port.pauseCoop?.();npcSay("協力戦闘：同期準備中");}session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
         connectCombat(session,current);
       }catch(e){say("参加に失敗："+e.message,"error");}
@@ -252,7 +257,7 @@ function connectCombat(active,expected){
   stopCombatRetry();active.combatStarting=true;
   startCombat(active,expected).catch(e=>{
     if(session!==active||expected!==token)return;
-    active.combatReady=false;port.pauseCoop?.();port.disableCombat?.();
+    active.combatReady=false;port.pauseCoop?.();stopNpcSync(active);active.host=false;active.npcReady=false;port.disableCombat?.();
     combatSay("攻撃同期：接続失敗 / "+(e?.message||e)+"（fieldCombatのルール確認）");
     console.warn("field combat",e?.message);
     if(active.connected)combatRetry=setTimeout(()=>connectCombat(active,expected),5000);
@@ -289,36 +294,95 @@ async function startCombat(active,expected){
     }
     baseline=false;port.setPeerHp(hps);
     port.setPeerMotion?.(Object.fromEntries(Object.entries(rows).filter(([id,row])=>id!==active.id&&row?.pose).map(([id,row])=>[id,{pose:motionPacket(row.pose)}])));
-  },e=>{if(session===active){active.combatReady=false;port.pauseCoop?.();port.disableCombat();combatSay("攻撃同期：受信エラー "+e.message);stopCombatRetry();combatRetry=setTimeout(()=>connectCombat(active,expected),5000);}});
+  },e=>{if(session===active){active.combatReady=false;port.pauseCoop?.();stopNpcSync(active);active.host=false;active.npcReady=false;port.disableCombat();combatSay("攻撃同期：受信エラー "+e.message);stopCombatRetry();combatRetry=setTimeout(()=>connectCombat(active,expected),5000);}});
   reportCombat();
 }
-function startNpcSync(active,expected){
+function stopNpcSync(active){
+ if(!active)return;
+ active.npcGeneration=(active.npcGeneration||0)+1;
  if(active.unsubNpc){active.unsubNpc();active.unsubNpc=null;}
+ if(active.unsubMeta){active.unsubMeta();active.unsubMeta=null;}
+}
+function startNpcSync(active,expected){
+ stopNpcSync(active);
  active.npcRef=api.ref(db,"fieldCoop/"+active.code+"/state");
- if(active.host){
-  port.setCoopRole?.("host");port.pauseCoop?.();active.npcReady=false;active.npcLastAt=0;void publishNpc(active);return;
- }
+ active.metaRef=api.ref(db,"fieldCoop/"+active.code+"/meta");
+ active.host=false;active.npcReady=false;active.npcRetryAt=0;active.npcBaseline=true;
+ port.setCoopRole?.("guest");port.pauseCoop?.();
+ active.unsubMeta=api.onValue(active.metaRef,snap=>{
+  if(session!==active||expected!==token||!active.combatReady)return;
+  active.meta=snap.val();active.hostId=active.meta?.connection;
+  if(active.host&&active.hostId!==active.id){active.host=false;active.npcReady=false;port.setCoopRole?.("guest");port.pauseCoop?.();}
+  void reconcileNpc(active);
+ },e=>{if(session===active){port.pauseCoop?.();npcSay("CPU管理者同期エラー："+e.message);}});
  active.unsubNpc=api.onValue(active.npcRef,snap=>{
   if(session!==active||expected!==token||!active.connected||!active.combatReady)return;
-  const row=snap.val();if(!row||!active.hostPresent||!Number.isFinite(row.updatedAt)||Date.now()+serverOffset-row.updatedAt>5000){port.pauseCoop?.();active.npcReady=false;npcSay("ホストの同期待ち（CPU停止）");return;}
+  const row=snap.val();if(!row)return;
   const result=readNpcSnapshot(row.payload,active.npcSeen,active.npcBaseline,Date.now()+serverOffset);
   if(!result)return;
+  active.latestNpc=row;
+  if(active.host)return;
+  // Keep the last visible enemy state during host handover; do not respawn.
+  port.setCoopSnapshot?.(result.enemies);
+  if(row.writer!==active.hostId||chooseCoopLeader(active.meta,active.players,Date.now()+serverOffset)!==active.hostId||Date.now()+serverOffset-row.updatedAt>5000){
+   port.pauseCoop?.();active.npcReady=false;npcSay("CPU管理者交代中・敵HP維持");return;
+  }
   active.npcSeen=result.lastSeq;active.npcBaseline=false;active.npcReady=true;active.npcReceivedAt=Date.now();
   port.setCoopRole?.("guest");port.setCoopSnapshot?.(result.enemies);
   for(const detail of result.events)port.receiveNpcAttack?.(detail);
  },e=>{if(session===active){port.pauseCoop?.();active.npcReady=false;npcSay("CPU同期エラー："+e.message);}});
+ void reconcileNpc(active);
 }
-async function publishNpc(active){
- if(session!==active||!active.connected||!active.combatReady||!active.host||!active.npcRef||active.npcWriting||Date.now()<(active.npcRetryAt||0))return;
+async function reconcileNpc(active){
+ if(session!==active||active.mode!=="coop"||!active.connected||!active.combatReady||!active.metaRef||!active.meta||active.electing||Date.now()<(active.electRetryAt||0))return;
+ const now=Date.now()+serverOffset,leader=chooseCoopLeader(active.meta,active.players,now);
+ if(leader!==active.hostId){active.npcReady=false;port.pauseCoop?.();npcSay("CPU管理者交代中・敵HP維持");}
+ if(leader!==active.id)return;
+ if(active.host&&active.hostId===active.id)return;
+ active.electing=true;
+ const generation=active.npcGeneration;
+ const current=()=>session===active&&active.connected&&active.combatReady&&active.npcGeneration===generation;
+ try{
+  if(active.hostId!==active.id){
+   const observed=active.hostId;
+   const election=await api.runTransaction(active.metaRef,meta=>{
+    if(!meta||meta.connection!==observed)return;
+    if(chooseCoopLeader(meta,active.players,Date.now()+serverOffset)!==active.id)return;
+    return {...meta,owner:auth.currentUser.uid,connection:active.id};
+   },{applyLocally:false});
+   if(!current())return;
+   if(!election.committed)return;
+   active.meta=election.snapshot.val();active.hostId=active.meta.connection;
+  }
+  if(active.hostId!==active.id)return;
+  // Read the committed checkpoint only AFTER acquiring authority. An empty
+  // enemy list is a completed encounter, never a reason to respawn.
+  const snap=await api.get(active.npcRef);if(!current()||active.hostId!==active.id)return;
+  const row=snap.val();
+  const parsed=row?readNpcSnapshot(row.payload,0,true,Date.now()+serverOffset):null;
+  if(row&&!parsed)throw Error("保存された敵データを読み込めません");
+  if(!port.restoreCoopSnapshot?.(row?parsed.enemies:null))throw Error("敵HPを復元できません");
+  active.npcRevision=row?.revision||0;active.npcJournal=createNpcJournal(row?.payload);
+  if(parsed)active.npcSeen=Math.max(active.npcSeen,parsed.lastSeq);
+  active.host=true;active.npcReady=false;active.npcLastAt=0;active.npcLastPayload=null;active.npcRetryAt=0;
+  port.setCoopRole?.("host");port.pauseCoop?.();
+  await publishNpc(active,true);
+ }catch(e){if(current()){active.electRetryAt=Date.now()+2000;active.npcReady=false;port.pauseCoop?.();npcSay("CPU管理者交代エラー："+e.message+"（最新Firebaseルール確認）");}}
+ finally{active.electing=false;}
+}
+async function publishNpc(active,force=false){
+ if(session!==active||!active.connected||!active.combatReady||!active.host||active.hostId!==active.id||!active.npcRef||active.npcWriting||(!force&&Date.now()<(active.npcRetryAt||0)))return;
  const enemies=port.getCoopSnapshot?.();if(!enemies)return;
  const payload=active.npcJournal.serialize(enemies),now=Date.now();
- if(active.npcReady&&payload===active.npcLastPayload&&now-active.npcLastAt<1000)return;
+ if(!force&&active.npcReady&&payload===active.npcLastPayload&&now-active.npcLastAt<1000)return;
  active.npcWriting=true;
+ const generation=active.npcGeneration;
  try{
-  await api.set(active.npcRef,{revision:++active.npcRevision,payload,updatedAt:api.serverTimestamp()});
-  if(session===active&&active.connected&&active.combatReady){active.npcLastPayload=payload;active.npcLastAt=now;if(!active.npcReady){active.npcReady=true;port.setCoopRole?.("host");}}
- }catch(e){if(session===active){active.npcReady=false;active.npcRetryAt=Date.now()+3000;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message);}}
- finally{active.npcWriting=false;}
+  active.npcWritePromise=api.set(active.npcRef,{revision:++active.npcRevision,payload,writer:active.id,updatedAt:api.serverTimestamp()});
+  await active.npcWritePromise;
+  if(session===active&&active.connected&&active.combatReady&&active.npcGeneration===generation&&active.host&&active.hostId===active.id){active.npcLastPayload=payload;active.npcLastAt=now;if(!active.npcReady){active.npcReady=true;port.setCoopRole?.("host");}}
+ }catch(e){if(session===active&&active.npcGeneration===generation){active.npcReady=false;active.npcRetryAt=Date.now()+3000;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message+"（最新Firebaseルール確認）");}}
+ finally{active.npcWriting=false;active.npcWritePromise=null;}
 }
 window.addEventListener("gedo-coop-npc-attack",event=>{
  const active=session;if(active?.host&&active.connected&&active.combatReady&&active.npcReady)active.npcJournal.append(event.detail,Date.now()+serverOffset);
@@ -353,8 +417,9 @@ async function publish(expected){
   if(!session||!session.connected||expected!==token)return;
   publishPose(session);
   if(session.mode==="coop"){
+    void reconcileNpc(session);
     if(session.host)void publishNpc(session);
-    else if(session.npcReady&&(!session.hostPresent||Date.now()-session.npcReceivedAt>5000)){session.npcReady=false;port.pauseCoop?.();npcSay("ホストの同期待ち（CPU停止）");}
+    else if(session.npcReady&&(chooseCoopLeader(session.meta,session.players,Date.now()+serverOffset)!==session.hostId||Date.now()-session.npcReceivedAt>5000)){session.npcReady=false;port.pauseCoop?.();npcSay("CPU管理者交代中・敵HP維持");}
   }
   if(session.publishing)return;
   const p=port.getSelf();
