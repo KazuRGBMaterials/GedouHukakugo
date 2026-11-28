@@ -21,7 +21,7 @@ export function readNpcSnapshot(payload,seen=0,baseline=false,now=Date.now()){
   lastSeq=event.seq;
   if(!baseline&&now-event.at<=2500&&event.at-now<=5000)events.push(packet);
  }
- return {enemies:data.enemies,events,lastSeq};
+ return {enemies:data.enemies,events,lastSeq,hits:Array.isArray(data.hits)?data.hits.slice(-MAX_EVENTS):[]};
 }
 
 export const COOP_LEASE_MS=15000;
