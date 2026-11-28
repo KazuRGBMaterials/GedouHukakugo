@@ -10,7 +10,7 @@ import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from
 import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
 import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
-import {createNpcJournal,readNpcSnapshot} from "../runtime/field-coop-sync.js";
+import {createNpcJournal,readNpcSnapshot,chooseCoopLeader} from "../runtime/field-coop-sync.js";
 import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS,enemySnapshot,enemyMirror} from "../runtime/field-enemies.js";
 import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
@@ -553,7 +553,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=15"));
+ assert(html.includes("multiplayer-room-next.js?v=16"));
  assert(source.includes('url.hash=(session?.mode==="coop"?"coop=":"room=")+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -865,4 +865,34 @@ run("Archived complete V1.0 remains unchanged and V1.1 uses distinct co-op roots
  const archived=fs.readFileSync(path.join(docs,"versions/v1.0/next/index.html"),"utf8");assert(archived.includes("FIELD NEXT v1.0"));assert(!archived.includes('id="room-mode"'));
  assert(fs.existsSync(path.join(docs,"versions/v1.0/battle/assets/hellor-8dir.png")));
  const src=text("cloud/multiplayer-room-next.js");assert(src.includes('"coopPlayers/"'));assert(src.includes('"coopCombat/"'));assert(src.includes('"fieldCoop/"'));new vm.SourceTextModule(src);
+});
+
+run("Co-op migration preserves damage and defeated enemies, and subsequent attacks accumulate",()=>{
+ const host=new FieldEnemies(),world={width:1600,height:1000,obstacles:[]};
+ const boss=host.enemies.find(e=>e.type==="boss");
+ host.receive({index:0,x:boss.x-90,y:boss.y,facing:"E",radius:22});
+ for(let i=0;i<30;i++)host.tickParty(.05,world,[]);
+ assert.equal(boss.hp,370);
+ const dead=host.enemies.find(e=>e.id==="slash1");dead.hp=0;dead.combat.hp=0;
+ host.tickParty(.05,world,[]);
+ const saved=JSON.parse(JSON.stringify(enemySnapshot(host)));
+ const next=new FieldEnemies();assert(next.restore(saved));assert.equal(next.enemies.length,4);
+ const restored=next.enemies.find(e=>e.type==="boss");assert.equal(restored.hp,370);assert.equal(restored.combat.hp,370);
+ next.receive({index:0,x:restored.x-90,y:restored.y,facing:"E",radius:22});
+ for(let i=0;i<30;i++)next.tickParty(.05,world,[]);
+ assert.equal(restored.hp,340);assert(!next.enemies.some(e=>e.id==="slash1"));
+ assert(next.restore([]));assert.equal(next.enemies.length,0);
+});
+run("Co-op host lease elects one living connection and preserves attack sequence",()=>{
+ const a="P"+"1".repeat(24),b="P"+"2".repeat(24),c="P"+"3".repeat(24),meta={connection:a,owner:"a"},now=20000;
+ const players={[a]:{owner:"a",updatedAt:now},[b]:{owner:"b",updatedAt:now},[c]:{owner:"c",updatedAt:now}};
+ assert.equal(chooseCoopLeader(meta,players,now),a);
+ delete players[a];assert.equal(chooseCoopLeader(meta,players,now),b);
+ players[a]={owner:"a",updatedAt:now-16000};assert.equal(chooseCoopLeader(meta,players,now),b);
+ assert.equal(chooseCoopLeader({connection:b,owner:"b"},players,now),b);
+ const j=createNpcJournal(),attack={index:0,x:100,y:100,facing:"E",radius:8};j.append(attack,now);
+ const next=createNpcJournal(j.serialize([]));next.append(attack,now+100);
+ const read=readNpcSnapshot(next.serialize([]),1,false,now+100);
+ assert.equal(read.lastSeq,2);assert.equal(read.events.length,1);
+ assert(text("index.html").includes('<option value="coop" selected>'));
 });
