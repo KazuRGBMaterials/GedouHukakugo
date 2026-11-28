@@ -74,7 +74,7 @@ ui.toggle.addEventListener("click",()=>{ui.panel.hidden=!ui.panel.hidden;});
 ui.dismiss.addEventListener("click",()=>{ui.panel.hidden=true;});
 ui.name.addEventListener("change",()=>storage.set("gedo-room-name",ui.name.value.trim().slice(0,16)));
 ui.color.addEventListener("change",()=>storage.set("gedo-room-color",ui.color.value));
-ui.code.addEventListener("input",()=>{ui.code.value=ui.code.value.toUpperCase().replace(/[^A-Z2-9]/g,"").slice(0,8);});
+// Preserve native input and IME composition. Normalize only when Join is pressed (validCode).
 function inviteAddress(code){
   const url=new URL(location.href);
   url.hash="room="+code;
