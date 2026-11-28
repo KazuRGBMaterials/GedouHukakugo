@@ -23,11 +23,14 @@ function distanceToLine(px,py,x,y,dx,dy,len){
  return Math.hypot(px-x-t*dx,py-y-t*dy);
 }
 export class FieldCombat{
- constructor(onHp=()=>{}){this.onHp=onHp;this.hp=100;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;}
+ constructor(onHp=()=>{}){this.onHp=onHp;this.hp=100;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];}
  enable(){if(!this.enabled){this.enabled=true;this.reset();}}
- disable(){this.enabled=false;this.effects=[];this.peerHp={};this.reset();}
+ disable(){this.enabled=false;this.effects=[];this.peerHp={};this.peerHits.clear();this.impacts=[];this.reset();}
  reset(){this.hp=100;this.flash=0;this.onHp(this.hp);}
- setPeerHp(values){this.peerHp=values||{};}
+ setPeerHp(values){
+  for(const [id,hp] of Object.entries(values||{})){const old=this.peerHp[id];if(Number.isFinite(old)&&hp<old)this.peerHits.set(id,{damage:old-hp,life:.65});}
+  this.peerHp=values||{};
+ }
  receive(detail){
   if(!this.enabled)return false;
   const a=attackPacket(detail);if(!a)return false;
@@ -39,11 +42,13 @@ export class FieldCombat{
  }
  damage(e,player){
   if(e.hit||!this.hp||e.kind==="dive")return;
-  e.hit=true;this.hp=Math.max(0,this.hp-FIELD_DAMAGE[e.index]);this.flash=.45;this.onHp(this.hp);
+  e.hit=true;this.hp=Math.max(0,this.hp-FIELD_DAMAGE[e.index]);this.flash=.45;this.impacts.push({x:player.x,y:player.y,life:.25,damage:FIELD_DAMAGE[e.index]});this.onHp(this.hp);
  }
  tick(dt,world,player){
   dt=Math.max(0,Math.min(.05,Number(dt)||0));this.flash=Math.max(0,this.flash-dt);
   if(!this.enabled)return;
+  for(const [id,hit] of this.peerHits){hit.life-=dt;if(hit.life<=0)this.peerHits.delete(id);}
+  for(const impact of this.impacts)impact.life-=dt;this.impacts=this.impacts.filter(i=>i.life>0);
   const half=player.halfSize||15;
   for(const e of this.effects){
    if(e.life<=0)continue;
@@ -84,8 +89,10 @@ export class FieldCombat{
    c.restore();
   }
   for(const p of peers?.values?.()||[]){const hp=this.peerHp[p.id];if(!Number.isFinite(hp))continue;
-   c.fillStyle="#321b28";c.fillRect(p.drawX-18,p.drawY-49,36,4);c.fillStyle="#75e9a4";c.fillRect(p.drawX-18,p.drawY-49,36*hp/100,4);
+   const y=p.drawY-(p.height||0);c.fillStyle="#321b28";c.fillRect(p.drawX-18,y-49,36,4);c.fillStyle="#75e9a4";c.fillRect(p.drawX-18,y-49,36*hp/100,4);
+   const hit=this.peerHits.get(p.id);if(hit){c.save();c.strokeStyle="#ff6868";c.lineWidth=3;c.beginPath();c.arc(p.drawX,y,20,0,Math.PI*2);c.stroke();c.font='bold 15px system-ui';c.textAlign='center';c.fillStyle='#ffb0a5';c.fillText('-'+hit.damage,p.drawX,y-58-(.65-hit.life)*18);c.restore();}
   }
+  for(const hit of this.impacts){c.save();c.globalAlpha=Math.min(1,hit.life*4);c.strokeStyle='#ffc5a2';c.lineWidth=3;c.beginPath();c.arc(hit.x,hit.y,15+(.25-hit.life)*60,0,Math.PI*2);c.stroke();c.font='bold 15px system-ui';c.fillStyle='#ffb0a5';c.textAlign='center';c.fillText('-'+hit.damage,hit.x,hit.y-42);c.restore();}
   if(this.flash>0){c.strokeStyle="#ff6868";c.lineWidth=3;c.globalAlpha=Math.min(1,this.flash*4);c.beginPath();c.arc(player.x,player.y,23,0,Math.PI*2);c.stroke();}
   c.restore();
  }
