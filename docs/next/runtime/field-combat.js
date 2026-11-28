@@ -29,10 +29,10 @@ function distanceToLine(px,py,x,y,dx,dy,len){
  return Math.hypot(px-x-t*dx,py-y-t*dy);
 }
 export class FieldCombat{
- constructor(onHp=()=>{}){this.onHp=onHp;this.hp=100;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];this.knockback=null;}
+ constructor(onHp=()=>{},maxHp=100){this.onHp=onHp;this.maxHp=Math.max(1,Number(maxHp)||100);this.hp=this.maxHp;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];this.knockback=null;}
  enable(){if(!this.enabled){this.enabled=true;this.reset();}}
  disable(){this.enabled=false;this.effects=[];this.peerHp={};this.peerHits.clear();this.impacts=[];this.reset();}
- reset(){this.hp=100;this.flash=0;this.knockback=null;this.effects=[];this.impacts=[];this.onHp(this.hp);}
+ reset(){this.hp=this.maxHp;this.flash=0;this.knockback=null;this.effects=[];this.impacts=[];this.onHp(this.hp);}
  setPeerHp(values){
   for(const [id,hp] of Object.entries(values||{})){const old=this.peerHp[id];if(Number.isFinite(old)&&hp<old)this.peerHits.set(id,{damage:old-hp,life:.65});}
   this.peerHp=values||{};

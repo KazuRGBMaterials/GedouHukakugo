@@ -10,6 +10,7 @@ import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from
 import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
 import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
+import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS} from "../runtime/field-enemies.js";
 import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
@@ -192,7 +193,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
  assert(html.includes('./next/runtime/field-status.js?v=3'));
- assert(html.includes('field-visual.js?v=11'));
+ assert(html.includes('field-visual.js?v=12'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
  assert(source.includes('doc.getElementById("game-menu")'));
@@ -551,7 +552,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=12"));
+ assert(html.includes("multiplayer-room-next.js?v=13"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -784,7 +785,26 @@ run("FIELD laser must charge before releasing and local beam duration matches re
  const skills=new ChargedFireSkillSystem(new SkillSystem(),new ActionState()),player={x:100,y:100,facing:"E"},world={width:1600,height:1000,obstacles:[]};
  const a=Object.create(ActionButtons.prototype);a.skills=skills;a.gestures=new Map();a.getPlayer=()=>player;a.state={skillIndex:()=>2};a.win={};a.notify=()=>{};let fired=0;a.execute=(i)=>{fired++;return skills.cast(i,player);};
  assert(a.beginGesture(1,"X",0,0));a.endGesture(1,0,0);assert.equal(fired,0);
- assert(a.beginGesture(2,"X",0,0));for(let i=0;i<15;i++)skills.update(.05,world);a.endGesture(2,0,0);assert.equal(fired,1);
+ assert(a.beginGesture(2,"X",0,0));for(let i=0;i<29;i++)skills.update(.05,world);a.endGesture(2,0,0);assert.equal(fired,0);
+ assert(a.beginGesture(3,'X',0,0));for(let i=0;i<30;i++)skills.update(.05,world);a.endGesture(3,0,0);assert.equal(fired,1);
  assert.equal(skills.beams[0].life,LASER_DURATION);
  assert.equal(skills.recovery,LASER_DURATION);
+});
+
+run("FIELD enemy spawns, separate attack roles and boss HP",()=>{
+ const world={width:1600,height:1000,obstacles:[]};
+ const attacks=[];const system=new FieldEnemies({sendAttack:(a,e)=>attacks.push({type:e.type,index:a.index})});
+ assert.equal(system.enemies.length,5);assert.equal(system.enemies.find(e=>e.type==="boss").hp,400);
+ assert.equal(LASER_CHARGE_SECONDS,1.5);
+ for(const type of ["slash","fire","boss"]){
+  const spawn=ENEMY_SPAWNS.find(e=>e.type===type),s=new FieldEnemies({spawns:[spawn],sendAttack:(a,e)=>attacks.push({type:e.type,index:a.index})});
+  const player={x:spawn.x-65,y:spawn.y,halfSize:15};
+  for(let i=0;i<700;i++)s.tick(.05,world,player,100);
+ }
+ assert(attacks.some(a=>a.type==="slash"));assert(attacks.filter(a=>a.type==="slash").every(a=>a.index===1));
+ assert(attacks.some(a=>a.type==="fire"));assert(attacks.filter(a=>a.type==="fire").every(a=>a.index===0));
+ assert.deepEqual([...new Set(attacks.filter(a=>a.type==="boss").map(a=>a.index))].sort(),[0,1,2,3]);
+ const boss=system.enemies.find(e=>e.type==="boss");system.receive({index:0,x:boss.x-75,y:boss.y,facing:"E",radius:22});
+ for(let i=0;i<20;i++)system.tick(.05,world,{x:100,y:100},100);
+ assert.equal(boss.hp,370);system.setActive(false);assert(!system.receive({index:1,x:100,y:100,facing:"E"}));system.reset();assert.equal(system.enemies.find(e=>e.type==="boss").hp,400);
 });

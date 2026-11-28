@@ -1,5 +1,5 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
-import { attackPacket } from "../runtime/field-combat.js?v=4";
+import { attackPacket } from "../runtime/field-combat.js?v=5";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
@@ -150,7 +150,7 @@ async function leaveRoom(){
   if(unsubConnection){unsubConnection();unsubConnection=null;}
   if(unsubRoom){unsubRoom();unsubRoom=null;}
   const old=session;session=null;lastSent=null;lastWriteAt=0;
-  port.clearPeers();
+  port.clearPeers();port.setRoomActive?.(false);
   if(unsubCombat){unsubCombat();unsubCombat=null;}
   if(unsubClock){unsubClock();unsubClock=null;}
   port.disableCombat?.();combatSay('攻撃同期：未接続');
@@ -214,7 +214,7 @@ async function joinRoom(raw) {
         if(current!==token)return;
         await api.set(selfRef,selfState());
         if(current!==token)return;
-        session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
+        port.setRoomActive?.(true);session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
         connectCombat(session,current);
       }catch(e){say("参加に失敗："+e.message,"error");}
