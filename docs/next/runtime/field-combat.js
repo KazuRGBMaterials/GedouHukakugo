@@ -9,7 +9,7 @@ export function attackPacket(detail){
  if(detail.x<0||detail.x>1600||detail.y<0||detail.y>1000)return null;
  const fallback=dirs[detail.facing]||dirs.S;
  let dx=Number.isFinite(detail.dx)?detail.dx:fallback[0],dy=Number.isFinite(detail.dy)?detail.dy:fallback[1];
- const length=Math.hypot(dx,dy);if(length<.01)return null;dx/=length;dy/=length;
+ const length=Math.hypot(dx,dy);if(length<.01)return null;dx=Math.max(-1,Math.min(1,dx/length));dy=Math.max(-1,Math.min(1,dy/length));
  const radius=index===0?Math.max(4.5,Math.min(22,Number(detail.radius)||8)):index===1?15:index===2?3:15;
  const kind=index===1&&["dive","land"].includes(detail.kind)?detail.kind:"cast";
  return {index,x:detail.x,y:detail.y,dx,dy,radius,combo:Math.max(1,Math.min(3,Math.trunc(detail.combo)||1)),kind};
@@ -37,7 +37,7 @@ export class FieldCombat{
   if(this.effects.length>=120)this.effects.shift();
   const x=a.x+(a.kind==="cast"&&a.index!==3?a.dx*24:0),y=a.y+(a.kind==="cast"&&a.index!==3?a.dy*24:0);
   const life=a.kind==="dive"?.185:a.kind==="land"?.30:[1.25,.42,.36,.44][a.index];
-  this.effects.push({...a,x,y,life,maxLife:life,hit:false,length:0});
+  this.effects.push({...a,x,y,life,maxLife:life,hit:false,length:0,age:0,stopped:false});
   return true;
  }
  damage(e,player){
@@ -52,6 +52,8 @@ export class FieldCombat{
   const half=player.halfSize||15;
   for(const e of this.effects){
    if(e.life<=0)continue;
+   e.age+=dt;
+   if(e.stopped){e.life-=dt;continue;}
    if(e.kind==="land"){
     if(Math.hypot(e.x-player.x,e.y-player.y)<=35+half&&!blocked(e.x,e.y,1,world))this.damage(e,player);
    }else if(e.kind==="dive"){
@@ -64,10 +66,10 @@ export class FieldCombat{
     const distance=[560,390,0,950][e.index]*dt,steps=Math.max(1,Math.ceil(distance/5));
     for(let i=0;i<steps;i++){
      const x=e.x+e.dx*distance/steps,y=e.y+e.dy*distance/steps;
-     if(blocked(x,y,e.radius,world)){e.life=0;break;}
+     if(blocked(x,y,e.radius,world)){e.stopped=true;e.life=.16;break;}
      e.x=x;e.y=y;
      if(Math.hypot(x-player.x,y-player.y)<=half+e.radius){
-      this.damage(e,player);if(e.index!==3){e.life=0;break;}
+      this.damage(e,player);if(e.index!==3){e.stopped=true;e.life=.18;break;}
      }
     }
    }
@@ -81,7 +83,8 @@ export class FieldCombat{
   for(const e of this.effects){
    c.save();c.globalAlpha=Math.min(1,e.life/.1);c.translate(e.x,e.y);c.rotate(Math.atan2(e.dy,e.dx));
    c.shadowBlur=10;c.shadowColor=e.index===0?"#ff9d36":"#b38aff";
-   if(e.kind==="land"){c.strokeStyle="#e9d3ff";c.lineWidth=4;c.beginPath();c.arc(0,0,35,0,Math.PI*2);c.stroke();}
+   if(e.stopped){c.strokeStyle=e.index===0?"#ffcb6a":"#e9d3ff";c.lineWidth=3;c.beginPath();c.arc(0,0,e.radius+12*(1-e.life/.18),0,Math.PI*2);c.stroke();}
+   else if(e.kind==="land"){c.strokeStyle="#e9d3ff";c.lineWidth=4;c.beginPath();c.arc(0,0,35,0,Math.PI*2);c.stroke();}
    else if(e.index===0){c.fillStyle="#ff9c35";c.beginPath();c.arc(0,0,e.radius,0,Math.PI*2);c.fill();c.fillStyle="#fff8c5";c.beginPath();c.arc(0,0,e.radius*.5,0,Math.PI*2);c.fill();}
    else if(e.index===2){c.strokeStyle="#c99bff";c.lineWidth=12;c.beginPath();c.moveTo(0,0);c.lineTo(e.length,0);c.stroke();c.strokeStyle="#fff";c.lineWidth=3;c.stroke();}
    else if(e.index===1){c.strokeStyle="#e9d3ff";c.lineWidth=6;c.beginPath();c.arc(0,0,26,-1.08,1.08);c.stroke();}
