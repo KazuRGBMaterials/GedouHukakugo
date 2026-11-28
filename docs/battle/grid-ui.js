@@ -1,7 +1,7 @@
 import {
   GRID_COLUMNS, GRID_ROWS, MOVE, cellName, enemyThreats, plannedPosition,
   gridSides, teamOf, jumpLandingCandidates, jumpLanding, targetFor
-} from "./grid-rules.js?v=7";
+} from "./grid-rules.js?v=8";
 import { COMMANDS, canReserve, isManual, editableAttack } from "./rules.js?v=16";
 import { bindGridMotion } from "./grid-motion.js?v=12";
 import { terrainAt } from "./grid-terrain.js?v=2";
@@ -13,7 +13,8 @@ const shortNames = {
 
 export function bindBattleGrid({
   onMove, onTarget, onSelect, onLanding,
-  visualFor = () => null, terrainFor = terrainAt
+  visualFor = () => null, terrainFor = terrainAt,
+  online = false, canControl = () => true, nameFor = side => shortNames[side]
 }) {
   const board = document.getElementById("grid-board");
   const cue = document.getElementById("grid-threat");
@@ -72,13 +73,13 @@ export function bindBattleGrid({
     if (columns !== currentColumns || rows !== currentRows) buildCells(columns, rows);
     const scene = terrainPicker?.value ?? "mixed";
     board.dataset.terrain = scene;
-    const threats = enemyThreats(battle);
+    const threats = enemyThreats(battle, online ? controlled : "player");
     const danger = new Set(threats.flatMap(threat => threat.cells.map(cellName)));
     const occupants = new Map(gridSides(battle).filter(id => battle[id].hp > 0).map(id => [cellName(battle.grid[id]), id]));
     const playerCell = cellName(battle.grid[controlled]);
     const plannedCell = cellName(plannedPosition(battle, controlled));
-    const manual = isManual(battle, controlled) && battle.phase !== "finished";
-    const editing = editableAttack(battle, controlled);
+    const manual = canControl(controlled) && isManual(battle, controlled) && battle.phase !== "finished";
+    const editing = manual ? editableAttack(battle, controlled) : null;
     const previewTarget = targetFor(battle, controlled, editing?.targetSide || selected);
     const previewing = !!editing;
     const imminent = previewing && battle.phase === "running" && editing.impact === battle.tick + 1;
@@ -90,12 +91,12 @@ export function bindBattleGrid({
     for (const cell of cells) {
       const { button, position, label } = cell;
       const id = occupants.get(label);
-      const occupant = id === "enemy" && !battle.enemy2
+      const occupant = online ? (id ? nameFor(id) : null) : id === "enemy" && !battle.enemy2
         ? (battle.grid.enemyName || "見張り") : shortNames[id];
       const hazardous = danger.has(label);
       const booked = label !== playerCell && label === plannedCell;
-      const targetable = manual && battle.enemy2 && id && teamOf(id) === "enemy";
-      const selectable = battle.ally && id && teamOf(id) === "player" && battle.phase !== "finished";
+      const targetable = manual && id && (online ? teamOf(id) !== teamOf(controlled) : battle.enemy2 && teamOf(id) === "enemy");
+      const selectable = id && battle.phase !== "finished" && (online ? canControl(id) && id === controlled : battle.ally && teamOf(id) === "player");
       const landingOption = manual && editing?.commandId === "jumpSlash" && candidateKeys.has(label);
       const currentLanding = landingOption && label === landingKey;
       const luminousTarget = previewing && previewTarget === id;
@@ -125,12 +126,12 @@ export function bindBattleGrid({
     }
 
     cue.textContent = threats.map(({ side, action }) => {
-      const who = battle.enemy2 ? shortNames[side] + " " : "";
+      const who = online ? nameFor(side) + " " : battle.enemy2 ? shortNames[side] + " " : "";
       return `${who}${action.impact}枠目★ ${COMMANDS[action.commandId].name}`;
     }).join(" ／ ") || (battle.phase === "finished" ? "戦闘終了" : "いま構えている攻撃はありません。");
     const location = plannedCell === playerCell ? playerCell : `${playerCell} → ${plannedCell}`;
-    const name = shortNames[controlled];
-    const aiming = previewTarget && manual ? ` · 狙い ${shortNames[previewTarget]}` : "";
+    const name = nameFor(controlled);
+    const aiming = previewTarget && manual ? ` · 狙い ${nameFor(previewTarget)}` : "";
     const jumpSpot = editing?.commandId === "jumpSlash" && landingOptions.length
       ? ` · 着地 ${landingKey}${editing.manualLanding ? "（指定）" : "（自動）"}` : "";
     const notice = imminent ? " · 次の★！対象と着地点をタップで変更可"
