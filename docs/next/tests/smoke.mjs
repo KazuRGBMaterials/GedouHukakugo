@@ -10,8 +10,8 @@ import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from
 import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
 import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
-import {createNpcJournal,readNpcSnapshot,chooseCoopLeader} from "../runtime/field-coop-sync.js";
-import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS,enemySnapshot,enemyMirror} from "../runtime/field-enemies.js";
+import {createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop} from "../runtime/field-coop-sync.js";
+import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS,enemySnapshot,enemyMirror,initialEnemySnapshot} from "../runtime/field-enemies.js";
 import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
@@ -553,7 +553,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=16"));
+ assert(html.includes("multiplayer-room-next.js?v=17"));
  assert(source.includes('url.hash=(session?.mode==="coop"?"coop=":"room=")+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -896,3 +896,49 @@ run("Co-op host lease elects one living connection and preserves attack sequence
  assert.equal(read.lastSeq,2);assert.equal(read.events.length,1);
  assert(text("index.html").includes('<option value="coop" selected>'));
 });
+
+await (async()=>{
+ const id="P"+"1".repeat(24),initial=initialEnemySnapshot;
+ let stored=null,writes=0,allowed=true;
+ const adapter={read:async()=>stored,write:async row=>{if(!allowed)throw Error("PERMISSION_DENIED");writes++;stored=row;},initial,creator:true,id,timestamp:()=>12345};
+ const first=await bootstrapCoop(adapter);
+ assert.equal(first.enemies.length,5);assert.equal(first.enemies.find(e=>e.id==="hellor").hp,400);assert.equal(writes,1);
+ stored={...stored,revision:2,payload:JSON.stringify({enemies:[{...initial().find(e=>e.id==="hellor"),hp:340}],events:[]})};
+ const existing=await bootstrapCoop(adapter);assert.equal(existing.enemies[0].hp,340);assert.equal(writes,1);
+ stored={...stored,payload:JSON.stringify({enemies:[],events:[]})};
+ assert.equal((await bootstrapCoop(adapter)).enemies.length,0);assert.equal(writes,1);
+ stored=null;assert.equal(await bootstrapCoop({...adapter,creator:false}),null);assert.equal(writes,1);
+ allowed=false;await assert.rejects(bootstrapCoop(adapter),/PERMISSION_DENIED/);assert.equal(stored,null);
+ console.log("PASS CPU checkpoint creation, damaged/defeated reuse, read-only guest and denied initial write");
+})();
+await (async()=>{
+ // Run the actual browser transport against a small asynchronous RTDB port.
+ // Only SDK initialization and DOM/canvas ports are substituted.
+ const elements=new Map(),nodes=new Map(),listeners=new Map(),changes=[],windowEvents=new Map();
+ const elem=id=>{if(!elements.has(id))elements.set(id,{value:id==="room-mode"?"versus":id==="room-color"?"0":"",hidden:true,dataset:{},addEventListener(){},select(){},focus(){}});return elements.get(id);};
+ const clone=v=>v===undefined?null:JSON.parse(JSON.stringify(v));
+ const getVal=path=>{if(nodes.has(path))return clone(nodes.get(path));const child={};for(const [key,v] of nodes)if(key.startsWith(path+"/")&&!key.slice(path.length+1).includes("/"))child[key.slice(path.length+1)]=v;return Object.keys(child).length?clone(child):null;};
+ const snap=path=>({val:()=>getVal(path),exists:()=>getVal(path)!==null});
+ const notify=path=>{for(const [p,cbs] of listeners)if(path===p||path.startsWith(p+"/"))for(const cb of cbs)queueMicrotask(()=>cb(snap(p)));};
+ let denied=false;
+ const api={ref:(_db,p)=>p,child:(p,id)=>p+"/"+id,serverTimestamp:()=>Date.now(),get:async p=>snap(p),set:async(p,v)=>{if(denied&&p.endsWith("/state"))throw Error("PERMISSION_DENIED");nodes.set(p,clone(v));notify(p);},remove:async p=>{nodes.delete(p);notify(p);},onDisconnect:()=>({remove:async()=>{},cancel:async()=>{}}),onValue:(p,cb)=>{if(!listeners.has(p))listeners.set(p,new Set());listeners.get(p).add(cb);if(p===".info/connected")queueMicrotask(()=>cb({val:()=>true}));else if(p===".info/serverTimeOffset")queueMicrotask(()=>cb({val:()=>0}));else queueMicrotask(()=>cb(snap(p)));return()=>listeners.get(p)?.delete(cb);},update:async()=>{}};
+ const model=new FieldEnemies();let role=null,active=false,paused=true,mirror=null;
+ const port={getSelf:()=>({x:100,y:100,facing:"E",moving:false}),getHp:()=>100,getWorldBounds:()=>({width:1600,height:1000}),getMotion:()=>({}),setPeers(){},clearPeers(){},setRoomActive:v=>{active=v;changes.push({active:v,seeded:[...nodes.keys()].some(p=>p.endsWith("/state"))});},setCoopRole:r=>{role=r;paused=false;},pauseCoop:()=>paused=true,getInitialCoopSnapshot:initialEnemySnapshot,restoreCoopSnapshot:rows=>rows===null?(model.reset(),true):model.restore(rows),getCoopSnapshot:()=>role==="host"?enemySnapshot(model):null,setCoopSnapshot:rows=>{mirror=rows;},receiveAttack:()=>true,enableCombat(){},disableCombat(){},setPeerHp(){},setPeerMotion(){}};
+ const window={__gedoRoomPort:port,addEventListener:(event,cb)=>windowEvents.set(event,cb)};
+ const context={window,document:{getElementById:elem},localStorage:{getItem:()=>null,setItem(){}},location:{hash:"#room=ABCD2345",href:"https://example.test/next/#room=ABCD2345",pathname:"/next/",search:""},history:{replaceState(){}},crypto:{getRandomValues:b=>b.fill(1)},URL,console,Date,Math,JSON,Promise,Map,Set,setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},queueMicrotask,bootstrapCoop,createNpcJournal,readNpcSnapshot,chooseCoopLeader,attackPacket,motionPacket,attackPatch,recentAttackEvents,firebaseConfig:{apiKey:"a",projectId:"p",appId:"a",databaseURL:"d"},shareInvite:async()=>{},fakeApi:api};
+ let code=text("cloud/multiplayer-room-next.js").replace(/^import .*;$/gm,"");
+ const start=code.indexOf("async function initFirebase()"),end=code.indexOf("async function ensureReady()",start);
+ code=code.slice(0,start)+'async function initFirebase(){api=fakeApi;db={};auth={currentUser:{uid:"host"},authStateReady:async()=>{}};}\n'+code.slice(end);
+ vm.createContext(context);vm.runInContext(code,context);
+ const settle=async()=>{for(let i=0;i<80;i++)await Promise.resolve();};
+ // The previous PvP invitation must not influence an explicit co-op creation.
+ await vm.runInContext('joinRoom("ABCD2345",true,"coop")',context);await settle();
+ assert.equal(active,true);assert.equal(role,"host");assert.equal(paused,false);
+ assert.equal(model.enemies.length,5);assert.equal(mirror.length,5);
+ assert(changes.filter(c=>c.active).every(c=>c.seeded));
+ const row=getVal("fieldCoop/ABCD2345/state");assert(row&&JSON.parse(row.payload).enemies.length===5);
+ await vm.runInContext("leaveRoom()",context);await settle();
+ denied=true;changes.length=0;await vm.runInContext('joinRoom("BCDE2345",true,"coop")',context);await settle();
+ assert(!changes.some(c=>c.active));assert.equal(active,false);assert(elem("room-status").textContent.includes("CPU初期化"));
+ console.log("PASS browser transport creates actual five-enemy checkpoint before switching view; denied initialization returns to solo");
+})();
