@@ -56,9 +56,10 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
       for(const {sender,id,input} of pending){
        if(active!==s)return;
        const key=sender+"/"+id;
-       if(s.seen.has(key))continue;
+       if(s.seen.has(key)){processed.push(key);continue;}
        // Membership and assignment are authoritative on the host; every
        // message gets an explicit acknowledgement, including rejections.
+       if(!s.members[sender]){const latest=await api.get(ref(code,"members"));s.members=latest.val()||{};}
        const accepted=!!s.members[sender]&&applyIntent(s.state,sender,input);
        s.state.acks??={};
        s.state.acks[sender]={id,accepted,message:accepted?"予約を受理しました":(s.state.feedback[sender]||"参加者登録が確認できません")};
@@ -66,8 +67,7 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
        s.seen.add(key);processed.push(key);
       }
       if(processed.length){
-       try{await publish(s,true);}
-       catch(e){for(const key of processed)s.seen.delete(key);throw e;}
+       await publish(s,true); // Retain seen keys on failure: retries must never reserve twice.
        for(const key of processed){await api.remove(ref(code,"inputs/"+key));s.pending.delete(key);}
       }
      }while(s.drainAgain&&active===s);
