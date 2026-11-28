@@ -7,6 +7,7 @@ import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, creat
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
 import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from "../battle/online/belt-engine.js";
+import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
 import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
@@ -189,7 +190,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
  assert(html.includes('./next/runtime/field-status.js?v=3'));
- assert(html.includes('field-visual.js?v=10'));
+ assert(html.includes('field-visual.js?v=11'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
  assert(source.includes('doc.getElementById("game-menu")'));
@@ -548,7 +549,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=7"));
+ assert(html.includes("multiplayer-room-next.js?v=8"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('navigator.clipboard.writeText(address)'));
  assert(source.includes('ui.invite.select()'));
@@ -622,4 +623,19 @@ run("ONLINE BELT entry and transport parse and remain accessible from field and 
  assert(text("index.html").includes("./next/battle/online/"));
  assert(text("battle/index.html").includes("./online/"));
  for(const file of ["belt-engine.js","belt-room.js","belt-online.js"])new vm.SourceTextModule(text("battle/online/"+file));
+});
+
+run("FIELD journal preserves coalesced three attacks and deduplicates old history",()=>{
+ const attack=attackPacket({index:1,x:100,y:100,facing:"E"}),now=10000;
+ const row={events:{}};
+ for(let i=1;i<=3;i++){const patch=attackPatch(attack,i,now+i);row.seq=patch.seq;row.attack=patch.attack;row.events["e"+i]=patch["events/e"+i];}
+ const result=recentAttackEvents(row,0,false,now+4);
+ assert.deepEqual(result.events.map(e=>e.seq),[1,2,3]);assert.equal(result.lastSeq,3);
+ assert.equal(recentAttackEvents(row,3,false,now+5).events.length,0);
+ assert.equal(recentAttackEvents(row,0,true,now+5).events.length,0);
+ assert.equal(recentAttackEvents(row,0,false,now+3000).events.length,0);
+ assert.equal(motionPacket({height:999,action:1,airborne:true}).height,64);
+ assert.equal(motionPacket({action:1}).action,1);
+ const rules=JSON.parse(text("../firebase/database.rules.json")).rules.fieldCombat.$room.$connection;
+ assert(rules.pose.height);assert(rules.events.$slot.seq);
 });
