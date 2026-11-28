@@ -1,3 +1,4 @@
+import { attackPacket } from "../runtime/field-combat.js?v=1";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
@@ -57,6 +58,9 @@ function selfState(){
 let api=null,app=null,auth=null,db=null;
 let session=null,sequence=0,token=0;
 let unsubRoom=null,unsubConnection=null,sendTimer=null,lastSent=null,lastWriteAt=0;
+let unsubCombat=null,combatSeq=0;
+const combatStatus=document.getElementById("room-combat-status");
+const combatSay=message=>{if(combatStatus)combatStatus.textContent=message;};
 const configured=!!(firebaseConfig&&firebaseConfig.apiKey&&firebaseConfig.projectId&&firebaseConfig.appId&&firebaseConfig.databaseURL);
 const savedName=storage.get("gedo-room-name","");
 ui.name.value=savedName||("MAGE-"+String(Math.floor(Math.random()*90)+10));
@@ -143,6 +147,9 @@ async function leaveRoom(){
   if(unsubRoom){unsubRoom();unsubRoom=null;}
   const old=session;session=null;lastSent=null;lastWriteAt=0;
   port.clearPeers();
+  if(unsubCombat){unsubCombat();unsubCombat=null;}
+  port.disableCombat?.();combatSay('攻撃同期：未接続');
+  if(old?.combatRef&&api){try{await api.remove(old.combatRef);await api.onDisconnect(old.combatRef).cancel();}catch{}}
   showInvite();
   if(old?.selfRef && api){
     let removed=false;
@@ -191,6 +198,7 @@ async function joinRoom(raw) {
       if(current!==token)return;
       if(!snap.val()){
         session.connected=false;session.publishing=false;showInvite();
+        session.combatReady=false;port.disableCombat?.();if(unsubCombat){unsubCombat();unsubCombat=null;}combatSay('攻撃同期：再接続待ち');
         say("通信が切れました。自動再接続を試みます","error");
         return;
       }
@@ -202,6 +210,7 @@ async function joinRoom(raw) {
         if(current!==token)return;
         session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
+        startCombat(session,current).catch(e=>{if(current===token){combatSay("攻撃同期：利用不可（ルール確認）");console.warn("field combat",e?.message);}});
       }catch(e){say("参加に失敗："+e.message,"error");}
     },e=>say("接続確認エラー："+e.message,"error"));
     sendTimer=setInterval(()=>publish(current),125);
@@ -209,6 +218,48 @@ async function joinRoom(raw) {
     ui.leave.disabled=false;showInvite();
   }catch(e){if(current===token){await leaveRoom();say("参加できません："+(e?.message||e),"error");}}
 }
+async function startCombat(active,expected){
+  if(!port.receiveAttack||!port.enableCombat)return;
+  const combatRef=api.ref(db,"fieldCombat/"+active.code+"/"+active.id);
+  active.combatRef=combatRef;
+  if(unsubCombat){unsubCombat();unsubCombat=null;}
+  await api.set(combatRef,{owner:auth.currentUser.uid,hp:100,seq:0});
+  if(session!==active||expected!==token){try{await api.remove(combatRef);}catch{}return;}
+  await api.onDisconnect(combatRef).remove();
+  if(session!==active||expected!==token||!active.connected)return;
+  combatSeq=0;port.enableCombat();active.combatReady=true;
+  const seen=new Map();
+  // First snapshot establishes a baseline; old attacks never replay on joining.
+  let baseline=true;
+  unsubCombat=api.onValue(api.ref(db,"fieldCombat/"+active.code),snap=>{
+    if(session!==active||expected!==token||!active.connected)return;
+    const rows=snap.val()||{},hps={};
+    for(const [id,row] of Object.entries(rows)){
+      if(id===active.id||!row)continue;
+      if(Number.isInteger(row.hp)&&row.hp>=0&&row.hp<=100)hps[id]=row.hp;
+      const seq=row.seq;
+      if(!Number.isSafeInteger(seq)||seq<=0||!row.attack)continue;
+      if(!baseline&&seq>(seen.get(id)||0))port.receiveAttack(row.attack);
+      seen.set(id,Math.max(seen.get(id)||0,seq));
+    }
+    baseline=false;port.setPeerHp(hps);
+  },e=>{if(session===active){active.combatReady=false;port.disableCombat();combatSay("攻撃同期：受信エラー");}});
+  combatSay("攻撃同期：有効 · 試験用HP 100");
+}
+window.addEventListener("gedo-field-attack",event=>{
+  const active=session;
+  if(!active?.connected||!active.combatReady)return;
+  const attack=attackPacket(event.detail);
+  if(!attack)return;
+  api.update(active.combatRef,{seq:++combatSeq,attack:{...attack,at:api.serverTimestamp()}})
+    .catch(e=>{if(session===active)combatSay("攻撃同期：送信エラー");});
+});
+window.addEventListener("gedo-field-hp",event=>{
+  const active=session,hp=event.detail;
+  if(!active?.connected||!active.combatReady||!Number.isInteger(hp)||hp<0||hp>100)return;
+  combatSay(hp===0?"HP 0：初期位置に戻るボタンで復帰":"攻撃同期：有効 · HP "+hp+"/100");
+  api.update(active.combatRef,{hp}).catch(e=>{if(session===active)combatSay("HP同期：送信エラー");});
+});
 async function publish(expected){
   if(!session||!session.connected||session.publishing||expected!==token)return;
   const p=port.getSelf();
@@ -225,4 +276,4 @@ async function publish(expected){
     if(expected===token)say("位置同期に失敗："+(e?.message||e),"error");
   }finally{if(expected===token&&session)session.publishing=false;}
 }
-window.addEventListener("pagehide",()=>{if(session)api?.remove(session.selfRef).catch(()=>{});});
+window.addEventListener("pagehide",()=>{if(session){if(session.combatRef)api?.remove(session.combatRef).catch(()=>{});api?.remove(session.selfRef).catch(()=>{});}});
