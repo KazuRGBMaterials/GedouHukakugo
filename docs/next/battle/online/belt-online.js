@@ -1,3 +1,6 @@
+import {shareInvite} from "../../runtime/invite-share.js?v=1";
+import {createBattleAudio} from "../../../battle/audio.js?v=2";
+import {victoryFanfare,createVictoryGate} from "../victory-fanfare.js?v=1";
 import {createFirebaseGateway} from "../../cloud/firebase-service.js?v=4";
 import {createBeltRoom} from "./belt-room.js?v=2";
 import {ownedSide,sideName,availableCommand} from "./belt-engine.js?v=1";
@@ -5,6 +8,16 @@ import {COMMANDS,TIMELINE_SIZE,canShiftImpact,isManual,editableAttack} from "../
 import {gridSides,teamOf,targetFor,jumpLandingCandidates} from "../../../battle/grid-rules.js?v=7";
 const $=id=>document.getElementById(id),gateway=createFirebaseGateway();
 let room=null,state=null,members={},selectedTarget=null,connecting=false;
+const audio=createBattleAudio(new Audio(),{victoryEffect:victoryFanfare});
+const victory=createVictoryGate(()=>audio.play("victory"));
+let soundEnabled=true;
+$("battle-sound").addEventListener("click",()=>{
+ soundEnabled=!soundEnabled;audio.setEnabled(soundEnabled);
+ $("battle-sound").textContent="サウンド "+(soundEnabled?"ON":"OFF");
+ $("battle-sound").setAttribute("aria-pressed",String(soundEnabled));
+ if(soundEnabled)audio.unlock();
+});
+document.addEventListener("click",()=>audio.unlock(),{capture:true});
 const status=message=>{$("status").textContent=message;};
 const prefill=new URLSearchParams(location.search).get("room");if(prefill)$("code").value=prefill.toUpperCase().slice(0,12);
 const button=(text,fn,css)=>{const b=document.createElement("button");b.type="button";b.textContent=text;if(css)b.className=css;b.addEventListener("click",fn);return b;};
@@ -21,11 +34,11 @@ function updateLobby(){
  if(active){const u=new URL(location.href);u.searchParams.set("room",session.code);$("invite").value=u.href;$("code").value=session.code;}
 }
 async function connect(kind){
- if(connecting)return;connecting=true;updateLobby();status("Firebaseに接続しています…");
+ if(connecting)return;audio.unlock();victory.reset();connecting=true;updateLobby();status("Firebaseに接続しています…");
  try{
   const connection=await gateway.connect("realtime");
   room=createBeltRoom({connection,onStatus:status,onMembers:(rows)=>{members=rows;updateLobby();},
-   onState:next=>{state=next;render();updateLobby();}});
+   onState:(next,session)=>{state=next;const side=ownedSide(next,room?.getUid());const won=!!side&&(teamOf(side)==='enemy'?next.battle?.outcome==='敗北':next.battle?.outcome==='勝利');victory.observe(session?.code,next.battle?.phase,won);render();updateLobby();}});
   const name=$("name").value;
   const code=kind==="join"?await room.join($("code").value,name):await room.create(kind,name);
   const url=new URL(location.href);url.searchParams.set("room",code);history.replaceState(null,"",url);
@@ -36,12 +49,12 @@ async function send(intent){
  try{await room.send(intent);}catch(e){showError(e);}
 }
 $("coop").addEventListener("click",()=>connect("coop"));$("versus").addEventListener("click",()=>connect("versus"));$("join").addEventListener("click",()=>connect("join"));
-$("leave").addEventListener("click",async()=>{await room?.leave();room=null;state=null;members={};selectedTarget=null;render();updateLobby();const url=new URL(location.href);url.searchParams.delete("room");history.replaceState(null,"",url);});
+$("leave").addEventListener("click",async()=>{audio.stopEffects();victory.reset();await room?.leave();room=null;state=null;members={};selectedTarget=null;render();updateLobby();const url=new URL(location.href);url.searchParams.delete("room");history.replaceState(null,"",url);});
 $("prepare").addEventListener("click",()=>room.prepare({size:Number($("size").value),enemies:Number($("enemies").value)}).catch(showError));
 $("start").addEventListener("click",()=>room.start().catch(showError));
 $("shift").addEventListener("click",()=>send({kind:"shift"}));
 $("invite").addEventListener("focus",()=>$("invite").select());
-$("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("invite").value);status("招待URLをコピーしました");}catch{$("invite").focus();$("invite").select();status("長押しして招待URLをコピーしてください");}});
+$("copy").addEventListener("click",async()=>{const result=await shareInvite($("invite").value);if(result==="copied")status("招待URLをコピーしました");else if(result==="manual"){$("invite").focus();$("invite").select();status("長押しして招待URLをコピーしてください");}});
 function render(){
  const b=state?.battle,uid=room?.getUid();$("game").hidden=!b;if(!b)return;
  const side=ownedSide(state,uid),sides=gridSides(b),manual=side&&isManual(b,side)&&b.phase!=="finished";

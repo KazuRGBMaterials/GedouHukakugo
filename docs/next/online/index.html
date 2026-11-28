@@ -13,7 +13,9 @@
  <button id="create-coop" type="button">協力ルーム作成</button>
  <button id="create-pvp" type="button">対戦ルーム作成</button>
  <button id="join-room" type="button">コードで参加</button>
- <button id="copy-room" type="button" disabled>招待URLをコピー</button>
+ <button id="copy-room" type="button" disabled>招待URLを共有</button>
+ <button id="arena-sound" type="button" aria-pressed="true">サウンド ON</button>
+ <input id="arena-invite" aria-label="招待URL（手動コピー用）" type="url" readonly hidden style="width:100%;user-select:text;-webkit-user-select:text">
  <button id="leave-room" type="button" disabled>退出</button>
  </div>
  <p id="online-status" role="status" aria-live="polite">Firebaseの設定を確認中…</p>
@@ -35,5 +37,5 @@
 </section>
 <footer>クラウド未設定時はログインせず、データも送信しません。端末識別子はアプリが発行するランダムIDであり、端末の追跡情報ではありません。</footer>
 </main>
-<script type="module" src="./online.js?v=4"></script>
+<script type="module" src="./online.js?v=5"></script>
 </body></html>

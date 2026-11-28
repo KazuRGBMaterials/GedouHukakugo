@@ -7,6 +7,8 @@ import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, creat
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
 import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from "../battle/online/belt-engine.js";
+import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
+import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
 import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
@@ -253,7 +255,7 @@ run("NEXT cloud saves are mounted in FIELD and not BATTLE",()=>{
  assert(field.includes('class="save-options"'));
  assert(!battle.includes("init-battle.js"));
  assert(!battle.includes('id="battle-cloud-target"'));
- assert(battle.includes("battle.js?v=8"));
+ assert(battle.includes("battle.js?v=9"));
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
@@ -549,9 +551,10 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=9"));
+ assert(html.includes("multiplayer-room-next.js?v=10"));
  assert(source.includes('url.hash="room="+code'));
- assert(source.includes('navigator.clipboard.writeText(address)'));
+ assert(source.includes('await shareInvite(address)'));
+ assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
  assert(source.includes('ui.invite.select()'));
  assert(source.includes('ui.panel.hidden=false'));
  assert(source.includes('if(!session?.connected)return;'));
@@ -695,3 +698,25 @@ run("Room code input preserves native text entry, normalizes on join only",()=>{
  assert(modules["/src/actions/ActionButtons.ts"].includes("if(!this.gestures.has('key-'+key))return;"));
  assert(modules["/src/input/KeyboardInput.ts"].includes("if(!this.held.has(key))return;"));
 });
+
+run("NEXT victory cue is layered and only plays once for live winners",()=>{
+ const tones=[],noises=[];victoryFanfare(10,{tone:(...args)=>tones.push(args),noise:(...args)=>noises.push(args)});
+ assert(tones.length>25&&noises.length>4);assert(tones.some(n=>n[5]==="sawtooth"));
+ assert(Math.max(...tones.map(n=>n[0]+n[1]))>12);
+ let played=0;const gate=createVictoryGate(()=>played++);
+ assert(!gate.observe("late","finished",true));
+ gate.observe("match","running",false);assert(gate.observe("match","finished",true));assert(!gate.observe("match","finished",true));
+ gate.observe("loss","running",false);assert(!gate.observe("loss","finished",false));
+ assert.equal(played,1);
+ for(const file of ["battle/battle.js","battle/online/belt-online.js","online/online.js"])assert(text(file).includes("victoryFanfare"));
+});
+await (async()=>{
+ const url="https://example.invalid/?room=ABCD2345",calls=[];
+ assert.equal(await shareInvite(url,{share:async data=>calls.push(data.url),clipboard:{writeText:async()=>{throw Error("should not copy");}}}),"shared");
+ assert.deepEqual(calls,[url]);
+ assert.equal(await shareInvite(url,{share:async()=>{throw Object.assign(Error("cancel"),{name:"AbortError"});},clipboard:{writeText:async()=>calls.push("copy")}}),"cancelled");
+ assert.deepEqual(calls,[url]);
+ assert.equal(await shareInvite(url,{clipboard:{writeText:async data=>calls.push(data)}}),"copied");
+ assert.equal(await shareInvite(url,{}),"manual");
+ console.log("PASS native invite share, cancellation and fallback");
+})();

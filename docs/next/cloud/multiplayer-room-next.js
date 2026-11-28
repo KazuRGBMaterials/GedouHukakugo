@@ -1,3 +1,4 @@
+import {shareInvite} from "../runtime/invite-share.js?v=1";
 import { attackPacket } from "../runtime/field-combat.js?v=2";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=1";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
@@ -91,10 +92,10 @@ ui.share.addEventListener("click",async()=>{
   if(!session?.connected)return;
   const address=inviteAddress(session.code);
   showInvite();
-  try{
-    await navigator.clipboard.writeText(address);
-    say("招待URLをコピーしました","online");
-  }catch{
+  const result=await shareInvite(address);
+  if(result==="shared"||result==="cancelled")return;
+  if(result==="copied"){say("招待URLをコピーしました","online");return;}
+  {
     ui.invite.focus();
     ui.invite.select();
     try{ui.invite.setSelectionRange(0,address.length);}catch{}
