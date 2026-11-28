@@ -12,7 +12,7 @@ import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
 import {createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop,readHitEvents} from "../runtime/field-coop-sync.js";
 import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS,enemySnapshot,enemyMirror,initialEnemySnapshot} from "../runtime/field-enemies.js";
-import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, LASER_RADIUS, HIT_SOUND, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
+import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, LASER_RADIUS, LASER_WIDTH_SCALE, HIT_SOUND, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
@@ -553,7 +553,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=18"));
+ assert(html.includes("multiplayer-room-next.js?v=19"));
  assert(source.includes('url.hash=(session?.mode==="coop"?"coop=":"room=")+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -946,12 +946,12 @@ await (async()=>{
 run("FIELD thick laser penetrates targets, and fire hits only the first target",()=>{
  const world={width:1600,height:1000,obstacles:[]},hits=[];
  const c=new FieldCombat(()=>{},100,{onHit:h=>hits.push(h)});c.enable();
- assert.equal(LASER_RADIUS,12);assert.equal(attackPacket({index:2,x:100,y:100,facing:"E"}).radius,12);
+ assert.equal(LASER_WIDTH_SCALE,3);assert.equal(LASER_RADIUS,9);assert.equal(attackPacket({index:2,x:100,y:100,facing:"E"}).radius,9);
  c.receive({index:2,x:100,y:100,facing:"E"},{source:"local",seq:1});
- const p={x:200,y:125,halfSize:15};
+ const p={x:200,y:124,halfSize:15};
  for(let i=0;i<19;i++)c.tick(.05,world,p);
  assert.equal(c.hp,70);assert.equal(hits.length,6);assert(c.effects[0].life>0);
- c.reset();hits.length=0;c.receive({index:2,x:100,y:100,facing:"E"});for(let i=0;i<20;i++)c.tick(.05,world,{...p,y:128});assert.equal(c.hp,100);assert.equal(hits.length,0);
+ c.reset();hits.length=0;c.receive({index:2,x:100,y:100,facing:"E"});for(let i=0;i<20;i++)c.tick(.05,world,{...p,y:125});assert.equal(c.hp,100);assert.equal(hits.length,0);
  const spawns=[{...ENEMY_SPAWNS[0],x:180,y:100},{...ENEMY_SPAWNS[1],x:260,y:100}];
  const system=new FieldEnemies({spawns,onHit:h=>hits.push(h)});
  system.receive({index:0,x:100,y:100,facing:"E",radius:8},{source:"local",seq:7});
