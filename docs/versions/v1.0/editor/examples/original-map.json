@@ -1,0 +1,152 @@
+{
+  "schema": "gedo-field-map",
+  "version": 1,
+  "name": "古き遺跡への道",
+  "width": 1600,
+  "height": 1000,
+  "spawn": {
+    "x": 160,
+    "y": 520
+  },
+  "objects": [
+    {
+      "id": "original-0",
+      "type": "wall",
+      "x": 225,
+      "y": 140,
+      "w": 330,
+      "h": 34,
+      "solid": true
+    },
+    {
+      "id": "original-1",
+      "type": "wall",
+      "x": 225,
+      "y": 140,
+      "w": 34,
+      "h": 205,
+      "solid": true
+    },
+    {
+      "id": "original-2",
+      "type": "wall",
+      "x": 580,
+      "y": 300,
+      "w": 34,
+      "h": 245,
+      "solid": true
+    },
+    {
+      "id": "original-3",
+      "type": "wall",
+      "x": 580,
+      "y": 300,
+      "w": 185,
+      "h": 34,
+      "solid": true
+    },
+    {
+      "id": "original-4",
+      "type": "wall",
+      "x": 963,
+      "y": 145,
+      "w": 34,
+      "h": 310,
+      "solid": true
+    },
+    {
+      "id": "original-5",
+      "type": "tree",
+      "x": 399,
+      "y": 530,
+      "w": 54,
+      "h": 55,
+      "solid": true
+    },
+    {
+      "id": "original-6",
+      "type": "tree",
+      "x": 842,
+      "y": 163,
+      "w": 53,
+      "h": 56,
+      "solid": true
+    },
+    {
+      "id": "original-7",
+      "type": "tree",
+      "x": 1108,
+      "y": 515,
+      "w": 53,
+      "h": 56,
+      "solid": true
+    },
+    {
+      "id": "original-8",
+      "type": "water",
+      "x": 759,
+      "y": 581,
+      "w": 253,
+      "h": 132,
+      "solid": true
+    },
+    {
+      "id": "original-9",
+      "type": "chest",
+      "x": 455,
+      "y": 670,
+      "w": 48,
+      "h": 48,
+      "solid": true
+    },
+    {
+      "id": "original-10",
+      "type": "chest",
+      "x": 516,
+      "y": 670,
+      "w": 48,
+      "h": 48,
+      "solid": true
+    }
+  ],
+  "paths": [
+    {
+      "id": "road-original",
+      "width": 76,
+      "points": [
+        {
+          "x": 95,
+          "y": 655
+        },
+        {
+          "x": 275,
+          "y": 620
+        },
+        {
+          "x": 325,
+          "y": 450
+        },
+        {
+          "x": 510,
+          "y": 420
+        },
+        {
+          "x": 790,
+          "y": 455
+        },
+        {
+          "x": 1180,
+          "y": 390
+        },
+        {
+          "x": 1365,
+          "y": 370
+        },
+        {
+          "x": 1570,
+          "y": 314
+        }
+      ]
+    }
+  ]
+}

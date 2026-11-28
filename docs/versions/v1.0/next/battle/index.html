@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101924">
+  <title>外道不覚悟 | 戦闘 NEXT</title>
+  <link rel="stylesheet" href="../../battle/style.css?v=12">
+  <link rel="stylesheet" href="../../battle/grid-terrain.css?v=2">
+  <link rel="stylesheet" href="../../battle/grid-size.css?v=1">
+  <link rel="stylesheet" href="../../battle/grid-compact.css?v=1">
+  <link rel="stylesheet" href="../../battle/grid-hellor.css?v=1">
+  <link rel="stylesheet" href="../../battle/modkit/layered-sprite.css?v=1">
+</head>
+<body>
+  <main id="battle-main">
+    <header class="page-header">
+      <a id="field-return" href="../">フィールドへ</a>
+      <a href="./online/" style="color:#b5e6d9">🌐 協力・対戦</a>
+      <h1 id="battle-title">ベルトライン戦闘 NEXT</h1>
+      <button id="battle-sound" class="sound-toggle" type="button" aria-pressed="true">
+        サウンド <span id="battle-sound-state" aria-hidden="true">ON</span>
+      </button>
+      <button id="battle-fullscreen" type="button" aria-pressed="false">全画面</button>
+    </header>
+<details id="online-room" class="battle-notes online-room" hidden open><summary>オンラインルーム・招待</summary><div class="note-content">
+<div class="row"><label>表示名<input id="name" maxlength="16" value="MAGE" autocomplete="off"></label><label>招待コード<input id="code" maxlength="12" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label></div>
+<div class="row"><button id="coop">協力ルーム作成</button><button id="versus">対戦ルーム作成</button><button id="join">コードで参加</button><button id="leave" disabled>退出</button></div>
+<label id="invite-label" hidden>招待URL<input id="invite" type="url" readonly><button id="copy" type="button">招待URLを共有</button></label>
+<p id="status" role="status">未接続</p><p id="members"></p><p id="online-command-status" role="status" aria-live="polite"></p>
+<div id="host-controls" hidden><div class="row"><label>盤面<select id="size"><option>5</option><option selected>7</option><option>9</option><option>11</option></select></label><label>協力時の敵数<select id="enemies"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label><button id="prepare">準備開始（参加者確定）</button><button id="online-start" disabled>戦闘開始</button></div></div>
+<p class="sub">全員参加後に準備開始。戦闘中も上の見出しをタップして招待・退出できます。協力は最大4人の操作枠、対戦は最大4対4の操作枠。追加参加者は観戦になります。ホスト切断時は進行停止。</p>
+</div></details>
+
+    <section class="arena" aria-label="戦闘状態">
+      <div id="player-state" class="fighter">
+        <div id="player-pose" class="pose" aria-hidden="true"><div class="sprite"></div></div>
+        <div>
+          <b class="non-grid-name">MAGE</b>
+          <div id="player-control" class="party-control" hidden>
+            <button id="player-select" class="party-select" type="button" aria-pressed="false">MAGE</button>
+            <button id="player-mode" class="party-mode" type="button" aria-pressed="false">手動</button>
+          </div>
+          <div id="player-resources" class="resources"></div>
+          <div id="player-cue" class="cue"></div>
+        </div>
+      </div>
+      <div class="fighter enemy">
+        <div id="enemy-pose" class="pose" aria-hidden="true"><div class="sprite rival"></div></div>
+        <div>
+          <b id="battle-enemy-name">ネームレス</b>
+          <div id="enemy-resources" class="resources"></div>
+          <div id="enemy-cue" class="cue"></div>
+        </div>
+      </div>
+      <div id="ally-state" class="fighter auxiliary" hidden>
+        <div>
+          <div class="party-control">
+            <button id="ally-select" class="party-select" type="button" aria-pressed="false">味方</button>
+            <button id="ally-mode" class="party-mode" type="button" aria-pressed="true">AUTO</button>
+          </div>
+          <div id="ally-resources" class="resources"></div><div id="ally-cue" class="cue"></div>
+        </div>
+      </div>
+      <div id="enemy2-state" class="fighter enemy auxiliary" hidden>
+        <div><b id="battle-enemy2-name"></b><div id="enemy2-resources" class="resources"></div><div id="enemy2-cue" class="cue"></div></div>
+      </div>
+    </section>
+    <p id="battle-status" class="battle-status" role="status">コマンドを選んで予約してください。</p>
+    <section id="grid-panel" class="grid-panel" aria-label="マス目の戦場" hidden>
+      <div class="grid-topline">
+        <label for="next-visual-mode">キャラ描画 <select id="next-visual-mode"><option value="layered" selected>5レイヤー</option><option value="legacy">従来の一枚絵</option></select></label>
+        <label for="next-character">味方のキャラ定義 <select id="next-character"></select></label>
+        <p id="grid-threat" class="grid-threat"></p>
+        <label id="grid-size-label">対戦人数 <select id="grid-size"><option value="1:1">1対1</option><option value="1:2">1対2</option><option value="2:1">2対1</option><option value="2:2">2対2</option></select></label>
+        <label for="grid-enemy">敵 <select id="grid-enemy"><option value="nameless" selected>ネームレス</option><option value="hellor">ヘルオル</option></select></label>
+        <label for="grid-terrain">地形 <select id="grid-terrain"><option value="mixed" selected>草原＋廃墟</option><option value="grassland">草原</option><option value="ruins">廃墟</option></select></label>
+        <div class="grid-size-controls" role="group" aria-label="盤面の縦横サイズ">
+          <label for="grid-columns">横 <select id="grid-columns" aria-label="フィールドの横幅（列数）">
+            <option value="5" selected>5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+          </select></label>
+          <span aria-hidden="true">×</span>
+          <label for="grid-rows">縦 <select id="grid-rows" aria-label="フィールドの縦幅（行数）">
+            <option value="5" selected>5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+          </select></label>
+        </div>
+      </div>
+      <div class="grid-layout">
+        <div id="grid-viewport" class="grid-viewport" tabindex="0" aria-label="戦場。広い盤面は縦横にスクロールできます">
+          <div id="grid-playfield" class="grid-playfield">
+            <div id="grid-board" class="grid-board" aria-label="戦場 5列5行"></div>
+            <div id="grid-units" class="grid-units" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="grid-info">
+          <p id="grid-plan"></p>
+        </div>
+      </div>
+      <details class="grid-enemy-settings">
+        <summary>敵の性格・戦術</summary>
+        <div class="grid-personality" role="group" aria-label="敵チームの戦術">
+          <label for="grid-tactics">敵チームの戦術
+            <select id="grid-tactics">
+              <option value="standard" selected>従来のAI（初期値）</option>
+              <option value="isolate">各個撃破重視</option>
+              <option value="focus">集団集中攻撃</option>
+              <option value="ruthless">卑劣漢</option>
+              <option value="bait">仲間を囮にする</option>
+              <option value="protect">敵を引き受け仲間を庇う</option>
+              <option value="optimal">最強</option>
+            </select>
+          </label>
+        </div>
+        <p id="grid-tactics-hint" class="grid-info">敵チーム全員へ適用します。戦闘前に選択してください。</p>
+        <fieldset id="grid-personality" class="grid-personality" aria-label="敵の性格">
+          <label for="grid-risk">攻め方
+            <select id="grid-risk">
+              <option value="bold">蛮勇</option>
+              <option value="balanced" selected>中庸</option>
+              <option value="cautious">慎重</option>
+            </select>
+          </label>
+          <label for="grid-waste">無駄な行動
+            <select id="grid-waste">
+              <option value="often">無駄が多い</option>
+              <option value="some" selected>無駄が少し</option>
+              <option value="rarely">無駄がほとんどない</option>
+            </select>
+          </label>
+          <label for="grid-style">戦闘スタイル
+            <select id="grid-style">
+              <option value="power" selected>パワー系</option>
+              <option value="hitRun">ヒットアウェイ系</option>
+              <option value="mage">魔術師系</option>
+            </select>
+          </label>
+        </fieldset>
+        <p id="grid-profile-hint">最初の行動を予約する前に選べます。</p>
+      </details>
+      <p id="grid-result" class="grid-result"></p>
+      <aside id="grid-defeat" class="grid-defeat" aria-label="次の一戦へのアドバイス" hidden>
+        <b>次の一戦へのアドバイス</b>
+        <p id="grid-defeat-tip"></p>
+      </aside>
+    </section>
+    <section class="feedback" aria-label="攻防とスタミナ">
+      <div>
+        <b class="feedback-label">直近の攻防</b>
+        <div id="player-impact" class="impact-result incoming" aria-live="polite"></div>
+        <div id="enemy-impact" class="impact-result"></div>
+      </div>
+      <div>
+        <b id="stamina-label" class="feedback-label">次のスタミナ回復</b>
+        <p id="stamina-cue" class="stamina-cue"></p>
+      </div>
+    </section>
+    <section class="timeline" aria-label="行動のタイムライン" tabindex="0">
+      <div id="time-axis" class="track" aria-hidden="true"></div>
+      <div id="enemy-belt-label" class="belt-name">相手の予定</div>
+      <div id="enemy-belt" class="track"></div>
+      <div id="enemy2-belt-label" class="belt-name" hidden>敵2</div>
+      <div id="enemy2-belt" class="track" hidden></div>
+      <div id="player-belt-label" class="belt-name">MAGE</div>
+      <div id="player-belt" class="track"></div>
+      <div id="ally-belt-label" class="belt-name" hidden>味方</div>
+      <div id="ally-belt" class="track" hidden></div>
+    </section>
+    <section aria-label="コマンド入力" id="commands" class="commands"></section>
+    <div class="controls">
+      <button id="start" class="primary" type="button">戦闘開始</button>
+      <button id="shift" type="button">火炎のインパクトシフト</button>
+      <button id="reset" type="button">最初から</button>
+    </div>
+    <div id="input-status" class="input-status" role="status"></div>
+    <details class="battle-notes">
+      <summary>ログ・操作ガイド</summary>
+      <div class="note-content">
+        <p class="hint">★は発動枠。黄は青に、青は赤に、赤は黄に有利。待機1枠でスタミナを1回復できます。</p>
+        <p class="hint" id="grid-instructions" hidden>味方の名前や盤面の味方をタップして操作キャラを選び、横のボタンで各キャラの手動／AUTOを切り替えます。敵の攻撃対象は自動選択され、★の1枠前に敵をタップすると次の攻撃だけ変更できます。ジャンプ斬りの着地点は緑の候補マスから変更できます。予約済みの行動は切り替えても先に実行されます。</p>
+        <p class="hint">マス目版では青枠をタップすると、1枠・スタミナ0.5で移動を予約します。赤いマスは敵の攻撃範囲です。火炎は術者を中心に縦横各2マスと斜め4マスに届きます。敵が複数いるときは敵をタップして攻撃対象を選べます。最大4対4まで編成できます。盤面は横5～15列・縦5～15行をプルダウンで指定できます。広い盤面は指でスクロールできます。地形は見た目のみで、移動・攻撃のルールは変わりません。</p>
+        <p class="hint battle-links"><a class="version-link" href="../../battle/?grid=1">旧戦闘版</a> <a class="version-link" href="../editor/">次版エディタ</a> <a class="version-link" href="../online/">🌐 オンライン協力・対戦（試験版）</a> <a class="version-link" id="grid-link" href="?grid=1">マス目試作を開く</a> <a class="version-link" href="?grid=1&amp;layers=demo">5層描画デモ</a> <a class="version-link" href="../../battle/ver1/">VER1（保存版）</a> <a class="version-link" href="../../battle/ver2/?grid=1">VER2（保存版）</a> <a class="version-link" href="../../battle/ver3/">VER3（保存版）</a> <a class="version-link" href="../../battle/ver4/">VER4（保存版）</a></p>
+        <section class="battle-log" aria-label="直近の戦闘ログ" id="battle-log"></section>
+      </div>
+    </details>
+  <p style="max-width:650px;margin:10px auto">クラウド保存は <a href="../">FIELD NEXT</a> から利用できます。</p>
+  </main>
+  <audio id="battle-bgm" src="../../battle/battle-loop.wav" preload="none" loop></audio>
+  <link rel="stylesheet" href="./next-battle.css?v=7">
+  <link rel="stylesheet" href="../cloud/cloud-save.css?v=1" />
+<script type="module" src="./battle.js?v=11"></script>
+
+</body>
+</html>

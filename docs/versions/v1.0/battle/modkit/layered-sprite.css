@@ -1,0 +1,18 @@
+/* Only layered characters are affected; untouched one-sheet sprites stay as-is. */
+.grid-unit-sprite.is-layered {
+  background-image: none !important;
+  position: relative;
+  image-rendering: pixelated;
+  isolation: isolate;
+}
+.grid-unit-sprite.is-layered .sprite-part {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+@media (prefers-reduced-motion: reduce) {
+  .grid-unit-sprite.is-layered .sprite-part { transition: none; }
+}

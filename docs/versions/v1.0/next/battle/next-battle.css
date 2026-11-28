@@ -1,0 +1,53 @@
+/* Battle NEXT styling. Entire VER4/legacy stylesheets remain untouched. */
+.next-layered-pose.is-layered { background: none !important; isolation: isolate; position: relative; }
+.next-layered-pose .sprite-part {
+ position:absolute;inset:0;display:block;pointer-events:none;
+ background-repeat:no-repeat;image-rendering:pixelated;
+}
+.grid-topline #next-character {max-width:155px}
+.grid-topline #next-visual-mode {max-width:135px}
+
+/* 40x56 (5:7) is the current MAGE's native per-direction frame.
+   Default 30x42 legacy enemy sheets have the same aspect ratio: enlarge
+   their visual scale to match MAGE, without changing old direction offsets. */
+body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite:not(.is-layered) {
+  scale: 1.333333;
+  transform-origin: center bottom;
+}
+/* Hellor art is already drawn on genuine 40x56 frames; keep it at 1:1
+   with MAGE and do not apply the default enemy 4/3 enlargement. */
+body.grid-mode .grid-unit-hellor .grid-unit-sprite {
+  width: 40px;
+  height: 56px;
+  scale: 1;
+  transform-origin: center bottom;
+}
+/* In non-grid battle, use the same 40x56 proportions for all portraits. */
+body:not(.grid-mode) .pose .sprite:not(.is-layered) {
+  width: 40px;
+  height: 56px;
+  background-size: 160px 112px;
+}
+body.hellor-mode:not(.grid-mode) #enemy-pose .sprite {
+  background-image: url("../../battle/assets/hellor-8dir.png");
+  background-size: 160px 112px;
+}
+@media (max-width: 600px), (max-height: 530px) and (pointer: coarse) {
+  body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite:not(.is-layered) { scale: .826667; }
+  body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite.is-layered { scale: .62; }
+  body.grid-mode .grid-unit-hellor .grid-unit-sprite { scale: .62; }
+}
+
+/* Nameless and MAGE share exactly 40×56 native frames. No enemy zoom. */
+body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite.is-layered {scale:1;--unit-tint:brightness(1);}
+@media (max-width: 600px), (max-height:530px) and (pointer:coarse) {body.grid-mode .grid-unit-enemy:not(.grid-unit-hellor) .grid-unit-sprite.is-layered{scale:.62;}}
+
+/* Online lobby only; combat retains the shared offline layout and sprites. */
+#online-room .row{display:flex;align-items:end;flex-wrap:wrap;gap:6px;margin:6px 0}
+#online-room label{display:block;flex:1;min-width:110px;font-size:12px}
+#online-room input,#online-room select{display:block;width:100%;min-width:0;min-height:44px;background:#223343;color:#eee;border:1px solid #718391;border-radius:5px;padding:6px;font:inherit}
+#online-room button{min-height:44px}#online-room #invite{user-select:text;-webkit-user-select:text;margin:5px 0}
+#online-room .sub{font-size:11px}#online-room[hidden]{display:none!important}
+body.online-lobby #battle-main>.arena,body.online-lobby #battle-main>.battle-status,body.online-lobby #battle-main>.grid-panel,body.online-lobby #battle-main>.feedback,body.online-lobby #battle-main>.timeline,body.online-lobby #battle-main>.commands,body.online-lobby #battle-main>.controls,body.online-lobby #battle-main>.input-status,body.online-lobby #battle-main>.battle-notes:not(#online-room){display:none!important}
+body.belt-online #grid-size-label,body.belt-online label[for="grid-enemy"],body.belt-online .grid-size-controls,body.belt-online .grid-enemy-settings,body.belt-online #grid-defeat,body.belt-online #grid-link,body.belt-online #reset{display:none!important}
+body.belt-online .party-mode{cursor:default}body.belt-online #online-command-status{font-size:12px;color:#b5e6d9}

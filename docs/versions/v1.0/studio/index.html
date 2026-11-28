@@ -1,0 +1,30 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#17152a"/>
+<title>外道不覚悟｜制作工房 GEDO STUDIO</title>
+<link rel="stylesheet" href="./studio.css?v=080"/></head><body>
+<header class="header"><div class="brand"><span class="crest">外</span><div><span class="eyebrow">GEDOU FUKAKUGO · CREATION WORKSPACE</span><h1>GEDO <em>STUDIO</em> <small>α 0.1</small></h1></div></div>
+<nav class="top-actions"><a href="../">▶ ゲーム</a><a href="../editor/">▦ マップエディター</a><button id="export-project" class="primary">↓ プロジェクト保存</button><button id="import-open">↑ 読込</button><input type="file" id="import-file" accept=".json,application/json" hidden/></nav></header>
+<div class="layout">
+<aside class="side"><div class="label">PROJECT MODULES</div><div id="sections" class="modules"></div><div class="label second">WORKFLOW</div><div class="workflow"><span>01 · AIドラフト</span><span>02 · 人が編集</span><span>03 · 確認・承認</span><span>04 · ゲームへ採用</span></div><div class="note">承認していないドラフトは、ゲームの正式データに自動反映しません。</div></aside>
+<main class="main"><div class="titlebar"><div><span class="eyebrow" id="module-subtitle">PROJECT LIBRARY</span><h2 id="module-title">シナリオ</h2><p id="module-help">記録を選んで編集します。</p></div><button id="add-record" class="primary">＋ 新規ドラフト</button></div>
+<div class="main-grid"><section class="records"><div class="pane-head">登録済み <strong id="record-count">0</strong></div><div id="record-list" class="record-list"></div><div class="list-foot">同じIDで各素材を関連付けます。</div></section>
+<section class="inspector"><div id="none" class="empty">左の項目を選ぶか、新規ドラフトを作成してください。</div>
+<form id="record-form" hidden><div class="form-head"><span id="record-id" class="mono"></span><span class="status-pill" id="saved-status">下書き</span></div>
+<label>名称<input id="name" maxlength="100" required/></label>
+<label>状態<select id="state"><option value="draft">AIドラフト / 未確認</option><option value="review">手修正中 / 確認待ち</option><option value="approved">人が承認済み</option></select></label>
+<label>概要・設計意図<textarea id="description" rows="4" maxlength="8000"></textarea></label>
+<label>編集データ（JSON）<textarea id="payload" rows="11" spellcheck="false" class="code"></textarea></label>
+<div class="field-note">編集データには、その分野固有の項目を記録できます。保存前にJSON形式を検証します。</div>
+<div class="relation"><div class="pane-head">他の素材とのつながり</div><div id="links" class="link-list"></div><div class="relation-controls"><select id="link-target"></select><button type="button" id="link-add">関連付け</button></div></div>
+<div class="form-actions"><button type="submit" class="primary">変更を保存</button><button type="button" id="duplicate">複製</button><button type="button" id="delete" class="danger">削除</button></div></form></section></div>
+</main>
+<aside class="right"><div class="label">AI → HUMAN</div><h3>AIドラフトの受け渡し</h3><p>ChatGPTにプロジェクトのシナリオや素材案を考えさせ、JSON形式で受け取り、人の承認を経て使う方式です。</p>
+<button id="copy-prompt" class="wide">AIへの依頼テンプレートをコピー</button>
+<label>AIが作成したJSONを貼り付ける<textarea id="draft-json" rows="9" placeholder='{"module":"scenes","title":"...","description":"...","data":{...}}'></textarea></label>
+<button class="wide primary" id="import-draft">AIドラフトとして追加</button>
+<div class="label second">FIELD MAP BRIDGE</div><p>既存のフィールドエディターのローカル保存と工房のマップ登録を連携します。</p>
+<button class="wide" id="pull-map">エディターのマップを工房へ取り込む</button><button class="wide" id="push-map">選択中のマップをエディターへ送る</button>
+<a class="wide external" href="../editor/">マップエディターを開く</a>
+<div class="label second">PROJECT</div><div class="metrics" id="metrics"></div>
+<div class="note">保存先は現在のブラウザです。端末間の共有はプロジェクトJSONを使います。GitHubやFirebaseへの自動公開は行いません。</div></aside>
+</div><div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="./studio.js?v=080"></script></body></html>

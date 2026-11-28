@@ -44,5 +44,20 @@ try{
  await assertSucceeds(get(ref(host,"fieldCombat/"+code)));
  await assertFails(update(ref(guest,"fieldCombat/"+code+"/"+ids[0]),{hp:0}));
  await assertFails(update(ref(host,"fieldCombat/"+code+"/"+ids[1]),{hp:0}));
+ const coop="fieldCoop/"+code,coPos="coopPlayers/"+code+"/players/",coCombat="coopCombat/"+code+"/";
+ await assertSucceeds(set(ref(host,coop+"/meta"),{owner:"host",connection:ids[0],createdAt:now()}));
+ await assertFails(set(ref(guest,coop+"/meta"),{owner:"guest",connection:ids[1],createdAt:now()}));
+ for(const [i,db,uid] of [[0,host,"host"],[1,guest,"guest"]]){
+  await assertSucceeds(set(ref(db,coPos+ids[i]),{owner:uid,label:uid,color:0,x:100+i*50,y:100,facing:"E",moving:false,seq:1,updatedAt:now()}));
+  await assertSucceeds(set(ref(db,coCombat+ids[i]),{owner:uid,hp:100,seq:0,pose}));
+  const attack={index:1,x:100+i*50,y:100,dx:i?-1:1,dy:0,radius:15,combo:1,kind:"cast",at:now()};
+  await assertSucceeds(update(ref(db,coCombat+ids[i]),{seq:1,attack,"events/e1":{...attack,seq:1}}));
+ }
+ const snap={revision:1,payload:JSON.stringify({enemies:[],events:[]}),updatedAt:now()};
+ await assertSucceeds(set(ref(host,coop+"/state"),snap));await assertSucceeds(get(ref(guest,coop+"/state")));
+ await assertFails(set(ref(guest,coop+"/state"),{...snap,revision:2}));
+ await assertFails(update(ref(guest,coCombat+ids[0]),{hp:0}));
+ await assertSucceeds(remove(ref(host,coPos+ids[0])));
+ await assertFails(set(ref(host,coop+"/state"),{...snap,revision:2}));
  console.log("PASS real RTDB rules: both guests and hosts, command variants, field attacks, HP and isolation");
 }finally{await env.cleanup();}

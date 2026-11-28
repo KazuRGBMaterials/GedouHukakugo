@@ -357,6 +357,207 @@
           }
         }
       }
+    },
+    "coopPlayers": {
+      "$room": {
+        "players": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+          "$connection": {
+            ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && ((!data.exists() && !newData.exists()) || (!data.exists() && newData.exists() && newData.child('owner').val() == auth.uid) || (data.child('owner').val() == auth.uid && (!newData.exists() || newData.child('owner').val() == auth.uid))) && (!data.exists() || !newData.exists() || now - data.child('updatedAt').val() >= 60)",
+            ".validate": "newData.hasChildren(['owner','label','color','x','y','facing','moving','seq','updatedAt'])",
+            "owner": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "label": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+            },
+            "color": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
+            },
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            },
+            "facing": {
+              ".validate": "newData.isString() && newData.val().matches(/^(N|NE|E|SE|S|SW|W|NW)$/)"
+            },
+            "moving": {
+              ".validate": "newData.isBoolean()"
+            },
+            "seq": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 20000"
+            },
+            "$extra": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+    "coopCombat": {
+      "$room": {
+        ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+        "$connection": {
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && $connection.matches(/^P[a-f0-9]{24}$/) && ((!newData.exists() && data.child('owner').val() == auth.uid) || (newData.exists() && root.child('coopPlayers').child($room).child('players').child($connection).child('owner').val() == auth.uid && newData.child('owner').val() == auth.uid && (!data.exists() || data.child('owner').val() == auth.uid)))",
+          ".validate": "newData.hasChildren(['owner','hp','seq']) && ((newData.child('seq').val() == 0 && !newData.child('attack').exists()) || (newData.child('seq').val() > 0 && newData.child('attack').exists()))",
+          "owner": {
+            ".validate": "newData.isString() && newData.val() == auth.uid"
+          },
+          "hp": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "seq": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+          },
+          "attack": {
+            ".validate": "newData.hasChildren(['index','x','y','dx','dy','radius','combo','kind','at'])",
+            "index": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            },
+            "dx": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "dy": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "radius": {
+              ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 22"
+            },
+            "combo": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+            },
+            "kind": {
+              ".validate": "newData.isString() && (newData.val() == 'cast' || newData.val() == 'dive' || newData.val() == 'land')"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 30000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          },
+          "pose": {
+            ".validate": "newData.hasChildren(['height','airborne','action','charge','angle','chargeSeconds','dash','facing'])",
+            "height": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 64"
+            },
+            "airborne": {
+              ".validate": "newData.isBoolean()"
+            },
+            "action": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 3"
+            },
+            "charge": {
+              ".validate": "newData.isBoolean()"
+            },
+            "angle": {
+              ".validate": "newData.isNumber() && newData.val() >= -3.15 && newData.val() <= 3.15"
+            },
+            "chargeSeconds": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1.4"
+            },
+            "dash": {
+              ".validate": "newData.isBoolean()"
+            },
+            "facing": {
+              ".validate": "newData.isString() && (newData.val() == 'N' || newData.val() == 'NE' || newData.val() == 'E' || newData.val() == 'SE' || newData.val() == 'S' || newData.val() == 'SW' || newData.val() == 'W' || newData.val() == 'NW')"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "events": {
+            "$slot": {
+              ".validate": "($slot == 'e0' || $slot == 'e1' || $slot == 'e2' || $slot == 'e3' || $slot == 'e4' || $slot == 'e5' || $slot == 'e6' || $slot == 'e7' || $slot == 'e8' || $slot == 'e9' || $slot == 'e10' || $slot == 'e11' || $slot == 'e12' || $slot == 'e13' || $slot == 'e14' || $slot == 'e15') && newData.hasChildren(['index','x','y','dx','dy','radius','combo','kind','at','seq'])",
+              "index": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+              },
+              "dx": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+              },
+              "dy": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+              },
+              "radius": {
+                ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 22"
+              },
+              "combo": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+              },
+              "kind": {
+                ".validate": "newData.isString() && (newData.val() == 'cast' || newData.val() == 'dive' || newData.val() == 'land')"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 30000"
+              },
+              "$other": {
+                ".validate": false
+              },
+              "seq": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000000000"
+              }
+            }
+          }
+        }
+      }
+    },
+    "fieldCoop": {
+      "$room": {
+        "meta": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && !data.exists() && newData.child('owner').val() == auth.uid",
+          ".validate": "newData.hasChildren(['owner','connection','createdAt'])",
+          "owner": {
+            ".validate": "newData.isString() && newData.val() == auth.uid"
+          },
+          "connection": {
+            ".validate": "newData.isString() && newData.val().matches(/^P[a-f0-9]{24}$/)"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "state": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && root.child('fieldCoop').child($room).child('meta').child('owner').val() == auth.uid && root.child('coopPlayers').child($room).child('players').child(root.child('fieldCoop').child($room).child('meta').child('connection').val()).child('owner').val() == auth.uid && newData.exists()",
+          ".validate": "newData.hasChildren(['revision','payload','updatedAt']) && (!data.exists() || newData.child('revision').val() >= data.child('revision').val())",
+          "revision": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+          },
+          "payload": {
+            ".validate": "newData.isString() && newData.val().length <= 30000"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

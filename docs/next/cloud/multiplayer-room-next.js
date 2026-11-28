@@ -1,6 +1,7 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
-import { attackPacket } from "../runtime/field-combat.js?v=6";
+import { attackPacket } from "../runtime/field-combat.js?v=7";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
+import { createNpcJournal,readNpcSnapshot } from "../runtime/field-coop-sync.js?v=1";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
@@ -15,6 +16,7 @@ const ui = {
   name:document.getElementById("room-name"),
   code:document.getElementById("room-code"),
   color:document.getElementById("room-color"),
+  mode:document.getElementById("room-mode"),
   create:document.getElementById("room-create"),
   join:document.getElementById("room-join"),
   leave:document.getElementById("room-leave"),
@@ -39,7 +41,7 @@ function say(msg,state="idle"){
   ui.status.textContent=msg;
   ui.status.dataset.state=state;
   if(!session){ui.summary.textContent=state==="error"?"通信エラー":"SOLO / 未接続";return;}
-  if(state==="online")ui.summary.textContent="ROOM "+session.code+" · "+session.count+"人";
+  if(state==="online")ui.summary.textContent=(session.mode==="coop"?"COOP ":"ROOM ")+session.code+" · "+session.count+"人";
   else ui.summary.textContent="ROOM "+session.code+" · 接続確認中";
 }
 function selfState(){
@@ -63,14 +65,16 @@ let unsubRoom=null,unsubConnection=null,sendTimer=null,lastSent=null,lastWriteAt
 let unsubCombat=null,combatSeq=0,serverOffset=0,unsubClock=null;
 let combatRetry=null;
 function stopCombatRetry(){if(combatRetry!==null){clearTimeout(combatRetry);combatRetry=null;}}
+const npcStatus=document.getElementById("room-npc-status");
+const npcSay=message=>{if(npcStatus)npcStatus.textContent=message;};
 const combatStatus=document.getElementById("room-combat-status");
 const combatSay=message=>{if(combatStatus)combatStatus.textContent=message;};
 const configured=!!(firebaseConfig&&firebaseConfig.apiKey&&firebaseConfig.projectId&&firebaseConfig.appId&&firebaseConfig.databaseURL);
 const savedName=storage.get("gedo-room-name","");
 ui.name.value=savedName||("MAGE-"+String(Math.floor(Math.random()*90)+10));
 ui.color.value=storage.get("gedo-room-color","0");
-const fragment=(location.hash.match(/room=([A-HJ-NP-Z2-9]{8})/i)||[])[1];
-if(fragment){ui.code.value=fragment.toUpperCase();ui.panel.hidden=false;}
+const fragment=location.hash.match(/(?:^#|&)\b(room|coop)=([A-HJ-NP-Z2-9]{8})(?:&|$)/i);
+if(fragment){ui.code.value=fragment[2].toUpperCase();ui.mode.value=fragment[1].toLowerCase()==="coop"?"coop":"versus";ui.panel.hidden=false;}
 ui.panel.addEventListener("touchmove",event=>event.stopPropagation(),{passive:true});
 window.addEventListener("keydown",event=>{if(event.key==="Escape"&&!ui.panel.hidden)ui.panel.hidden=true;});
 ui.toggle.addEventListener("click",()=>{ui.panel.hidden=!ui.panel.hidden;});
@@ -80,7 +84,7 @@ ui.color.addEventListener("change",()=>storage.set("gedo-room-color",ui.color.va
 // Preserve native input and IME composition. Normalize only when Join is pressed (validCode).
 function inviteAddress(code){
   const url=new URL(location.href);
-  url.hash="room="+code;
+  url.hash=(session?.mode==="coop"?"coop=":"room=")+code;
   return url.href;
 }
 function showInvite(){
@@ -104,7 +108,7 @@ ui.share.addEventListener("click",async()=>{
     say("招待URLを選択しました。長押ししてコピーしてください","online");
   }
 });
-ui.create.addEventListener("click",()=>joinRoom(randomCode()));
+ui.create.addEventListener("click",()=>joinRoom(randomCode(),true));
 ui.join.addEventListener("click",()=>{
   const code=validCode(ui.code.value);
   if(!code){say("ルームコードは英数字8文字です","error");return;}
@@ -141,7 +145,7 @@ async function ensureReady(){
   if(!auth.currentUser)throw new Error("匿名認証に失敗しました");
 }
 function setAvailable(connected){
-  ui.create.disabled=!connected;ui.join.disabled=!connected;
+  ui.create.disabled=!connected||!!session;ui.join.disabled=!connected||!!session;ui.mode.disabled=!connected||!!session;
   ui.leave.disabled=!connected;ui.share.disabled=!session?.connected;
 }
 async function leaveRoom(){
@@ -149,11 +153,12 @@ async function leaveRoom(){
   if(sendTimer){clearInterval(sendTimer);sendTimer=null;}
   if(unsubConnection){unsubConnection();unsubConnection=null;}
   if(unsubRoom){unsubRoom();unsubRoom=null;}
+  if(session?.unsubNpc)session.unsubNpc();
   const old=session;session=null;lastSent=null;lastWriteAt=0;
   port.clearPeers();port.setRoomActive?.(false);
   if(unsubCombat){unsubCombat();unsubCombat=null;}
   if(unsubClock){unsubClock();unsubClock=null;}
-  port.disableCombat?.();combatSay('攻撃同期：未接続');
+  port.disableCombat?.();combatSay('攻撃同期：未接続');npcSay("");
   if(old?.combatRef&&api){try{await api.remove(old.combatRef);await api.onDisconnect(old.combatRef).cancel();}catch{}}
   showInvite();
   if(old?.selfRef && api){
@@ -163,14 +168,15 @@ async function leaveRoom(){
     if(removed)try{await api.onDisconnect(old.selfRef).cancel();}catch{}
   }
   setAvailable(false);
-  if(api)setAvailable(true);
+  if(api)setAvailable(true);ui.leave.disabled=true;
   say("退出しました。ほかの端末には影響しません");
 }
 function connectionId() {
   const b=new Uint8Array(12);crypto.getRandomValues(b);
   return "P"+Array.from(b,v=>v.toString(16).padStart(2,"0")).join("");
 }
-async function joinRoom(raw) {
+async function joinRoom(raw,creating=false) {
+  const mode=ui.mode.value==="coop"?"coop":"versus";
   const code=validCode(raw);
   if(!code){say("正しい8文字のルームコードを入力してください","error");return;}
   if(!api) {
@@ -184,18 +190,35 @@ async function joinRoom(raw) {
     await ensureReady();
     if(current!==token)return;
     const id=connectionId();
-    const playersRef=api.ref(db,"rooms/"+code+"/players");
+    let meta=null;
+    if(mode==="coop"){
+      const metaRef=api.ref(db,"fieldCoop/"+code+"/meta");
+      const snap=await api.get(metaRef);
+      if(creating){
+        if(snap.exists())throw Error("コードが既に存在します。新規作成をやり直してください");
+        meta={owner:auth.currentUser.uid,connection:id,createdAt:api.serverTimestamp()};
+        await api.set(metaRef,meta);
+      }else{
+        if(!snap.exists())throw Error("協力部屋が見つかりません。モードとコードを確認してください");
+        meta=snap.val();
+      }
+      if(current!==token)return;
+    }
+    const playersRef=api.ref(db,(mode==="coop"?"coopPlayers/":"rooms/")+code+"/players");
     const selfRef=api.child(playersRef,id);
-    session={code,id,selfRef,playersRef,count:0,connected:false,publishing:false};
+    session={code,id,selfRef,playersRef,mode,host:mode==="coop"&&creating,hostId:meta?.connection,count:0,connected:false,publishing:false,
+      npcJournal:createNpcJournal(),npcRevision:0,npcWriting:false,npcLastAt:0,npcSeen:0,npcBaseline:true,hostPresent:false,npcReady:false,npcReceivedAt:0};
     ui.code.value=code;
     ui.name.value=ui.name.value.trim().slice(0,16)||"プレイヤー";
     storage.set("gedo-room-name",ui.name.value);
     storage.set("gedo-room-color",ui.color.value);
-    history.replaceState(null,"",location.pathname+location.search+"#room="+code);
+    history.replaceState(null,"",location.pathname+location.search+(mode==="coop"?"#coop=":"#room=")+code);
     unsubRoom=api.onValue(playersRef,snap=>{
       if(current!==token)return;
       const items=snap.val()||{},entries=Object.entries(items).slice(0,40).map(([id,item])=>({id,...item}));
       session.count=entries.length;
+      session.hostPresent=entries.some(p=>p.id===session.hostId);
+      if(session.mode==="coop"&&!session.host&&session.npcReady&&!session.hostPresent){session.npcReady=false;port.pauseCoop?.();npcSay("ホストの接続待ち（CPU停止）");}
       port.setPeers(entries,id);
       if(session.connected)say("接続中："+session.count+"人が同じフィールドにいます","online");
     },e=>say("共有フィールドの読込エラー："+e.message,"error"));
@@ -204,7 +227,7 @@ async function joinRoom(raw) {
       if(current!==token)return;
       if(!snap.val()){
         stopCombatRetry();session.connected=false;session.publishing=false;showInvite();
-        session.combatReady=false;port.disableCombat?.();if(unsubCombat){unsubCombat();unsubCombat=null;}combatSay('攻撃同期：再接続待ち');
+        session.combatReady=false;port.pauseCoop?.();if(session.unsubNpc){session.unsubNpc();session.unsubNpc=null;}session.npcReady=false;port.disableCombat?.();if(unsubCombat){unsubCombat();unsubCombat=null;}combatSay('攻撃同期：再接続待ち');
         say("通信が切れました。自動再接続を試みます","error");
         return;
       }
@@ -214,7 +237,7 @@ async function joinRoom(raw) {
         if(current!==token)return;
         await api.set(selfRef,selfState());
         if(current!==token)return;
-        port.setRoomActive?.(true);session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
+        port.setRoomActive?.(true);if(mode==="coop"){port.setCoopRole?.(session.host?"host":"guest");port.pauseCoop?.();npcSay("協力戦闘：同期準備中");}session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
         connectCombat(session,current);
       }catch(e){say("参加に失敗："+e.message,"error");}
@@ -229,7 +252,7 @@ function connectCombat(active,expected){
   stopCombatRetry();active.combatStarting=true;
   startCombat(active,expected).catch(e=>{
     if(session!==active||expected!==token)return;
-    active.combatReady=false;port.disableCombat?.();
+    active.combatReady=false;port.pauseCoop?.();port.disableCombat?.();
     combatSay("攻撃同期：接続失敗 / "+(e?.message||e)+"（fieldCombatのルール確認）");
     console.warn("field combat",e?.message);
     if(active.connected)combatRetry=setTimeout(()=>connectCombat(active,expected),5000);
@@ -237,7 +260,8 @@ function connectCombat(active,expected){
 }
 async function startCombat(active,expected){
   if(!port.receiveAttack||!port.enableCombat)return;
-  const combatRef=api.ref(db,"fieldCombat/"+active.code+"/"+active.id);
+  const combatRoot=(active.mode==="coop"?"coopCombat/":"fieldCombat/")+active.code;
+  const combatRef=api.ref(db,combatRoot+"/"+active.id);
   active.combatRef=combatRef;
   if(unsubCombat){unsubCombat();unsubCombat=null;}
   await api.set(combatRef,{owner:auth.currentUser.uid,hp:100,seq:0,pose:motionPacket(port.getMotion?.())}).catch(e=>{throw Error("戦闘参加登録: "+e.message);});
@@ -246,12 +270,13 @@ async function startCombat(active,expected){
   await api.onDisconnect(combatRef).remove().catch(e=>{throw Error("切断時退出登録: "+e.message);});
   if(session!==active||expected!==token||!active.connected)return;
   port.enableCombat();active.combatReady=true;
+  if(active.mode==="coop")startNpcSync(active,expected);
   const seen=new Map();active.sentAttacks=0;active.receivedAttacks=0;
   function reportCombat(){if(active.combatReady)combatSay("攻撃同期：有効 · HP "+port.getHp()+"/100 · 送信 "+active.sentAttacks+" / 受信 "+active.receivedAttacks);}
   active.reportCombat=reportCombat;
   // First snapshot establishes a baseline; old attacks never replay on joining.
   let baseline=true;
-  unsubCombat=api.onValue(api.ref(db,"fieldCombat/"+active.code),snap=>{
+  unsubCombat=api.onValue(api.ref(db,combatRoot),snap=>{
     if(session!==active||expected!==token||!active.connected)return;
     const rows=snap.val()||{},hps={};
     for(const [id,row] of Object.entries(rows)){
@@ -264,12 +289,44 @@ async function startCombat(active,expected){
     }
     baseline=false;port.setPeerHp(hps);
     port.setPeerMotion?.(Object.fromEntries(Object.entries(rows).filter(([id,row])=>id!==active.id&&row?.pose).map(([id,row])=>[id,{pose:motionPacket(row.pose)}])));
-  },e=>{if(session===active){active.combatReady=false;port.disableCombat();combatSay("攻撃同期：受信エラー "+e.message);stopCombatRetry();combatRetry=setTimeout(()=>connectCombat(active,expected),5000);}});
+  },e=>{if(session===active){active.combatReady=false;port.pauseCoop?.();port.disableCombat();combatSay("攻撃同期：受信エラー "+e.message);stopCombatRetry();combatRetry=setTimeout(()=>connectCombat(active,expected),5000);}});
   reportCombat();
 }
+function startNpcSync(active,expected){
+ if(active.unsubNpc){active.unsubNpc();active.unsubNpc=null;}
+ active.npcRef=api.ref(db,"fieldCoop/"+active.code+"/state");
+ if(active.host){
+  port.setCoopRole?.("host");port.pauseCoop?.();active.npcReady=false;active.npcLastAt=0;void publishNpc(active);return;
+ }
+ active.unsubNpc=api.onValue(active.npcRef,snap=>{
+  if(session!==active||expected!==token||!active.connected||!active.combatReady)return;
+  const row=snap.val();if(!row||!active.hostPresent||!Number.isFinite(row.updatedAt)||Date.now()+serverOffset-row.updatedAt>5000){port.pauseCoop?.();active.npcReady=false;npcSay("ホストの同期待ち（CPU停止）");return;}
+  const result=readNpcSnapshot(row.payload,active.npcSeen,active.npcBaseline,Date.now()+serverOffset);
+  if(!result)return;
+  active.npcSeen=result.lastSeq;active.npcBaseline=false;active.npcReady=true;active.npcReceivedAt=Date.now();
+  port.setCoopRole?.("guest");port.setCoopSnapshot?.(result.enemies);
+  for(const detail of result.events)port.receiveNpcAttack?.(detail);
+ },e=>{if(session===active){port.pauseCoop?.();active.npcReady=false;npcSay("CPU同期エラー："+e.message);}});
+}
+async function publishNpc(active){
+ if(session!==active||!active.connected||!active.combatReady||!active.host||!active.npcRef||active.npcWriting||Date.now()<(active.npcRetryAt||0))return;
+ const enemies=port.getCoopSnapshot?.();if(!enemies)return;
+ const payload=active.npcJournal.serialize(enemies),now=Date.now();
+ if(active.npcReady&&payload===active.npcLastPayload&&now-active.npcLastAt<1000)return;
+ active.npcWriting=true;
+ try{
+  await api.set(active.npcRef,{revision:++active.npcRevision,payload,updatedAt:api.serverTimestamp()});
+  if(session===active&&active.connected&&active.combatReady){active.npcLastPayload=payload;active.npcLastAt=now;if(!active.npcReady){active.npcReady=true;port.setCoopRole?.("host");}}
+ }catch(e){if(session===active){active.npcReady=false;active.npcRetryAt=Date.now()+3000;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message);}}
+ finally{active.npcWriting=false;}
+}
+window.addEventListener("gedo-coop-npc-attack",event=>{
+ const active=session;if(active?.host&&active.connected&&active.combatReady&&active.npcReady)active.npcJournal.append(event.detail,Date.now()+serverOffset);
+});
 window.addEventListener("gedo-field-attack",event=>{
   const active=session;
   if(!active?.connected)return;
+  if(active.mode==="coop"&&!active.npcReady){npcSay("CPU同期準備中");return;}
   if(!active.combatReady){combatSay("攻撃同期：未接続（fieldCombatのルール確認）");return;}
   const attack=attackPacket(event.detail);
   if(!attack)return;
@@ -295,6 +352,10 @@ async function publishPose(active){
 async function publish(expected){
   if(!session||!session.connected||expected!==token)return;
   publishPose(session);
+  if(session.mode==="coop"){
+    if(session.host)void publishNpc(session);
+    else if(session.npcReady&&(!session.hostPresent||Date.now()-session.npcReceivedAt>5000)){session.npcReady=false;port.pauseCoop?.();npcSay("ホストの同期待ち（CPU停止）");}
+  }
   if(session.publishing)return;
   const p=port.getSelf();
   const next={x:p.x,y:p.y,facing:p.facing,moving:!!p.moving};
