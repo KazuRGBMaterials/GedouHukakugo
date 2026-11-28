@@ -1,0 +1,109 @@
+/*
+ * FIELD NEXT 1.1 / collision-free controls.
+ * Loaded after legacy multi-version styles; no event-handler or hitbox changes.
+ * Fixed CSS Grid positions replace generations of overlapping absolute offsets.
+ */
+.game-frame .action-panel{
+ --field-face:58px;--field-face-gap:8px;
+ width:216px;right:max(12px,env(safe-area-inset-right));
+ bottom:max(10px,env(safe-area-inset-bottom));
+ gap:8px;align-items:center;
+}
+.game-frame .action-panel .shoulder-row{
+ width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+}
+.game-frame .action-panel .shoulder-btn{
+ box-sizing:border-box;width:100%;height:40px;min-height:36px;max-height:none;
+}
+.game-frame .action-panel .skill-spacer{display:none!important;height:0!important;}
+.game-frame .action-panel .diamond{
+ display:grid!important;position:relative;
+ grid-template-columns:repeat(3,var(--field-face));
+ grid-template-rows:repeat(3,var(--field-face));
+ gap:var(--field-face-gap);
+ width:max-content!important;height:max-content!important;
+ max-width:none;align-self:center;justify-content:center;align-content:center;
+}
+.game-frame .action-panel .diamond .face-btn{
+ position:static!important;top:auto!important;right:auto!important;
+ bottom:auto!important;left:auto!important;
+ box-sizing:border-box;
+ width:var(--field-face)!important;height:var(--field-face)!important;
+ min-width:0;min-height:0;margin:0;
+ border-radius:50%!important;clip-path:none!important;
+ padding:4px 2px;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;line-height:1.05;
+ font-size:21px!important;box-shadow:0 3px 9px #071519a8!important;
+}
+.game-frame .action-panel .diamond .face-btn small{
+ display:block;font-size:9px;line-height:1.2;letter-spacing:0;margin-top:2px;
+}
+.game-frame .diamond .face-x{grid-row:1;grid-column:2;}
+.game-frame .diamond .face-y{grid-row:2;grid-column:1;}
+.game-frame .diamond .face-a{grid-row:2;grid-column:3;}
+.game-frame .diamond .face-b{grid-row:3;grid-column:2;}
+/* Top actions stay a dedicated row, separate from the large character HUD. */
+.game-frame .game-actions{display:flex;flex-wrap:nowrap;gap:5px;max-width:none;}
+.game-frame .game-actions button{white-space:nowrap;min-height:32px;}
+/* The room indicator must never sit on the top action row. */
+.game-frame .room-summary{top:57px;}
+/* In compact portrait screens, put the top actions into their own two-by-two grid. */
+@media (max-width:740px){
+ .game-frame .action-panel{
+  --field-face:52px;--field-face-gap:6px;
+  width:184px;right:8px;bottom:8px;gap:6px;
+ }
+ .game-frame .action-panel .shoulder-btn{height:38px;min-height:34px;}
+ .game-frame .action-panel .diamond .face-btn{font-size:19px!important;}
+ .game-frame .game-actions{gap:3px;right:7px;top:7px;}
+ .game-frame .game-actions button{padding:6px 7px!important;font-size:10px!important;}
+ .game-frame .room-summary{top:47px;right:7px;}
+}
+@media (max-width:480px){
+ .game-frame .game-actions{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  width:min(188px,calc(100% - 150px));max-width:none;
+  gap:4px;right:7px;top:6px;
+ }
+ .game-frame .game-actions button{
+  min-width:0;width:100%;min-height:31px;
+  padding:5px 3px!important;font-size:9px!important;
+  white-space:normal;line-height:1.15;
+ }
+ .game-frame .room-summary{top:112px;right:7px;}
+}
+@media (max-height:600px){
+ .game-frame .action-panel{
+  --field-face:44px;--field-face-gap:5px;
+  width:160px;right:6px;bottom:5px;gap:4px;
+ }
+ .game-frame .action-panel .shoulder-btn{height:32px;min-height:30px;font-size:14px;}
+ .game-frame .action-panel .diamond .face-btn{font-size:17px!important;}
+ .game-frame .action-panel .diamond .face-btn small{font-size:8px;}
+ .game-frame .control-panel{left:9px;bottom:6px;}
+ .game-frame .joystick{width:94px;height:94px;}
+}
+@media (max-height:430px){
+ .game-frame .game-actions{top:5px;}
+ /* Not a button: hide the room summary only in extremely short landscapes. */
+ .game-frame .room-summary{display:none;}
+}
+@media (max-height:360px){
+ /* Even a short landscape can keep every action accessible on a single row. */
+ .game-frame .character-hud{display:none;}
+ .game-frame .game-actions{display:flex;width:auto;gap:2px;right:4px;top:4px;}
+ .game-frame .game-actions button{
+  min-height:26px;padding:3px 4px!important;font-size:8px!important;white-space:nowrap;
+ }
+ .game-frame .action-panel{
+  --field-face:36px;--field-face-gap:4px;width:140px;gap:3px;
+ }
+ .game-frame .action-panel .shoulder-btn{height:28px;min-height:26px;}
+ .game-frame .joystick{width:78px;height:78px;}
+}
+@media (max-width:340px){
+ .game-frame .action-panel{--field-face:42px;--field-face-gap:5px;width:150px;right:4px;}
+ .game-frame .joystick{width:86px;height:86px;}
+ .game-frame .control-panel{left:7px;}
+ .game-frame .game-actions{width:calc(100% - 133px);}
+}

@@ -209,6 +209,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
 <link rel="stylesheet" href="./assets/arcane-theme.css?v=080" />
 <link rel="stylesheet" href="./assets/field-portrait.css?v=1" />
 <link rel="stylesheet" href="./next/runtime/field-status.css?v=1" />
+<link rel="stylesheet" href="./next/runtime/field-controls-responsive.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -259,6 +260,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
 <p class="next-mode-choices" style="padding:7px;background:#101f28;border:1px solid #61736e;border-radius:6px;display:flex;flex-wrap:wrap;align-items:center;gap:9px;">
   <label for="next-visual-mode">描画方式</label>
   <select id="next-visual-mode" style="padding:7px"><option value="layered" selected>肌・目・服・髪・装飾（5層）</option><option value="legacy">以前の一枚絵</option></select>
+  <label for="next-avatar-scale">キャラの大きさ（5層）</label><input id="next-avatar-scale" type="range" min="70" max="150" step="5" value="100" style="width:105px;accent-color:#a9e3d5;touch-action:pan-x" aria-label="フィールドキャラの表示サイズ"><output id="next-avatar-scale-label" for="next-avatar-scale">100%</output>
   <label for="next-map-choice">登録マップ</label><select id="next-map-choice" style="padding:7px"></select>
   <button id="next-map-open" type="button" style="padding:7px">選んだマップで開始</button>
   <a href="./next/battle/?grid=1" style="color:#b5e6d9">戦闘NEXT</a> <a href="./next/online/" style="color:#b5e6d9">🌐 協力・対戦</a>
@@ -303,7 +305,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
   <script type="module">
 import { FieldDialogue, exampleFieldObjects, fieldObjectDetails, withFieldObjects } from "./assets/field-objects.js?v=096";
 import { bindGameTaps, isGameTouchControl } from "./assets/game-taps.js?v=1";
-import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=9";
+import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=10";
 const fieldVisualPort=createFieldVisualPort();
 window.__nextMapPort=fieldVisualPort;
 setupFieldControls(fieldVisualPort);
