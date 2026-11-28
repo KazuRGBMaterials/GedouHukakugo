@@ -1,5 +1,5 @@
 /** Transport-neutral bounded event journal. Each CPU attack has one unique sequence. */
-import {attackPacket} from "./field-combat.js?v=8";
+import {attackPacket} from "./field-combat.js?v=9";
 const MAX_EVENTS=32;
 export function createNpcJournal(previous=null){
  let seq=0,events=[],hitSeq=0,hits=[];
