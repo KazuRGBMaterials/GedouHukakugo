@@ -26,7 +26,7 @@ function move(e,dx,dy,speed,dt,w){
  e.moving=Math.hypot(e.x-x,e.y-y)>.01;return e.moving;
 }
 export class FieldEnemies{
- constructor({sendAttack=()=>{},onDefeat=()=>{},spawns=ENEMY_SPANS()}={}){
+ constructor({sendAttack=()=>{},onDefeat=()=>{},spawns=ENEMY_SPAWNS}={}){
   this.sendAttack=sendAttack;this.onDefeat=onDefeat;this.spawns=spawns;this.active=true;this.reset();
  }
  reset(){
@@ -80,7 +80,7 @@ export class FieldEnemies{
     e.facing=facing(w.aim.x-e.x,w.aim.y-e.y);
     if(w.elapsed+1e-9>=w.duration){
      e.windup=null;const combo=w.index===1?(boss?(e.combo%3)+1:1):1;if(w.index===1)e.combo=combo;
-     this.cast(e,w.index,w.aim,combo);e.cooldown=w.index===2?1.05:w.index===3?.75:w.index===0?(boss?.55:1.35):boss?(combo===3?.5:.28):.85;
+     this.cast(e,w.index,w.aim,combo);if(boss&&w.index===1&&combo===3)e.nextSkill++;e.cooldown=w.index===2?1.05:w.index===3?.75:w.index===0?(boss?.55:1.35):boss?(combo===3?.5:.28):.85;
     }continue;
    }
    if(e.pose?.index===2)continue;
@@ -92,7 +92,8 @@ export class FieldEnemies{
     if(boss){
      // Cycle all four skills; move into range when necessary rather than firing through walls.
      const cycle=[1,0,2,3],index=cycle[e.nextSkill%cycle.length],range=[560,near,620,390][index];
-     if(d<=range){e.nextSkill++;this.plan(e,index,player);continue;}
+     if(d<=range){if(index!==1)e.nextSkill++;this.plan(e,index,player);continue;}
+     if(index===1&&d>near+130&&d<=560){this.plan(e,0,player);continue;}
     }
    }
    const desired=e.type==="fire"?245:near*.8;
@@ -106,8 +107,6 @@ export class FieldEnemies{
   }
  }
 }
-// Factory kept separate so tests can inject arbitrary spawn layouts.
-function ENEMY_SPANS(){return ENEMY_SPAWNS;}
 /** Uses existing graphics via injected drawing port; fallback visible during loading. */
 export function drawFieldEnemies(ctx,system,drawSprite,elapsed=0){
  if(!system.active||!ctx)return;
