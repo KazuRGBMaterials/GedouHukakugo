@@ -255,7 +255,7 @@ run("NEXT cloud saves are mounted in FIELD and not BATTLE",()=>{
  assert(field.includes('class="save-options"'));
  assert(!battle.includes("init-battle.js"));
  assert(!battle.includes('id="battle-cloud-target"'));
- assert(battle.includes("battle.js?v=9"));
+ assert(battle.includes("battle.js?v=10"));
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
@@ -650,7 +650,7 @@ run("ONLINE BELT room diagnoses exact rejected Firebase operation",()=>{
  assert(source.includes("beltRooms/members"));
  assert(source.includes("beltRooms/state"));
  assert(source.includes("publish(s,true)"));
- assert(ui.includes("render();showError(e);"));
+ assert(ui.includes("onLeave();status(e.message);"));
 });
 
 run("FIELD remote jump height interpolates independently of local jump",()=>{
@@ -690,7 +690,7 @@ run("Room code input preserves native text entry, normalizes on join only",()=>{
  assert.equal(normalize("abcd2345"),"ABCD2345");
  assert.equal(normalize("abcd-2345"),"ABCD2345");
  assert.equal(normalize("abc"),null);
- for(const [file,id] of [["index.html","room-code"],["battle/online/index.html","code"],["online/index.html","online-code"]]){
+ for(const [file,id] of [["index.html","room-code"],["battle/index.html","code"],["online/index.html","online-code"]]){
   const input=text(file).match(new RegExp('<input id="'+id+'"[^>]+>'))[0];
   assert(input.includes('autocapitalize="none"'));assert(input.includes('autocorrect="off"'));assert(input.includes('autocomplete="off"'));
  }
@@ -708,7 +708,7 @@ run("NEXT victory cue is layered and only plays once for live winners",()=>{
  gate.observe("match","running",false);assert(gate.observe("match","finished",true));assert(!gate.observe("match","finished",true));
  gate.observe("loss","running",false);assert(!gate.observe("loss","finished",false));
  assert.equal(played,1);
- for(const file of ["battle/battle.js","battle/online/belt-online.js","online/online.js"])assert(text(file).includes("victoryFanfare"));
+ for(const file of ["battle/battle.js","online/online.js"])assert(text(file).includes("victoryFanfare"));
 });
 await (async()=>{
  const url="https://example.invalid/?room=ABCD2345",calls=[];
@@ -720,3 +720,23 @@ await (async()=>{
  assert.equal(await shareInvite(url,{}),"manual");
  console.log("PASS native invite share, cancellation and fallback");
 })();
+
+run("Online belt uses the identical offline battle DOM, renderer and sprites",()=>{
+ const page=text("battle/index.html"),entry=text("battle/online/index.html"),source=text("battle/battle.js"),adapter=text("battle/online/belt-online.js");
+ assert(entry.includes('url.search=location.search'));assert(entry.includes('url.searchParams.set("online","1")'));
+ for(const id of ["grid-board","grid-units","commands","player-belt","enemy-belt","player-pose","online-room","online-command-status"])assert(page.includes('id="'+id+'"'));
+ assert(source.includes('gridMode = onlineMode ||'));assert(source.includes("bindBattleGrid({"));
+ assert(source.includes("canControl(controlled)"));assert(source.includes("Object.assign(battle,structuredClone(next.battle))"));
+ assert(source.includes("next.processed"));assert(adapter.includes("room.send(intent)"));
+ assert(!adapter.includes("function render()"));assert(!adapter.includes('createElement("button")'));
+ new vm.SourceTextModule(source);new vm.SourceTextModule(adapter);
+});
+run("Online battle snapshots include resolved commands for offline motion renderer",()=>{
+ const state=lobby("versus");prepareBattle(state,{a:{label:"A"},b:{label:"B"}},"a",{size:5});
+ assert(applyIntent(state,"a",{kind:"reserve",command:"quick",target:"enemy"}));
+ assert(applyIntent(state,"b",{kind:"reserve",command:"quick",target:"player"}));
+ beginBattle(state);tickBattle(state);
+ assert.equal(state.processed.player.commandId,"quick");assert.equal(state.processed.player.status,"resolved");
+ assert.equal(state.processed.enemy.commandId,"quick");
+ assert(JSON.parse(JSON.stringify(state)).processed.enemy);
+});
