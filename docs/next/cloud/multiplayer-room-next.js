@@ -304,7 +304,7 @@ async function startCombat(active,expected){
   if(session!==active||expected!==token||!active.connected)return;
   port.enableCombat();active.combatReady=true;
   if(active.mode==="coop")startNpcSync(active,expected);
-  const seen=new Map(),hitSeen=new Map();active.hitSeq=0;active.sentAttacks=0;active.receivedAttacks=0;
+  const seen=new Map(),hitSeen=new Map();active.hitSeq=active.hitSeq||0;active.sentAttacks=0;active.receivedAttacks=0;
   function reportCombat(){if(active.combatReady)combatSay("攻撃同期：有効 · HP "+port.getHp()+"/100 · 送信 "+active.sentAttacks+" / 受信 "+active.receivedAttacks);}
   active.reportCombat=reportCombat;
   // First snapshot establishes a baseline; old attacks never replay on joining.
