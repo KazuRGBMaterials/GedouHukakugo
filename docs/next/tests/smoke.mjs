@@ -551,7 +551,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=10"));
+ assert(html.includes("multiplayer-room-next.js?v=11"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -751,4 +751,13 @@ run("Belt guest rules accept exact valid commands, including empty optional comm
  assert(rule[".write"].includes("$uid == auth.uid"));assert(rule[".write"].includes(".child('members').child($uid).exists()"));
  assert(rule.$other[".validate"]===false);
  assert(text("battle/online/belt-room.js").includes('参加者："+membership'));
+});
+
+run("FIELD hit effect remains visible even on immediate contact",()=>{
+ const combat=new FieldCombat();combat.enable();
+ assert(combat.receive({index:1,x:100,y:100,facing:"E"}));
+ combat.tick(.016,{width:1600,height:1000,obstacles:[]},{x:128,y:100,halfSize:15});
+ assert.equal(combat.hp,88);assert(combat.effects[0].stopped);assert(combat.effects[0].life>0);
+ combat.tick(.05,{width:1600,height:1000,obstacles:[]},{x:128,y:100,halfSize:15});assert.equal(combat.hp,88);
+ assert(text("cloud/multiplayer-room-next.js").includes("active.receivedAttacks++"));
 });
