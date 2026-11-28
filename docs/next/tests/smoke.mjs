@@ -6,6 +6,8 @@ import {fileURLToPath} from "node:url";
 import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, createNextContent } from "../content/index.js";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
+import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from "../battle/online/belt-engine.js";
+import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
@@ -186,7 +188,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
    hudText:"SKILL 4 · 突撃",query:"?editorMap=1"}).field,"エディタ試遊");
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
- assert(html.includes('./next/runtime/field-status.js?v=1'));
+ assert(html.includes('./next/runtime/field-status.js?v=3'));
  assert(html.includes('field-visual.js?v=10'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
@@ -205,7 +207,7 @@ run("FIELD NEXT avatar slider changes only visual size without moving player fee
  assert.equal(rows[0].y+rows[0].h,player.y+FIELD_AVATAR_SIZE.baselineOffset);
  const html=text("index.html");
  assert(html.includes('id="next-avatar-scale"'));
- assert(html.includes('field-controls-responsive.css?v=3'));
+ assert(html.includes('field-controls-responsive.css?v=4'));
  const css=text("runtime/field-controls-responsive.css");
  for(const term of [
   "grid-template-columns:repeat(3,var(--field-face))",
@@ -230,7 +232,7 @@ run("FIELD NEXT Safari 100% menu uses full frame and permits native touch scroll
  const settings=html.indexOf('id="next-visual-mode"',opening);
  assert(opening>0&&close>opening&&close<settings);
  assert.equal((html.match(/id="menu-close"/g)||[]).length,1);
- assert(html.includes('field-controls-responsive.css?v=3'));
+ assert(html.includes('field-controls-responsive.css?v=4'));
  assert(html.includes("event.target.closest('#game-menu')"));
  const css=text("runtime/field-controls-responsive.css");
  for(const fragment of [
@@ -546,10 +548,78 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=5"));
+ assert(html.includes("multiplayer-room-next.js?v=7"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('navigator.clipboard.writeText(address)'));
  assert(source.includes('ui.invite.select()'));
  assert(source.includes('ui.panel.hidden=false'));
  assert(source.includes('if(!session?.connected)return;'));
+});
+
+run("FIELD dual slot selections stay independent and slash direction quantizes eight ways",()=>{
+ const modules=JSON.parse(text("index.html").match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ const load=name=>{const module={exports:{}};new Function("require","module","exports",modules[name])(()=>{},module,module.exports);return module.exports;};
+ const {ActionState}=load("/src/actions/ActionState.ts");
+ const {ActionButtons}=load("/src/actions/ActionButtons.ts");
+ const state=new ActionState();
+ assert.equal(state.skillIndex("Y"),0);assert.equal(state.skillIndex("X"),1);
+ state.changeSlot("Y",1);assert.equal(state.skillIndex("X"),1);
+ state.changeSlot("X",1);assert.equal(state.skillIndex("Y"),1);assert.equal(state.skillIndex("X"),2);
+ assert.equal(ActionButtons.prototype.direction(3,2,"N"),"N");
+ assert.equal(ActionButtons.prototype.direction(-30,30,"N"),"SW");
+ assert.equal(ActionButtons.prototype.direction(0,-30,"S"),"N");
+ assert(text("index.html").includes('id="btn-menu"'));
+});
+
+run("FIELD remote attacks hit once, respect obstacle and reset HP",()=>{
+ const updates=[],combat=new FieldCombat(hp=>updates.push(hp));
+ const world={width:1600,height:1000,obstacles:[]},target={x:150,y:100,halfSize:15};
+ const a={index:0,x:100,y:100,facing:"E",radius:8};
+ assert.equal(combat.receive(a),false);
+ combat.enable();assert(combat.receive(a));
+ for(let i=0;i<20;i++)combat.tick(.05,world,target);
+ assert.equal(combat.hp,90);
+ combat.reset();
+ assert(combat.receive(a));for(let i=0;i<20;i++)combat.tick(.05,{...world,obstacles:[{x:132,y:75,w:10,h:50}]},target);
+ assert.equal(combat.hp,100);
+ assert(combat.receive({index:2,x:100,y:100,facing:"E"}));
+ for(let i=0;i<8;i++)combat.tick(.05,world,target);
+ assert.equal(combat.hp,80);
+ assert.equal(attackPacket({index:99,x:100,y:100}),null);
+ assert.equal(attackPacket({index:0,x:100,y:100,dx:100,dy:0}).dx,1);
+ const rules=JSON.parse(text("../firebase/database.rules.json"));
+ assert(rules.rules.fieldCombat.$room.$connection.attack.$other[".validate"]===false);
+});
+
+run("ONLINE BELT uses the existing core: cooperative players own distinct slots and enemies remain AI",()=>{
+ const state=lobby("coop"),members={a:{label:"A",joinedAt:1},b:{label:"B",joinedAt:2}};
+ assert(prepareBattle(state,members,"a",{enemies:2,size:7}));
+ assert.equal(ownedSide(state,"a"),"player");assert.equal(ownedSide(state,"b"),"ally");
+ assert(applyIntent(state,"a",{kind:"reserve",command:"wait"}));
+ assert(applyIntent(state,"b",{kind:"reserve",command:"wait"}));
+ assert(!applyIntent(state,"outsider",{kind:"reserve",command:"quick"}));
+ assert.equal(state.battle.player.actions[0].commandId,"wait");
+ assert.equal(state.battle.ally.actions[0].commandId,"wait");
+ assert(beginBattle(state));assert(tickBattle(state));assert.equal(state.battle.tick,1);
+ assert(state.battle.enemy.actions.length>0);
+});
+run("ONLINE BELT PvP assigns both teams, no enemy AI, and applies real opposing damage",()=>{
+ const state=lobby("versus"),members={a:{label:"A",joinedAt:1},b:{label:"B",joinedAt:2}};
+ assert(prepareBattle(state,members,"a",{size:5}));
+ assert.equal(ownedSide(state,"a"),"player");assert.equal(ownedSide(state,"b"),"enemy");
+ assert.equal(state.battle.enemy.actions.length,0);
+ assert(applyIntent(state,"a",{kind:"reserve",command:"quick",target:"enemy"}));
+ assert(applyIntent(state,"b",{kind:"reserve",command:"quick",target:"player"}));
+ assert(beginBattle(state));assert(tickBattle(state));
+ assert(state.battle.player.hp<100&&state.battle.enemy.hp<100);
+ const many=Object.fromEntries(Array.from({length:8},(_,i)=>["p"+i,{label:"P"+i,joinedAt:i}]));
+ const full=lobby("versus");assert(prepareBattle(full,many,"p0",{size:7}));
+ assert.equal(Object.keys(full.roster).length,8);
+ assert.equal(full.battle.grid.manualEnemySides.length,4);
+ assert(JSON.parse(text("../firebase/database.rules.json")).rules.beltRooms.$room.inputs);
+});
+run("ONLINE BELT entry and transport parse and remain accessible from field and battle",()=>{
+ assert(text("index.html").includes("./next/battle/online/"));
+ assert(text("battle/index.html").includes("./online/"));
+ for(const file of ["belt-engine.js","belt-room.js","belt-online.js"])new vm.SourceTextModule(text("battle/online/"+file));
 });

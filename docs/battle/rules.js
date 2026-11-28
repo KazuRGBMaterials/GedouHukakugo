@@ -45,6 +45,8 @@ export function createBattle(withGrid = false, enemyProfile, gridOptions = {}) {
     // Content ID is metadata; AI/rules still receive the established enemyType.
     battle.grid.enemyDefinitionId = gridOptions.enemyDefinitionId || battle.grid.enemyType;
     battle.grid.deciders = gridOptions.deciders || null;
+    // Optional host-owned PvP roster. Solo/legacy battles never opt into this.
+    if(Array.isArray(gridOptions.manualEnemySides))battle.grid.manualEnemySides=gridOptions.manualEnemySides.filter(side=>FOE_SIDES.includes(side));
     battle.grid.enemyTactics = Object.hasOwn(ENEMY_TACTICS, gridOptions.enemyTactics)
       ? gridOptions.enemyTactics : "standard";
     // A single, non-repeatable moment of arrogance for the strongest Hellor.
@@ -65,7 +67,7 @@ function lastAction(actor) {
 }
 
 export function isManual(battle, side) {
-  return teamOf(side) === "player" && !!battle[side]?.hp && !battle[side].automatic;
+  return (teamOf(side) === "player" || !!battle.grid?.manualEnemySides?.includes(side)) && !!battle[side]?.hp && !battle[side].automatic;
 }
 
 export function setAutomatic(battle, side, automatic) {
@@ -80,7 +82,7 @@ export function canReserve(battle, side, commandId, destination) {
   if (!actor?.hp || battle.phase === "finished") return false;
   if (commandId === "move") {
     if (!battle.grid) return false;
-    const from = teamOf(side) === "player" ? plannedPosition(battle, side) : battle.grid[side];
+    const from = (teamOf(side) === "player" || battle.grid.manualEnemySides?.includes(side)) ? plannedPosition(battle, side) : battle.grid[side];
     if (!canStep(battle, side, from, destination)) return false;
   } else if (!Object.hasOwn(COMMANDS, commandId)) {
     return false;
@@ -280,6 +282,7 @@ const allyProfile = makeEnemyProfile({ risk: "balanced", waste: "rarely", style:
 function planEnemy(battle) {
   if (battle.grid) {
     for (const side of gridSides(battle)) {
+      if(battle.grid.manualEnemySides?.includes(side))continue;
       // Optimizer waits until combat starts, after the player's initial queue is
       // visible. Other tactics keep their historical pre-booked first action.
       if ((teamOf(side) === "enemy" && (battle.phase === "running"
