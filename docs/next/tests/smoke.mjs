@@ -186,7 +186,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
    hudText:"SKILL 4 · 突撃",query:"?editorMap=1"}).field,"エディタ試遊");
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
- assert(html.includes('./next/runtime/field-status.js?v=1'));
+ assert(html.includes('./next/runtime/field-status.js?v=2'));
  assert(html.includes('field-visual.js?v=10'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
