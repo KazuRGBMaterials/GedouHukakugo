@@ -5,7 +5,7 @@ const advance=withWaitHealthRecovery(advanceCore,{sidesForBattle:gridSides});
 export const sideName=(state,side)=>state.roster?.[side]?.label||(teamOf(side)==="enemy"?"ネームレス":"味方");
 export function lobby(mode){
  if(!["coop","versus"].includes(mode))throw Error("不正な戦闘モード");
- return {schemaVersion:1,mode,phase:"lobby",revision:0,roster:{},feedback:{},battle:null};
+ return {schemaVersion:1,mode,phase:"lobby",revision:0,roster:{},feedback:{},acks:{},battle:null};
 }
 export function prepareBattle(state,members,hostUid,options={}){
  if(state.phase!=="lobby")return false;
@@ -45,7 +45,9 @@ export function cleanIntent(raw){
 }
 export function applyIntent(state,uid,raw){
  const input=cleanIntent(raw),side=ownedSide(state,uid),b=state.battle;
- if(!input||!side||!b||!isManual(b,side)||b.phase==="finished")return false;
+ if(!input||!side||!b||!isManual(b,side)||b.phase==="finished"){
+  state.feedback[uid]=!side?"操作枠がありません（観戦）":"現在は操作できません";state.revision++;return false;
+ }
  const cell=input.x>=0&&input.y>=0?{x:input.x,y:input.y}:undefined;
  let accepted=false;
  if(input.kind==="reserve")accepted=reserve(b,side,input.command,cell,input.target||undefined);

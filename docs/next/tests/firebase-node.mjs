@@ -14,6 +14,7 @@ const root=path.resolve(dir,"..");
 function run(name,fn){awaitable.push(Promise.resolve().then(fn).then(()=>console.log("PASS",name)));}
 const awaitable=[];
 
+
 run("no Firebase traffic, identity generation or auth before opt-in",async()=>{
  assert.equal(firebaseConfigured,true,"Registered Web app may support Firestore after setup");
  let imports=0,created=0;
@@ -285,6 +286,36 @@ run("existing game engines and legacy entrypoints remain untouched",()=>{
  const page=fs.readFileSync(path.join(root,"online/index.html"),"utf8");
  assert(page.includes("協力ルーム作成"));
  assert(page.includes("対戦ルーム作成"));
+});
+run("Belt transport accepts commands from two independent authenticated clients in coop and versus",async()=>{
+ const {createBeltRoom}=await import("../battle/online/belt-room.js");
+ const clone=v=>v===undefined?undefined:structuredClone(v);
+ const data={},listeners=new Map();let serial=0;
+ function read(path){return path.split("/").filter(Boolean).reduce((v,k)=>v?.[k],data);}
+ function snap(path){const v=clone(read(path));return {val:()=>v??null,exists:()=>v!=null};}
+ function notify(path){for(const [p,callbacks] of listeners)if(path===p||path.startsWith(p+"/")||p.startsWith(path+"/"))for(const fn of callbacks)queueMicrotask(()=>fn(snap(p)));}
+ function write(path,value){const parts=path.split("/"),key=parts.pop();let node=data;for(const p of parts)node=node[p]??={};if(value===null)delete node[key];else node[key]=clone(value);notify(path);}
+ const api={ref:(_,p)=>({path:p}),get:async r=>snap(r.path),set:async(r,v)=>write(r.path,v),remove:async r=>write(r.path,null),serverTimestamp:()=>Date.now(),onDisconnect:()=>({remove:async()=>{},cancel:async()=>{}}),onValue(r,fn){let a=listeners.get(r.path);if(!a){a=new Set();listeners.set(r.path,a);}a.add(fn);queueMicrotask(()=>fn(snap(r.path)));return ()=>a.delete(fn);},push:r=>{const key="p"+String(++serial).padStart(5,"0");return {path:r.path+"/"+key,key};}};
+ const settle=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
+ for(const mode of ["coop","versus"]){
+  let guestState,hostState;
+  const host=createBeltRoom({connection:{api,db:{},uid:"host"},onState:s=>{hostState=clone(s);}});
+  const guest=createBeltRoom({connection:{api,db:{},uid:"guest"},onState:s=>{guestState=s;}});
+  try{
+   const code=await host.create(mode,"HOST");await guest.join(code,"GUEST");await settle();
+   await host.prepare({size:5,enemies:2});await settle();
+   const side=mode==="coop"?"ally":"enemy";assert.equal(guestState.roster[side].uid,"guest");
+   const cmd=await guest.send({kind:"reserve",command:"wait"});await settle();
+   assert.equal(guestState.acks.guest.id,cmd.id);
+   assert.equal(guestState.acks.guest.accepted,true);
+   assert.equal(hostState.battle[side].actions[0].commandId,"wait");
+   assert.equal(guestState.battle[side].actions[0].commandId,"wait");
+   assert.equal(guestState.battle[side].actions.length,1);
+   await host.send({kind:"reserve",command:"wait"});await settle();
+   assert.equal(guestState.battle.player.actions[0].commandId,"wait");
+   await host.start();await settle();assert.equal(guestState.phase,"running");
+  }finally{await guest.leave();await host.leave();}
+ }
 });
 await Promise.all(awaitable);
 console.log("NEXT CLOUD ONLINE checks completed");
