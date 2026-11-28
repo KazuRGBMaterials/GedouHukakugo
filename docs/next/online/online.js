@@ -1,3 +1,6 @@
+import {shareInvite} from "../runtime/invite-share.js?v=1";
+import {createBattleAudio} from "../../battle/audio.js?v=2";
+import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js?v=1";
 import {createFirebaseGateway} from "../cloud/firebase-service.js?v=4";
 import {createOnlineRoom} from "./room-adapter.js?v=3";
 import {initialArena,ARENA_COLUMNS,ARENA_ROWS,crystalPositions} from "./arena-engine.js?v=3";
@@ -8,6 +11,16 @@ const gateway=createFirebaseGateway();
 const canvas=$("arena"),ctx=canvas.getContext("2d");
 const layered=createLayeredCanvas({onAssetReady:draw});
 let room=null,state=initialArena("coop"),members={},currentCode=null;
+const audio=createBattleAudio(new Audio(),{victoryEffect:victoryFanfare});
+const victory=createVictoryGate(()=>audio.play("victory"));
+let soundEnabled=true;
+$("arena-sound").addEventListener("click",()=>{
+ soundEnabled=!soundEnabled;audio.setEnabled(soundEnabled);
+ $("arena-sound").textContent="サウンド "+(soundEnabled?"ON":"OFF");
+ $("arena-sound").setAttribute("aria-pressed",String(soundEnabled));
+ if(soundEnabled)audio.unlock();
+});
+document.addEventListener("click",()=>audio.unlock(),{capture:true});
 let controls={dx:0,dy:0,attack:false},lastMessage="未接続";
 const sprites={
   mage:nextContent.registry.get("characters","mage-next")?.graphics,
@@ -83,11 +96,11 @@ function callbacks(connection){
  return createOnlineRoom({connection,
   onStatus:status,
   onMembers:displayMembers,
-  onState:next=>{state=next;draw();}
+  onState:(next,session)=>{state=next;const player=next.players?.[connection.uid];const won=!!player&&(next.mode==="coop"?next.winner==="coop":String(player.team)===String(next.winner));victory.observe(session?.code,next.phase,won);draw();}
  });
 }
 async function connectRoom(kind){
- setConnected(true);status("Firebase認証とルーム接続を確認しています…");
+ audio.unlock();victory.reset();setConnected(true);status("Firebase認証とルーム接続を確認しています…");
  try{
   const connection=await gateway.connect("realtime");
   if(!room)room=callbacks(connection);
@@ -106,15 +119,16 @@ $("create-coop").addEventListener("click",()=>connectRoom("coop"));
 $("create-pvp").addEventListener("click",()=>connectRoom("versus"));
 $("join-room").addEventListener("click",()=>connectRoom("join"));
 $("leave-room").addEventListener("click",async()=>{
- try{await room?.leave();}finally{
-  room=null;currentCode=null;state=initialArena("coop");displayMembers({});setConnected(false);draw();
+ audio.stopEffects();victory.reset();try{await room?.leave();}finally{
+  room=null;currentCode=null;$("arena-invite").hidden=true;state=initialArena("coop");displayMembers({});setConnected(false);draw();
  }
 });
 $("copy-room").addEventListener("click",async()=>{
  if(!currentCode)return;
  const link=new URL(location.href);link.searchParams.set("room",currentCode);
- try{await navigator.clipboard.writeText(link.href);status("招待URLをコピーしました");}
- catch{status("招待コード："+currentCode);}
+ const result=await shareInvite(link.href);
+ if(result==="copied")status("招待URLをコピーしました");
+ else if(result==="manual"){const input=$("arena-invite");input.hidden=false;input.value=link.href;input.focus();input.select();status("長押しして招待URLをコピーしてください");}
 });
 const pressed=new Set();
 function movement(){
