@@ -255,7 +255,7 @@ run("NEXT cloud saves are mounted in FIELD and not BATTLE",()=>{
  assert(field.includes('class="save-options"'));
  assert(!battle.includes("init-battle.js"));
  assert(!battle.includes('id="battle-cloud-target"'));
- assert(battle.includes("battle.js?v=10"));
+ assert(battle.includes("battle.js?v=11"));
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
@@ -739,4 +739,16 @@ run("Online battle snapshots include resolved commands for offline motion render
  assert.equal(state.processed.player.commandId,"quick");assert.equal(state.processed.player.status,"resolved");
  assert.equal(state.processed.enemy.commandId,"quick");
  assert(JSON.parse(JSON.stringify(state)).processed.enemy);
+});
+
+run("Belt guest rules accept exact valid commands, including empty optional command and target",()=>{
+ const rule=JSON.parse(text("../firebase/database.rules.json")).rules.beltRooms.$room.inputs.$uid.$input;
+ const predicate=(expr,value)=>new Function("newData","return "+expr)({isString:()=>typeof value==="string",val:()=>value});
+ for(const value of ["","quick","heavy","fire","guard","dodge","jump","jumpSlash","wait","move"])assert(predicate(rule.command[".validate"],value));
+ for(const value of ["","player","ally","ally2","ally3","enemy","enemy2","enemy3","enemy4"])assert(predicate(rule.target[".validate"],value));
+ for(const value of ["reserve","shift","target","landing"])assert(predicate(rule.kind[".validate"],value));
+ assert(!predicate(rule.command[".validate"],"hack"));assert(!predicate(rule.target[".validate"],"any"));assert(!predicate(rule.command[".validate"],42));
+ assert(rule[".write"].includes("$uid == auth.uid"));assert(rule[".write"].includes(".child('members').child($uid).exists()"));
+ assert(rule.$other[".validate"]===false);
+ assert(text("battle/online/belt-room.js").includes('参加者："+membership'));
 });
