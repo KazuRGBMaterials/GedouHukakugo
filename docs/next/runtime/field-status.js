@@ -19,7 +19,7 @@ export function summarizeFieldStatus({player={},hudText="",query=""}={}) {
   position:x===null||y===null?"取得待ち":`X ${x} / Y ${y}`,
   facing:DIRECTIONS[player.facing]||"取得待ち",
   action:player.moving?"移動中":"待機",
-  skill:SKILLS[skill],
+  skill:String(hudText).includes(" / X ")?String(hudText).replace(/^SKILL\s+[1-4]\s*·\s*/i,""):SKILLS[skill],
   field:params.has("editorMap")?"エディタ試遊":(map||"通常フィールド")
  });
 }
@@ -50,7 +50,7 @@ export function mountFieldStatusMenu({
   </dl>
   <p class="next-field-status-note">Lv・HP・MPは既存HUDに合わせた仮表示です。実際の成長・ダメージ管理にはまだ連動していません。</p>`;
  const title=menu.querySelector(".menu-title");
- if(title)title.insertAdjacentElement("afterend",section);
+ if(title) (title.closest(".menu-toolbar")||title).insertAdjacentElement("afterend",section);
  else menu.prepend(section);
  const field=name=>section.querySelector('[data-field-stat="'+name+'"]');
  function update() {
