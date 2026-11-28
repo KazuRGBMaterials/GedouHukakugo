@@ -10,7 +10,8 @@ import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from
 import {victoryFanfare,createVictoryGate} from "../battle/victory-fanfare.js";
 import {shareInvite} from "../runtime/invite-share.js";
 import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
-import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS} from "../runtime/field-enemies.js";
+import {createNpcJournal,readNpcSnapshot} from "../runtime/field-coop-sync.js";
+import {FieldEnemies,ENEMY_SPAWNS,LASER_CHARGE_SECONDS,enemySnapshot,enemyMirror} from "../runtime/field-enemies.js";
 import { FieldCombat, attackPacket, fireDamage, LASER_DURATION, LASER_MAX_HITS, SLASH_KNOCKBACK } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
@@ -37,7 +38,7 @@ run("NEXT entry files are independent copies",()=>{
  }
 });
 run("all three entry pages expose NEXT version and entry",()=>{
- assert.match(text("index.html"),/FIELD NEXT v1\.0/);
+ assert.match(text("index.html"),/FIELD NEXT v1\.1/);
  assert.match(text("battle/index.html"),/戦闘 NEXT/);
  assert.match(text("editor/index.html"),/FIELD EDITOR NEXT/);
 });
@@ -552,7 +553,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=14"));
+ assert(html.includes("multiplayer-room-next.js?v=15"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -837,4 +838,31 @@ run("FIELD Hellor uses actual sheet dimensions; downed body rotates instead of s
  assert(port.drawEnemy(ctx,{type:"boss",x:1400,y:830,facing:"W"},3.2,0));
  assert.equal(frames[0][3],naturalWidth/4);assert.equal(frames[0][4],naturalHeight/2);
  assert(port.drawDowned(ctx,{x:100,y:100}));assert.equal(rotations[0],-Math.PI/2);assert.equal(draws.length,1);
+});
+
+run("Co-op party targets living guests and shares one authoritative enemy HP and defeat",()=>{
+ const w={width:1600,height:1000,obstacles:[]},spawn=ENEMY_SPAWNS[0],attacks=[];
+ const host=new FieldEnemies({spawns:[{...spawn,hp:30}],sendAttack:d=>attacks.push(d)});
+ const guest={x:spawn.x-60,y:spawn.y,hp:100},deadHost={x:100,y:100,hp:0};
+ for(let i=0;i<50;i++)host.tickParty(.05,w,[deadHost,guest]);assert(attacks.length>0);
+ const initial=enemyMirror(enemySnapshot(host));assert.equal(initial.enemies.length,1);
+ const e=host.enemies[0];host.receive({index:0,x:e.x-30,y:e.y,facing:"E",radius:22});
+ for(let i=0;i<30;i++)host.tickParty(.05,w,[deadHost,guest]);
+ assert.equal(host.enemies.length,0);assert.equal(enemyMirror(enemySnapshot(host)).enemies.length,0);
+});
+run("Co-op attack effects never injure teammates and NPC journal deduplicates",()=>{
+ const c=new FieldCombat(),w={width:1600,height:1000,obstacles:[]},p={x:150,y:100,halfSize:15};c.enable();
+ const a={index:0,x:100,y:100,facing:"E",radius:22};
+ c.receive(a,{visualOnly:true});for(let i=0;i<30;i++)c.tick(.05,w,p);assert.equal(c.hp,100);assert.equal(c.knockback,null);
+ const journal=createNpcJournal();journal.append(a,1000);
+ const base=readNpcSnapshot(journal.serialize([]),0,true,1000);assert.equal(base.events.length,0);assert.equal(base.lastSeq,1);
+ journal.append(a,1050);journal.append(a,1100);
+ const next=readNpcSnapshot(journal.serialize([]),base.lastSeq,false,1100);assert.equal(next.events.length,2);
+ assert.equal(readNpcSnapshot(journal.serialize([]),next.lastSeq,false,1100).events.length,0);
+ c.receive(next.events[0]);for(let i=0;i<30;i++)c.tick(.05,w,p);assert.equal(c.hp,70);
+});
+run("Archived complete V1.0 remains unchanged and V1.1 uses distinct co-op roots",()=>{
+ const archived=fs.readFileSync(path.join(docs,"versions/v1.0/next/index.html"),"utf8");assert(archived.includes("FIELD NEXT v1.0"));assert(!archived.includes('id="room-mode"'));
+ assert(fs.existsSync(path.join(docs,"versions/v1.0/battle/assets/hellor-8dir.png")));
+ const src=text("cloud/multiplayer-room-next.js");assert(src.includes('"coopPlayers/"'));assert(src.includes('"coopCombat/"'));assert(src.includes('"fieldCoop/"'));new vm.SourceTextModule(src);
 });
