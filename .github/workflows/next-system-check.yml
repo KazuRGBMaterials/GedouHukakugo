@@ -39,3 +39,28 @@ jobs:
         run: node --experimental-default-type=module docs/next/tests/firebase-node.mjs
       - name: Existing MODKIT regression checks
         run: node --experimental-default-type=module docs/battle/tests/modkit-node.mjs
+
+  realtime-rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install isolated emulator tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/gedo-rtdb"
+          cd "$RUNNER_TEMP/gedo-rtdb"
+          npm install --no-audit --no-fund --no-save firebase-tools@14 @firebase/rules-unit-testing@4 firebase@11
+      - name: Run actual database rule tests
+        run: |
+          cp docs/next/tests/rtdb-emulator.mjs "$RUNNER_TEMP/gedo-rtdb/"
+          cd "$RUNNER_TEMP/gedo-rtdb"
+          printf '%s' '{"emulators":{"database":{"host":"127.0.0.1","port":9000},"ui":{"enabled":false}}}' > firebase.json
+          ./node_modules/.bin/firebase emulators:exec --only database --project demo-gedo --config firebase.json "node rtdb-emulator.mjs '$GITHUB_WORKSPACE/docs/firebase/database.rules.json'"
