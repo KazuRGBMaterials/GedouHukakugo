@@ -156,7 +156,7 @@
       "$room": {
         ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
         "$connection": {
-          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && $connection.matches(/^P[a-f0-9]{24}$/) && ((!newData.exists() && data.child('owner').val() == auth.uid) || (newData.exists() && root.child('rooms/'+$room+'/players/'+$connection+'/owner').val() == auth.uid && newData.child('owner').val() == auth.uid && (!data.exists() || data.child('owner').val() == auth.uid)))",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && $connection.matches(/^P[a-f0-9]{24}$/) && ((!newData.exists() && data.child('owner').val() == auth.uid) || (newData.exists() && root.child('rooms').child($room).child('players').child($connection).child('owner').val() == auth.uid && newData.child('owner').val() == auth.uid && (!data.exists() || data.child('owner').val() == auth.uid)))",
           ".validate": "newData.hasChildren(['owner','hp','seq']) && ((newData.child('seq').val() == 0 && !newData.child('attack').exists()) || (newData.child('seq').val() > 0 && newData.child('attack').exists()))",
           "owner": {
             ".validate": "newData.isString() && newData.val() == auth.uid"
@@ -227,7 +227,7 @@
               ".validate": "newData.isBoolean()"
             },
             "facing": {
-              ".validate": "newData.isString() && newData.val().matches(/^(N|NE|E|SE|S|SW|W|NW)$/)"
+              ".validate": "newData.isString() && (newData.val() == 'N' || newData.val() == 'NE' || newData.val() == 'E' || newData.val() == 'SE' || newData.val() == 'S' || newData.val() == 'SW' || newData.val() == 'W' || newData.val() == 'NW')"
             },
             "$other": {
               ".validate": false
@@ -235,7 +235,7 @@
           },
           "events": {
             "$slot": {
-              ".validate": "$slot.matches(/^e([0-9]|1[0-5])$/) && newData.hasChildren(['index','x','y','dx','dy','radius','combo','kind','at','seq'])",
+              ".validate": "($slot == 'e0' || $slot == 'e1' || $slot == 'e2' || $slot == 'e3' || $slot == 'e4' || $slot == 'e5' || $slot == 'e6' || $slot == 'e7' || $slot == 'e8' || $slot == 'e9' || $slot == 'e10' || $slot == 'e11' || $slot == 'e12' || $slot == 'e13' || $slot == 'e14' || $slot == 'e15') && newData.hasChildren(['index','x','y','dx','dy','radius','combo','kind','at','seq'])",
               "index": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
               },
@@ -313,13 +313,13 @@
           ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid",
           "$uid": {
             "$input": {
-              ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && ((!newData.exists() && (root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid || $uid == auth.uid)) || (!data.exists() && newData.exists() && $uid == auth.uid && root.child('beltRooms/'+$room+'/members/'+auth.uid).exists()))",
+              ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && ((!newData.exists() && (root.child('beltRooms').child($room).child('meta').child('owner').val() == auth.uid || $uid == auth.uid)) || (!data.exists() && newData.exists() && $uid == auth.uid && root.child('beltRooms').child($room).child('members').child($uid).exists()))",
               ".validate": "newData.hasChildren(['kind','command','x','y','target','at'])",
               "kind": {
-                ".validate": "newData.isString() && newData.val().matches(/^(reserve|shift|target|landing)$/)"
+                ".validate": "newData.isString() && (newData.val() == 'reserve' || newData.val() == 'shift' || newData.val() == 'target' || newData.val() == 'landing')"
               },
               "command": {
-                ".validate": "newData.isString() && newData.val().matches(/^(|quick|heavy|fire|guard|dodge|jump|jumpSlash|wait|move)$/)"
+                ".validate": "newData.isString() && (newData.val() == '' || newData.val() == 'quick' || newData.val() == 'heavy' || newData.val() == 'fire' || newData.val() == 'guard' || newData.val() == 'dodge' || newData.val() == 'jump' || newData.val() == 'jumpSlash' || newData.val() == 'wait' || newData.val() == 'move')"
               },
               "x": {
                 ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 30"
@@ -328,7 +328,7 @@
                 ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 30"
               },
               "target": {
-                ".validate": "newData.isString() && newData.val().matches(/^(|player|ally|ally2|ally3|enemy|enemy2|enemy3|enemy4)$/)"
+                ".validate": "newData.isString() && (newData.val() == '' || newData.val() == 'player' || newData.val() == 'ally' || newData.val() == 'ally2' || newData.val() == 'ally3' || newData.val() == 'enemy' || newData.val() == 'enemy2' || newData.val() == 'enemy3' || newData.val() == 'enemy4')"
               },
               "at": {
                 ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"

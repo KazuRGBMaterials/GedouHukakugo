@@ -1,6 +1,6 @@
 import {shareInvite} from "../../runtime/invite-share.js?v=1";
 import {createFirebaseGateway} from "../../cloud/firebase-service.js?v=4";
-import {createBeltRoom} from "./belt-room.js?v=4";
+import {createBeltRoom} from "./belt-room.js?v=5";
 import {ownedSide} from "./belt-engine.js?v=3";
 
 // UI/transport adapter only. The same battle.js renders solo and multiplayer.
