@@ -270,6 +270,38 @@
                 ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000000000"
               }
             }
+          },
+          "hits": {
+            "$hit": {
+              ".validate": "$hit.matches(/^e([0-9]|1[0-5])$/) && newData.hasChildren(['index','source','seq','id','at','x','y','damage'])",
+              "index": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+              },
+              "source": {
+                ".validate": "newData.isString() && newData.val().matches(/^P[a-f0-9]{24}$/)"
+              },
+              "seq": {
+                ".validate": "newData.isNumber() && newData.val() > 0"
+              },
+              "id": {
+                ".validate": "newData.isNumber() && newData.val() > 0"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 30000"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+              },
+              "damage": {
+                ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 30"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
           }
         }
       }
@@ -515,6 +547,38 @@
               },
               "seq": {
                 ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000000000"
+              }
+            }
+          },
+          "hits": {
+            "$hit": {
+              ".validate": "$hit.matches(/^e([0-9]|1[0-5])$/) && newData.hasChildren(['index','source','seq','id','at','x','y','damage'])",
+              "index": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+              },
+              "source": {
+                ".validate": "newData.isString() && newData.val().matches(/^P[a-f0-9]{24}$/)"
+              },
+              "seq": {
+                ".validate": "newData.isNumber() && newData.val() > 0"
+              },
+              "id": {
+                ".validate": "newData.isNumber() && newData.val() > 0"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 30000"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+              },
+              "damage": {
+                ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 30"
+              },
+              "$other": {
+                ".validate": false
               }
             }
           }

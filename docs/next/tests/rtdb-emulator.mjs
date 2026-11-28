@@ -41,6 +41,10 @@ try{
   await assertSucceeds(update(ref(db,cp),{seq:1,attack,"events/e1":{...attack,seq:1}}));
   await assertSucceeds(update(ref(db,cp),{hp:88,pose:{...pose,height:28,airborne:true,action:1}}));
  }
+ const hit={index:0,source:ids[0],seq:1,id:1,x:150,y:100,damage:10,at:now()};
+ await assertSucceeds(update(ref(guest,"fieldCombat/"+code+"/"+ids[1]),{"hits/e1":hit}));
+ await assertFails(update(ref(host,"fieldCombat/"+code+"/"+ids[1]),{"hits/e2":{...hit,id:2}}));
+ await assertFails(update(ref(guest,"fieldCombat/"+code+"/"+ids[1]),{"hits/e99":{...hit,id:99}}));
  await assertSucceeds(get(ref(guest,"fieldCombat/"+code)));
  await assertSucceeds(get(ref(host,"fieldCombat/"+code)));
  await assertFails(update(ref(guest,"fieldCombat/"+code+"/"+ids[0]),{hp:0}));

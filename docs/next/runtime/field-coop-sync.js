@@ -1,12 +1,13 @@
 /** Transport-neutral bounded event journal. Each CPU attack has one unique sequence. */
-import {attackPacket} from "./field-combat.js?v=7";
+import {attackPacket} from "./field-combat.js?v=8";
 const MAX_EVENTS=32;
 export function createNpcJournal(previous=null){
- let seq=0,events=[];
- if(previous){try{const data=JSON.parse(previous);if(Array.isArray(data.events))for(const event of data.events.slice(-MAX_EVENTS)){const packet=attackPacket(event);if(packet&&Number.isSafeInteger(event.seq)&&event.seq>seq&&Number.isFinite(event.at)){seq=event.seq;events.push({...packet,seq,at:event.at});}}}catch{}}
+ let seq=0,events=[],hitSeq=0,hits=[];
+ if(previous){try{const data=JSON.parse(previous);if(Array.isArray(data.events))for(const event of data.events.slice(-MAX_EVENTS)){const packet=attackPacket(event);if(packet&&Number.isSafeInteger(event.seq)&&event.seq>seq&&Number.isFinite(event.at)){seq=event.seq;events.push({...packet,seq,at:event.at});}}if(Array.isArray(data.hits))for(const hit of data.hits.slice(-MAX_EVENTS)){if(validHit(hit)&&hit.id>hitSeq){hits.push(hit);hitSeq=hit.id;}}}catch{}}
  return Object.freeze({
   append(detail,at){const packet=attackPacket(detail);if(!packet||!Number.isFinite(at))return false;events.push({...packet,seq:++seq,at});if(events.length>MAX_EVENTS)events.shift();return true;},
-  serialize(enemies){return JSON.stringify({enemies,events});}
+  appendHit(hit,at){const event={...hit,id:hitSeq+1,at};if(!validHit(event))return false;hitSeq++;hits.push(event);if(hits.length>MAX_EVENTS)hits.shift();return true;},
+  serialize(enemies){return JSON.stringify({enemies,events,hits});}
  });
 }
 export function readNpcSnapshot(payload,seen=0,baseline=false,now=Date.now()){
@@ -20,7 +21,7 @@ export function readNpcSnapshot(payload,seen=0,baseline=false,now=Date.now()){
   lastSeq=event.seq;
   if(!baseline&&now-event.at<=2500&&event.at-now<=5000)events.push(packet);
  }
- return {enemies:data.enemies,events,lastSeq};
+ return {enemies:data.enemies,events,lastSeq,hits:Array.isArray(data.hits)?data.hits.slice(-MAX_EVENTS):[]};
 }
 
 export const COOP_LEASE_MS=15000;
@@ -49,4 +50,11 @@ export async function bootstrapCoop({read,write,initial,creator,id,timestamp}){
  const row={revision:1,payload:createNpcJournal().serialize(enemies),writer:id,updatedAt:timestamp()};
  await write(row);
  return {row,enemies};
+}
+
+export function validHit(h){return !!h&&Number.isInteger(h.index)&&h.index>=0&&h.index<=3&&typeof h.source==="string"&&/^(local|P[a-f0-9]{24})$/.test(h.source)&&Number.isSafeInteger(h.seq)&&h.seq>0&&Number.isSafeInteger(h.id)&&h.id>0&&Number.isFinite(h.at)&&Number.isFinite(h.x)&&Number.isFinite(h.y)&&Number.isInteger(h.damage)&&h.damage>0&&h.damage<=30;}
+export function readHitEvents(rows,seen=0,baseline=false,now=Date.now()){
+ let lastSeq=seen;const events=[];
+ for(const h of Object.values(rows||{}).filter(validHit).sort((a,b)=>a.id-b.id)){if(h.id<=lastSeq)continue;lastSeq=h.id;if(!baseline&&now-h.at<=2500&&h.at-now<=5000)events.push(h);}
+ return {lastSeq,events};
 }

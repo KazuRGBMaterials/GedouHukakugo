@@ -1,7 +1,7 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
-import { attackPacket } from "../runtime/field-combat.js?v=7";
+import { attackPacket } from "../runtime/field-combat.js?v=8";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
-import { createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop } from "../runtime/field-coop-sync.js?v=3";
+import { createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop,readHitEvents } from "../runtime/field-coop-sync.js?v=4";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
@@ -304,7 +304,7 @@ async function startCombat(active,expected){
   if(session!==active||expected!==token||!active.connected)return;
   port.enableCombat();active.combatReady=true;
   if(active.mode==="coop")startNpcSync(active,expected);
-  const seen=new Map();active.sentAttacks=0;active.receivedAttacks=0;
+  const seen=new Map(),hitSeen=new Map();active.hitSeq=active.hitSeq||0;active.sentAttacks=0;active.receivedAttacks=0;
   function reportCombat(){if(active.combatReady)combatSay("攻撃同期：有効 · HP "+port.getHp()+"/100 · 送信 "+active.sentAttacks+" / 受信 "+active.receivedAttacks);}
   active.reportCombat=reportCombat;
   // First snapshot establishes a baseline; old attacks never replay on joining.
@@ -319,6 +319,8 @@ async function startCombat(active,expected){
       seen.set(id,result.lastSeq);
       for(const attack of result.events)if(port.receiveAttack(attack,id))active.receivedAttacks++;
       if(result.events.length)reportCombat();
+      const hitResult=readHitEvents(row.hits,hitSeen.get(id)||0,baseline,Date.now()+serverOffset);
+      hitSeen.set(id,hitResult.lastSeq);for(const hit of hitResult.events)port.receiveConfirmedHit?.(hit);
     }
     baseline=false;port.setPeerHp(hps);
     port.setPeerMotion?.(Object.fromEntries(Object.entries(rows).filter(([id,row])=>id!==active.id&&row?.pose).map(([id,row])=>[id,{pose:motionPacket(row.pose)}])));
@@ -335,7 +337,7 @@ function startNpcSync(active,expected){
  stopNpcSync(active);
  active.npcRef=api.ref(db,"fieldCoop/"+active.code+"/state");
  active.metaRef=api.ref(db,"fieldCoop/"+active.code+"/meta");
- active.host=false;active.npcReady=false;active.npcRetryAt=0;active.npcBaseline=true;
+ active.host=false;active.npcReady=false;active.npcRetryAt=0;active.npcBaseline=true;active.npcHitSeen=0;
  npcSay("協力戦闘：管理者確認中");
  port.setCoopRole?.("guest");port.pauseCoop?.();
  active.unsubMeta=api.onValue(active.metaRef,snap=>{
@@ -357,9 +359,12 @@ function startNpcSync(active,expected){
    port.pauseCoop?.();active.npcReady=false;npcSay("CPU管理者交代中・敵HP維持");return;
   }
   if(active.hostId===active.id){port.pauseCoop?.();return;}
+  const confirmed=readHitEvents(result.hits,active.npcHitSeen||0,active.npcBaseline,Date.now()+serverOffset);
+  active.npcHitSeen=confirmed.lastSeq;
   active.npcSeen=result.lastSeq;active.npcBaseline=false;active.npcReady=true;active.npcReceivedAt=Date.now();
   port.setCoopRole?.("guest");port.setCoopSnapshot?.(result.enemies);
   for(const detail of result.events)port.receiveNpcAttack?.(detail);
+  for(const hit of confirmed.events)port.receiveConfirmedHit?.(hit);
  },e=>{if(session===active){port.pauseCoop?.();active.npcReady=false;npcSay("CPU同期エラー："+e.message);}});
  void reconcileNpc(active);
 }
@@ -414,6 +419,16 @@ async function publishNpc(active,force=false){
  }catch(e){if(session===active&&active.npcGeneration===generation){active.npcReady=false;active.npcRetryAt=Date.now()+3000;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message+"（最新Firebaseルール確認）");}}
  finally{active.npcWriting=false;active.npcWritePromise=null;}
 }
+window.addEventListener("gedo-coop-confirmed-hit",event=>{
+ const active=session;if(active?.host&&active.connected&&active.combatReady&&active.npcReady)active.npcJournal.appendHit(event.detail,Date.now()+serverOffset);
+});
+window.addEventListener("gedo-field-confirmed-hit",event=>{
+ const active=session,hit=event.detail;
+ if(!active?.connected||!active.combatReady||active.mode==="coop"||!hit.source||!hit.seq)return;
+ const id=++active.hitSeq;
+ // Owner-only receipt in the victim's existing combat row. No extra room permissions.
+ api.update(active.combatRef,{["hits/e"+(id%16)]:{...hit,id,at:api.serverTimestamp()}}).catch(e=>{if(session===active)combatSay("命中確認同期：送信エラー "+e.message);});
+});
 window.addEventListener("gedo-coop-npc-attack",event=>{
  const active=session;if(active?.host&&active.connected&&active.combatReady&&active.npcReady)active.npcJournal.append(event.detail,Date.now()+serverOffset);
 });
@@ -424,7 +439,8 @@ window.addEventListener("gedo-field-attack",event=>{
   if(!active.combatReady){combatSay("攻撃同期：未接続（fieldCombatのルール確認）");return;}
   const attack=attackPacket(event.detail);
   if(!attack)return;
-  api.update(active.combatRef,attackPatch(attack,++combatSeq,api.serverTimestamp()))
+  combatSeq=Math.max(combatSeq+1,Number(event.detail.castSeq)||0);
+  api.update(active.combatRef,attackPatch(attack,combatSeq,api.serverTimestamp()))
     .then(()=>{if(session===active){active.sentAttacks++;active.reportCombat?.();}})
     .catch(e=>{if(session===active)combatSay("攻撃同期：送信エラー "+e.message);});
 });
