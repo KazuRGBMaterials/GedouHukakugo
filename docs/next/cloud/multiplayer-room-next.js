@@ -16,6 +16,8 @@ const ui = {
   join:document.getElementById("room-join"),
   leave:document.getElementById("room-leave"),
   share:document.getElementById("room-share"),
+  invite:document.getElementById("room-invite-url"),
+  inviteLabel:document.getElementById("room-invite-label"),
   status:document.getElementById("room-status"),
   summary:document.getElementById("room-summary")
 };
@@ -60,7 +62,7 @@ const savedName=storage.get("gedo-room-name","");
 ui.name.value=savedName||("MAGE-"+String(Math.floor(Math.random()*90)+10));
 ui.color.value=storage.get("gedo-room-color","0");
 const fragment=(location.hash.match(/room=([A-HJ-NP-Z2-9]{8})/i)||[])[1];
-if(fragment)ui.code.value=fragment.toUpperCase();
+if(fragment){ui.code.value=fragment.toUpperCase();ui.panel.hidden=false;}
 ui.panel.addEventListener("touchmove",event=>event.stopPropagation(),{passive:true});
 window.addEventListener("keydown",event=>{if(event.key==="Escape"&&!ui.panel.hidden)ui.panel.hidden=true;});
 ui.toggle.addEventListener("click",()=>{ui.panel.hidden=!ui.panel.hidden;});
@@ -68,11 +70,31 @@ ui.dismiss.addEventListener("click",()=>{ui.panel.hidden=true;});
 ui.name.addEventListener("change",()=>storage.set("gedo-room-name",ui.name.value.trim().slice(0,16)));
 ui.color.addEventListener("change",()=>storage.set("gedo-room-color",ui.color.value));
 ui.code.addEventListener("input",()=>{ui.code.value=ui.code.value.toUpperCase().replace(/[^A-Z2-9]/g,"").slice(0,8);});
+function inviteAddress(code){
+  const url=new URL(location.href);
+  url.hash="room="+code;
+  return url.href;
+}
+function showInvite(){
+  const active=!!session?.connected;
+  ui.inviteLabel.hidden=!active;
+  ui.invite.value=active?inviteAddress(session.code):"";
+  ui.share.disabled=!active;
+}
+ui.invite.addEventListener("focus",()=>ui.invite.select());
 ui.share.addEventListener("click",async()=>{
-  if(!session)return;
-  const address=location.origin+location.pathname+location.search+"#room="+session.code;
-  try{await navigator.clipboard.writeText(address);say("招待リンクをコピーしました","online");}
-  catch{say("招待コード："+session.code+"（別端末で入力してください）","online");}
+  if(!session?.connected)return;
+  const address=inviteAddress(session.code);
+  showInvite();
+  try{
+    await navigator.clipboard.writeText(address);
+    say("招待URLをコピーしました","online");
+  }catch{
+    ui.invite.focus();
+    ui.invite.select();
+    try{ui.invite.setSelectionRange(0,address.length);}catch{}
+    say("招待URLを選択しました。長押ししてコピーしてください","online");
+  }
 });
 ui.create.addEventListener("click",()=>joinRoom(randomCode()));
 ui.join.addEventListener("click",()=>{
@@ -112,7 +134,7 @@ async function ensureReady(){
 }
 function setAvailable(connected){
   ui.create.disabled=!connected;ui.join.disabled=!connected;
-  ui.leave.disabled=!connected;ui.share.disabled=!connected;
+  ui.leave.disabled=!connected;ui.share.disabled=!session?.connected;
 }
 async function leaveRoom(){
   ++token;
@@ -121,6 +143,7 @@ async function leaveRoom(){
   if(unsubRoom){unsubRoom();unsubRoom=null;}
   const old=session;session=null;lastSent=null;lastWriteAt=0;
   port.clearPeers();
+  showInvite();
   if(old?.selfRef && api){
     let removed=false;
     try{await api.remove(old.selfRef);removed=true;}catch{}
@@ -167,7 +190,7 @@ async function joinRoom(raw) {
     unsubConnection=api.onValue(api.ref(db,".info/connected"),async snap=>{
       if(current!==token)return;
       if(!snap.val()){
-        session.connected=false;session.publishing=false;
+        session.connected=false;session.publishing=false;showInvite();
         say("通信が切れました。自動再接続を試みます","error");
         return;
       }
@@ -177,13 +200,13 @@ async function joinRoom(raw) {
         if(current!==token)return;
         await api.set(selfRef,selfState());
         if(current!==token)return;
-        session.connected=true;session.publishing=false;lastWriteAt=Date.now();
+        session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
       }catch(e){say("参加に失敗："+e.message,"error");}
     },e=>say("接続確認エラー："+e.message,"error"));
     sendTimer=setInterval(()=>publish(current),125);
     setAvailable(true);
-    ui.leave.disabled=false;ui.share.disabled=false;
+    ui.leave.disabled=false;showInvite();
   }catch(e){if(current===token){await leaveRoom();say("参加できません："+(e?.message||e),"error");}}
 }
 async function publish(expected){
