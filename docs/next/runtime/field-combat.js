@@ -3,7 +3,8 @@
  */
 const dirs={N:[0,-1],NE:[Math.SQRT1_2,-Math.SQRT1_2],E:[1,0],SE:[Math.SQRT1_2,Math.SQRT1_2],S:[0,1],SW:[-Math.SQRT1_2,Math.SQRT1_2],W:[-1,0],NW:[-Math.SQRT1_2,-Math.SQRT1_2]};
 export const FIELD_DAMAGE=Object.freeze([10,12,5,15]);
-export const LASER_DURATION=1.0, LASER_INTERVAL=.18, LASER_MAX_HITS=6;
+export const LASER_DURATION=1.0, LASER_INTERVAL=.18, LASER_MAX_HITS=6, LASER_WIDTH_SCALE=4, LASER_RADIUS=12;
+export const HIT_SOUND=Object.freeze(['hitFire','hitSlash','hitLaser','hitCharge']);
 export const SLASH_KNOCKBACK=Object.freeze([38,48,66]);
 export function fireDamage(radius=8){
  const r=Math.max(4.5,Math.min(22,Number(radius)||8));
@@ -16,7 +17,7 @@ export function attackPacket(detail){
  const fallback=dirs[detail.facing]||dirs.S;
  let dx=Number.isFinite(detail.dx)?detail.dx:fallback[0],dy=Number.isFinite(detail.dy)?detail.dy:fallback[1];
  const length=Math.hypot(dx,dy);if(length<.01)return null;dx=Math.max(-1,Math.min(1,dx/length));dy=Math.max(-1,Math.min(1,dy/length));
- const radius=index===0?Math.max(4.5,Math.min(22,Number(detail.radius)||8)):index===1?15:index===2?3:15;
+ const radius=index===0?Math.max(4.5,Math.min(22,Number(detail.radius)||8)):index===1?15:index===2?LASER_RADIUS:15;
  const kind=index===1&&["dive","land"].includes(detail.kind)?detail.kind:"cast";
  return {index,x:detail.x,y:detail.y,dx,dy,radius,combo:Math.max(1,Math.min(3,Math.trunc(detail.combo)||1)),kind};
 }
@@ -29,7 +30,7 @@ function distanceToLine(px,py,x,y,dx,dy,len){
  return Math.hypot(px-x-t*dx,py-y-t*dy);
 }
 export class FieldCombat{
- constructor(onHp=()=>{},maxHp=100,{regenerate=false}={}){this.onHp=onHp;this.regenerate=regenerate;this.regenTimer=0;this.maxHp=Math.max(1,Number(maxHp)||100);this.hp=this.maxHp;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];this.knockback=null;}
+ constructor(onHp=()=>{},maxHp=100,{regenerate=false,onHit=()=>{}}={}){this.onHp=onHp;this.onHit=onHit;this.regenerate=regenerate;this.regenTimer=0;this.maxHp=Math.max(1,Number(maxHp)||100);this.hp=this.maxHp;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];this.knockback=null;}
  enable(){if(!this.enabled){this.enabled=true;this.reset();}}
  disable(){this.enabled=false;this.effects=[];this.peerHp={};this.peerHits.clear();this.impacts=[];this.reset();}
  reset(){this.regenTimer=0;this.hp=this.maxHp;this.flash=0;this.knockback=null;this.effects=[];this.impacts=[];this.onHp(this.hp);}
@@ -37,13 +38,13 @@ export class FieldCombat{
   for(const [id,hp] of Object.entries(values||{})){const old=this.peerHp[id];if(Number.isFinite(old)&&hp<old)this.peerHits.set(id,{damage:old-hp,life:.65});}
   this.peerHp=values||{};
  }
- receive(detail,{visualOnly=false}={}){
+ receive(detail,{visualOnly=false,source='',seq=0}={}){
   if(!this.enabled)return false;
   const a=attackPacket(detail);if(!a)return false;
   if(this.effects.length>=120)this.effects.shift();
   const x=a.x+(a.kind==="cast"&&a.index!==3?a.dx*24:0),y=a.y+(a.kind==="cast"&&a.index!==3?a.dy*24:0);
   const life=a.kind==="dive"?.185:a.kind==="land"?.30:[1.25,.42,LASER_DURATION,.44][a.index];
-  this.effects.push({...a,x,y,life,maxLife:life,hit:false,length:0,age:0,stopped:false,pulses:0,visualOnly});
+  this.effects.push({...a,x,y,life,maxLife:life,hit:false,length:0,age:0,stopped:false,pulses:0,visualOnly,source,seq});
   return true;
  }
  damage(e,player){
@@ -51,6 +52,7 @@ export class FieldCombat{
   e.hit=true;
   const amount=e.index===0?fireDamage(e.radius):FIELD_DAMAGE[e.index],damage=Math.min(this.hp,amount);
   this.hp-=damage;this.regenTimer=0;this.flash=.45;this.impacts.push({x:player.x,y:player.y,life:.25,damage});this.onHp(this.hp);
+  this.onHit({index:e.index,source:e.source||'',seq:e.seq||0,x:e.x,y:e.y,damage});
   if(e.index===1){
    let dx=e.dx,dy=e.dy;
    if(e.kind==="land"){const len=Math.hypot(player.x-e.x,player.y-e.y);if(len>1){dx=(player.x-e.x)/len;dy=(player.y-e.y)/len;}}
@@ -86,7 +88,7 @@ export class FieldCombat{
      if(blocked(x,y,e.radius,world)){e.stopped=true;e.life=.16;break;}
      e.x=x;e.y=y;
      if(!e.visualOnly&&Math.hypot(x-player.x,y-player.y)<=half+e.radius){
-      this.damage(e,player);if(e.index!==3){e.stopped=true;e.life=.18;break;}
+      this.damage(e,player);if(e.index===0){e.life=0;break;}if(e.index!==3){e.stopped=true;e.life=.18;break;}
      }
     }
    }
@@ -98,6 +100,7 @@ export class FieldCombat{
    if(this.regenTimer>=1-1e-9){this.regenTimer=Math.max(0,this.regenTimer-1);this.hp=Math.min(this.maxHp,this.hp+1);this.onHp(this.hp);}
   }else this.regenTimer=0;
  }
+ stopFire(source,seq){if(!seq)return;this.effects=this.effects.filter(e=>!(e.index===0&&e.source===source&&e.seq===seq));}
  applyKnockback(dt,world,player){
   const k=this.knockback;if(!k||!this.enabled||dt<=0)return false;
   const fraction=Math.min(1,dt/k.time),distance=k.remaining*fraction,steps=Math.max(1,Math.ceil(distance/4)),half=player.halfSize||15;
@@ -117,7 +120,7 @@ export class FieldCombat{
    if(e.stopped){c.strokeStyle=e.index===0?"#ffcb6a":"#e9d3ff";c.lineWidth=3;c.beginPath();c.arc(0,0,e.radius+12*(1-e.life/.18),0,Math.PI*2);c.stroke();}
    else if(e.kind==="land"){c.strokeStyle="#e9d3ff";c.lineWidth=4;c.beginPath();c.arc(0,0,35,0,Math.PI*2);c.stroke();}
    else if(e.index===0){c.fillStyle="#ff9c35";c.beginPath();c.arc(0,0,e.radius,0,Math.PI*2);c.fill();c.fillStyle="#fff8c5";c.beginPath();c.arc(0,0,e.radius*.5,0,Math.PI*2);c.fill();}
-   else if(e.index===2){c.strokeStyle="#c99bff";c.lineWidth=12+4*Math.sin(e.age*35)**2;c.beginPath();c.moveTo(0,0);c.lineTo(e.length,0);c.stroke();c.strokeStyle="#fff";c.lineWidth=3;c.stroke();}
+   else if(e.index===2){c.strokeStyle="#c99bff";c.lineWidth=LASER_WIDTH_SCALE*(12+4*Math.sin(e.age*35)**2);c.beginPath();c.moveTo(0,0);c.lineTo(e.length,0);c.stroke();c.strokeStyle="#fff";c.lineWidth=3*LASER_WIDTH_SCALE;c.stroke();}
    else if(e.index===1){c.strokeStyle="#e9d3ff";c.lineWidth=6;c.beginPath();c.arc(0,0,26,-1.08,1.08);c.stroke();}
    else{c.strokeStyle="#c69cff";c.lineWidth=7;c.beginPath();c.moveTo(-35,0);c.lineTo(12,0);c.stroke();}
    c.restore();
@@ -130,4 +133,17 @@ export class FieldCombat{
   if(this.flash>0){c.strokeStyle="#ff6868";c.lineWidth=3;c.globalAlpha=Math.min(1,this.flash*4);c.beginPath();c.arc(player.x,player.y,23,0,Math.PI*2);c.stroke();}
   c.restore();
  }
+}
+
+/** One swept projectile, one nearest living target. Wall collision takes priority. */
+export function stepEnemyFire(e,dt,world,targets){
+ const distance=560*dt,steps=Math.max(1,Math.ceil(distance/5));
+ for(let i=0;i<steps;i++){
+  const x=e.x+e.dx*distance/steps,y=e.y+e.dy*distance/steps;
+  if(blocked(x,y,e.radius,world)){e.life=0;return null;}
+  e.x=x;e.y=y;
+  const hit=targets.filter(p=>p.hp>0&&Math.hypot(x-p.x,y-p.y)<=p.halfSize+e.radius).sort((a,b)=>Math.hypot(x-a.x,y-a.y)-Math.hypot(x-b.x,y-b.y))[0];
+  if(hit){e.life=0;return hit;}
+ }
+ e.life-=dt;return null;
 }
