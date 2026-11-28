@@ -159,8 +159,8 @@ run("FIELD NEXT three gait poses move the legs, not slide a static body",()=>{
  assert.equal(full[0].w,FIELD_AVATAR_SIZE.width);
  assert.equal(full[0].h,FIELD_AVATAR_SIZE.height);
 });
-run("FIELD NEXT renders smaller 52×73 MAGE while preserving standing baseline",()=>{
- assert.deepEqual(FIELD_AVATAR_SIZE,{width:52,height:73,baselineOffset:23});
+run("FIELD NEXT renders compact 32×45 MAGE while preserving standing baseline",()=>{
+ assert.deepEqual(FIELD_AVATAR_SIZE,{width:32,height:45,baselineOffset:23});
  const frames=[];
  const port=createFieldVisualPort({
   canvasLayers:{draw(_ctx,_gfx,_face,x,y,w,h){frames.push({x,y,w,h});return true;}},
@@ -168,7 +168,7 @@ run("FIELD NEXT renders smaller 52×73 MAGE while preserving standing baseline",
  });
  const player={x:120,y:160,facing:"S",moving:false};
  port.draw({},player);
- assert.deepEqual(frames[0],{x:94,y:110,w:52,h:73});
+ assert.deepEqual(frames[0],{x:104,y:138,w:32,h:45});
  assert.equal(frames[0].y+frames[0].h,183,
   "Body bottom must stay at world position +23 (hitbox stays unchanged)");
 });
@@ -187,10 +187,41 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
  assert(html.includes('./next/runtime/field-status.js?v=1'));
- assert(html.includes('field-visual.js?v=9'));
+ assert(html.includes('field-visual.js?v=10'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
  assert(source.includes('doc.getElementById("game-menu")'));
+});
+run("FIELD NEXT avatar slider changes only visual size without moving player feet",()=>{
+ const rows=[];
+ const port=createFieldVisualPort({
+  canvasLayers:{draw(_ctx,_gfx,_dir,x,y,w,h){rows.push({x,y,w,h});return true;}},
+  visualMode:()=>"layered",
+  avatarScale:()=>1.5
+ });
+ const player={x:120,y:160,facing:"S",moving:false};
+ assert.equal(port.draw({},player),true);
+ assert.deepEqual(rows[0],{x:96,y:115,w:48,h:68});
+ assert.equal(rows[0].y+rows[0].h,player.y+FIELD_AVATAR_SIZE.baselineOffset);
+ const html=text("index.html");
+ assert(html.includes('id="next-avatar-scale"'));
+ assert(html.includes('field-controls-responsive.css?v=1'));
+ const css=text("runtime/field-controls-responsive.css");
+ for(const term of [
+  "grid-template-columns:repeat(3,var(--field-face))",
+  "grid-template-rows:repeat(3,var(--field-face))",
+  "position:static!important",
+  "clip-path:none!important",
+  "grid-row:1;grid-column:2",
+  "grid-row:2;grid-column:1",
+  "grid-row:2;grid-column:3",
+  "grid-row:3;grid-column:2",
+  "@media (max-height:600px)",
+  "@media (max-width:480px)"
+ ])assert(css.includes(term),"Missing responsive rule "+term);
+ const grid=(side,gap)=>side*3+gap*2;
+ for(const [side,gap,panel] of [[58,8,216],[52,6,184],[44,5,160],[42,5,150]])
+  assert(grid(side,gap)<=panel,"Four face-buttons must fit their own panel");
 });
 run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const draws=[],commands=[],legacy={ground:0,air:0,preview:0};
@@ -219,7 +250,7 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  const onGround={x:120,y:160,facing:"SW",moving:false};
  Textured.prototype.drawPlayer.call(runner,onGround);
  assert.equal(draws.length,1);
- assert.equal(draws[0].y,110);
+ assert.equal(draws[0].y,138);
  assert.equal(draws[0].w,FIELD_AVATAR_SIZE.width);
  assert.equal(draws[0].h,FIELD_AVATAR_SIZE.height);
  const airborne={...onGround,y:onGround.y-24};
@@ -231,7 +262,7 @@ run("FIELD NEXT jump retains same layered character, frame and altitude",()=>{
  assert.equal(draws[1].graphics,draws[0].graphics,
    "jump changed character graphics definition");
  assert.equal(draws[1].facing,draws[0].facing);
- assert.equal(draws[1].y,86,
+ assert.equal(draws[1].y,114,
 
    "JumpRenderer already subtracts height; do not subtract again");
  assert.equal(commands.find(x=>x.op==="shadow").y,168,
@@ -359,7 +390,7 @@ run("WAIT recovery also covers original 2-person battle",()=>{
 });
 run("FIELD NEXT standing and jumping keep the same scale",()=>{
  const src=text("runtime/field-visual.js");
- assert(src.includes("const {width:w,height:h,baselineOffset}=FIELD_AVATAR_SIZE"));
+ assert(src.includes("const w=Math.round(FIELD_AVATAR_SIZE.width*factor)"));
  assert(!src.includes('ctx.rotate(-.08'), 'Jump must not tilt the character graphic');
  assert(!src.includes("ctx.scale(this.characterScale || .86"),
    "Jump must not shrink an already normalized sprite twice");
