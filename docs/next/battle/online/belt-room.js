@@ -129,7 +129,15 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
    const accepted=applyIntent(s.state,uid,input);await publish(s,true);return {accepted,local:true};
   }
   const node=api.push(ref(s.code,"inputs/"+uid));
-  await stage("ゲスト操作送信（beltRooms/inputs）",()=>api.set(node,{...input,at:api.serverTimestamp()}));
+  try{await stage("ゲスト操作送信（beltRooms/inputs）",()=>api.set(node,{...input,at:api.serverTimestamp()}));}
+  catch(e){
+   if(!/permission.denied|permission_denied|permission denied/i.test(e.message))throw e;
+   let membership="確認不可";
+   try{const members=await api.get(ref(s.code,"members"));membership=members.val()?.[uid]?"登録済み":"未登録";}catch{}
+   const currentUid=connection.auth?.currentUser?.uid;
+   const identity=currentUid&&currentUid!==uid?"認証ID変更あり":"認証ID変更なし／未確認";
+   throw Error(e.message+" ｜ 参加者："+membership+" ｜ "+identity+" ｜ 種別："+input.kind+" / 技："+(input.command||"なし")+" / 対象："+(input.target||"なし"));
+  }
   return {id:node.key,local:false};
  }
  async function prepare(options){
