@@ -639,3 +639,13 @@ run("FIELD journal preserves coalesced three attacks and deduplicates old histor
  const rules=JSON.parse(text("../firebase/database.rules.json")).rules.fieldCombat.$room.$connection;
  assert(rules.pose.height);assert(rules.events.$slot.seq);
 });
+
+run("ONLINE BELT room diagnoses exact rejected Firebase operation",()=>{
+ const source=text("battle/online/belt-room.js"),ui=text("battle/online/belt-online.js");
+ assert(source.includes("beltRooms/meta 読込"));
+ assert(source.includes("beltRooms/meta 書込"));
+ assert(source.includes("beltRooms/members"));
+ assert(source.includes("beltRooms/state"));
+ assert(source.includes("publish(s,true)"));
+ assert(ui.includes("render();showError(e);"));
+});
