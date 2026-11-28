@@ -68,8 +68,20 @@ export function createFieldVisualPort({
     return true;
   }
 
+  function drawEnemy(ctx,enemy,size,elapsed){
+    const graphics=content.registry.get('characters',enemy.type==='boss'?'hellor':'nameless')?.graphics;
+    if(!graphics)return false;
+    const w=FIELD_AVATAR_SIZE.width*size,h=FIELD_AVATAR_SIZE.height*size;
+    const x=enemy.x-w/2,y=enemy.y-h+FIELD_AVATAR_SIZE.baselineOffset*size*.55+(enemy.moving?Math.sin(elapsed*14)*1.5:0);
+    if(graphics.mode==='layered')return canvasLayers.draw(ctx,graphics,enemy.facing,x,y,w,h);
+    if(graphics.mode!=='legacy'||!graphics.image)return false;
+    const image=canvasLayers.load(new URL('../../battle/'+graphics.image.replace(/^\.\//,''),import.meta.url).href);
+    if(!image.complete||!image.naturalWidth)return false;
+    const dir=['S','SE','E','NE','N','NW','W','SW'].indexOf(enemy.facing),frame=graphics.directionFrames?.[Math.max(0,dir)]??0,fw=graphics.width,fh=graphics.height,cols=graphics.columns||4;
+    ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(image,frame%cols*fw,Math.floor(frame/cols)*fh,fw,fh,x,y,w,h);ctx.restore();return true;
+  }
   return Object.freeze({
-    draw, isLayered,
+    draw, drawEnemy, isLayered,
     mapFor(id){return fieldMapFor(id,content);},
     registry:content.registry
   });
