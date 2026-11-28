@@ -296,7 +296,7 @@ function startNpcSync(active,expected){
  if(active.unsubNpc){active.unsubNpc();active.unsubNpc=null;}
  active.npcRef=api.ref(db,"fieldCoop/"+active.code+"/state");
  if(active.host){
-  port.setCoopRole?.("host");active.npcReady=true;void publishNpc(active);return;
+  port.setCoopRole?.("host");port.pauseCoop?.();active.npcReady=false;active.npcLastAt=0;void publishNpc(active);return;
  }
  active.unsubNpc=api.onValue(active.npcRef,snap=>{
   if(session!==active||expected!==token||!active.connected||!active.combatReady)return;
@@ -309,15 +309,15 @@ function startNpcSync(active,expected){
  },e=>{if(session===active){port.pauseCoop?.();active.npcReady=false;npcSay("CPU同期エラー："+e.message);}});
 }
 async function publishNpc(active){
- if(session!==active||!active.connected||!active.combatReady||!active.host||!active.npcRef||active.npcWriting)return;
+ if(session!==active||!active.connected||!active.combatReady||!active.host||!active.npcRef||active.npcWriting||Date.now()<(active.npcRetryAt||0))return;
  const enemies=port.getCoopSnapshot?.();if(!enemies)return;
  const payload=active.npcJournal.serialize(enemies),now=Date.now();
- if(payload===active.npcLastPayload&&now-active.npcLastAt<1000)return;
+ if(active.npcReady&&payload===active.npcLastPayload&&now-active.npcLastAt<1000)return;
  active.npcWriting=true;
  try{
   await api.set(active.npcRef,{revision:++active.npcRevision,payload,updatedAt:api.serverTimestamp()});
   if(session===active&&active.connected&&active.combatReady){active.npcLastPayload=payload;active.npcLastAt=now;if(!active.npcReady){active.npcReady=true;port.setCoopRole?.("host");}}
- }catch(e){if(session===active){active.npcReady=false;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message);}}
+ }catch(e){if(session===active){active.npcReady=false;active.npcRetryAt=Date.now()+3000;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message);}}
  finally{active.npcWriting=false;}
 }
 window.addEventListener("gedo-coop-npc-attack",event=>{
