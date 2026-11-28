@@ -1,5 +1,5 @@
 import {makeRoomCode,normalizeRoomCode} from "../../cloud/identity.js";
-import {lobby,prepareBattle,beginBattle,tickBattle,applyIntent,cleanIntent} from "./belt-engine.js?v=1";
+import {lobby,prepareBattle,beginBattle,tickBattle,applyIntent,cleanIntent} from "./belt-engine.js?v=2";
 export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onStatus=()=>{}}){
  const {api,db,uid}=connection;
  let active=null;
@@ -32,7 +32,7 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   return s.tail;
  }
  async function enter(code,meta,label,host){
-  const s={code,meta,host,state:host?lobby(meta.mode):null,members:{},unsubs:[],timer:null,tail:Promise.resolve(),seen:new Set()};
+  const s={code,meta,host,state:host?lobby(meta.mode):null,members:{},unsubs:[],timer:null,tail:Promise.resolve(),seen:new Set(),pending:new Map(),draining:false,drainAgain:false};
   const member=ref(code,"members/"+uid);
   // Deletion of an existing member is owner-authorized; register after creation.
   await stage("参加者登録（beltRooms/members）",()=>api.set(member,{label:memberLabel(label),joinedAt:api.serverTimestamp()}));
@@ -45,26 +45,44 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   },error));
   if(host){
    await stage('初期戦闘状態の登録（beltRooms/state）',()=>publish(s,true));
+   async function drain(){
+    if(s.draining){s.drainAgain=true;return;}
+    s.draining=true;
+    try{
+     do{
+      s.drainAgain=false;
+      const pending=[...s.pending.values()].sort((a,b)=>a.id.localeCompare(b.id));
+      const processed=[];
+      for(const {sender,id,input} of pending){
+       if(active!==s)return;
+       const key=sender+"/"+id;
+       if(s.seen.has(key))continue;
+       // Membership and assignment are authoritative on the host; every
+       // message gets an explicit acknowledgement, including rejections.
+       const accepted=!!s.members[sender]&&applyIntent(s.state,sender,input);
+       s.state.acks??={};
+       s.state.acks[sender]={id,accepted,message:accepted?"予約を受理しました":(s.state.feedback[sender]||"参加者登録が確認できません")};
+       s.state.revision++;
+       s.seen.add(key);processed.push(key);
+      }
+      if(processed.length){
+       try{await publish(s,true);}
+       catch(e){for(const key of processed)s.seen.delete(key);throw e;}
+       for(const key of processed){await api.remove(ref(code,"inputs/"+key));s.pending.delete(key);}
+      }
+     }while(s.drainAgain&&active===s);
+    }catch(e){error(e);}
+    finally{s.draining=false;}
+   }
    s.unsubs.push(api.onValue(ref(code,"inputs"),snap=>{
     if(active!==s)return;
-    const rows=snap.val()||{},pending=[];
+    const rows=snap.val()||{},next=new Map();
     for(const [sender,items] of Object.entries(rows))
-     for(const [id,input] of Object.entries(items||{}))pending.push({sender,id,input});
-    pending.sort((a,b)=>a.id.localeCompare(b.id));
-    let changed=false;
-    for(const {sender,id,input} of pending){
-     const key=sender+"/"+id;
-     if(!s.seen.has(key)){
-      s.seen.add(key);
-      if(s.members[sender]){
-       const before=s.state.revision;applyIntent(s.state,sender,input);changed||=s.state.revision!==before;
-      }
-     }
-     api.remove(ref(code,"inputs/"+key)).then(()=>s.seen.delete(key)).catch(error);
-    }
-    if(changed)publish(s);
+     for(const [id,input] of Object.entries(items||{}))next.set(sender+"/"+id,{sender,id,input});
+    for(const key of s.seen)if(!next.has(key))s.seen.delete(key);
+    s.pending=next;void drain();
    },error));
-   s.timer=setInterval(()=>{if(active===s&&tickBattle(s.state))publish(s);},1600);
+   s.timer=setInterval(()=>{if(active!==s)return;if(s.pending.size)void drain();if(tickBattle(s.state))publish(s);},1600);
   }else{
    s.unsubs.push(api.onValue(ref(code,"state"),snap=>{
     if(active!==s)return;
@@ -101,20 +119,24 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   const snap=await stage("ルーム確認（beltRooms/meta 読込）",()=>api.get(ref(code,"meta")));
   if(!snap.exists())throw Error("ルームが見つかりません");
   const meta=snap.val();if(!["coop","versus"].includes(meta.mode))throw Error("不正なルーム");
+  if(meta.owner===uid)throw Error("ホストと同じ認証IDです。別端末または別ブラウザのプライベートウィンドウから参加してください");
   return enter(code,meta,label,false);
  }
  async function send(raw){
   const s=active;if(!s?.state)throw Error("未接続");
   const input=cleanIntent(raw);if(!input)throw Error("不正な入力");
   if(s.host){
-   applyIntent(s.state,uid,input);await publish(s);return;
+   const accepted=applyIntent(s.state,uid,input);await publish(s,true);return {accepted,local:true};
   }
   const node=api.push(ref(s.code,"inputs/"+uid));
-  await api.set(node,{...input,at:api.serverTimestamp()});
+  await stage("ゲスト操作送信（beltRooms/inputs）",()=>api.set(node,{...input,at:api.serverTimestamp()}));
+  return {id:node.key,local:false};
  }
  async function prepare(options){
   const s=active;if(!s?.host)throw Error("ホストのみ実行できます");
-  if(prepareBattle(s.state,s.members,uid,options))await publish(s);
+  const members=await stage("参加者一覧の確認",()=>api.get(ref(s.code,"members")));
+  s.members=members.val()||{};
+  if(prepareBattle(s.state,s.members,uid,options))await publish(s,true);
  }
  async function start(){
   const s=active;if(!s?.host)throw Error("ホストのみ実行できます");
