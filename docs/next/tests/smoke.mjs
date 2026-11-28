@@ -554,7 +554,7 @@ run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
  assert(html.includes("multiplayer-room-next.js?v=15"));
- assert(source.includes('url.hash="room="+code'));
+ assert(source.includes('url.hash=(session?.mode==="coop"?"coop=":"room=")+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
  assert(source.includes('ui.invite.select()'));
