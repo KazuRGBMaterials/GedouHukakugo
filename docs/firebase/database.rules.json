@@ -194,11 +194,95 @@
               ".validate": "newData.isString() && (newData.val() == 'cast' || newData.val() == 'dive' || newData.val() == 'land')"
             },
             "at": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 30000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "beltRooms": {
+      "$room": {
+        "meta": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/)",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && !data.exists() && newData.child('owner').val() == auth.uid",
+          ".validate": "newData.hasChildren(['owner','mode','createdAt'])",
+          "owner": {
+            ".validate": "newData.isString() && newData.val() == auth.uid"
+          },
+          "mode": {
+            ".validate": "newData.isString() && (newData.val() == 'coop' || newData.val() == 'versus')"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "members": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && (root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid || root.child('beltRooms/'+$room+'/members/'+auth.uid).exists())",
+          "$uid": {
+            ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && $uid == auth.uid && root.child('beltRooms/'+$room+'/meta').exists()",
+            ".validate": "newData.hasChildren(['label','joinedAt'])",
+            "label": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+            },
+            "joinedAt": {
               ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
             },
             "$other": {
               ".validate": false
             }
+          }
+        },
+        "inputs": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid",
+          "$uid": {
+            "$input": {
+              ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && ((!newData.exists() && (root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid || $uid == auth.uid)) || (!data.exists() && newData.exists() && $uid == auth.uid && root.child('beltRooms/'+$room+'/members/'+auth.uid).exists()))",
+              ".validate": "newData.hasChildren(['kind','command','x','y','target','at'])",
+              "kind": {
+                ".validate": "newData.isString() && newData.val().matches(/^(reserve|shift|target|landing)$/)"
+              },
+              "command": {
+                ".validate": "newData.isString() && newData.val().matches(/^(|quick|heavy|fire|guard|dodge|jump|jumpSlash|wait|move)$/)"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 30"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 30"
+              },
+              "target": {
+                ".validate": "newData.isString() && newData.val().matches(/^(|player|ally|ally2|ally3|enemy|enemy2|enemy3|enemy4)$/)"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        },
+        "state": {
+          ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && (root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid || root.child('beltRooms/'+$room+'/members/'+auth.uid).exists())",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{12}$/) && root.child('beltRooms/'+$room+'/meta/owner').val() == auth.uid && newData.exists()",
+          ".validate": "newData.hasChildren(['revision','payload','updatedAt']) && (!data.exists() || newData.child('revision').val() >= data.child('revision').val())",
+          "revision": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+          },
+          "payload": {
+            ".validate": "newData.isString() && newData.val().length <= 120000"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
           },
           "$other": {
             ".validate": false
