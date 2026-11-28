@@ -7,6 +7,7 @@ import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, creat
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
 import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from "../battle/online/belt-engine.js";
+import { motionPacket,attackPatch,recentAttackEvents } from "../runtime/field-sync.js";
 import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
@@ -189,7 +190,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
  assert(html.includes('./next/runtime/field-status.js?v=3'));
- assert(html.includes('field-visual.js?v=10'));
+ assert(html.includes('field-visual.js?v=11'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
  assert(source.includes('doc.getElementById("game-menu")'));
@@ -548,7 +549,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=7"));
+ assert(html.includes("multiplayer-room-next.js?v=8"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('navigator.clipboard.writeText(address)'));
  assert(source.includes('ui.invite.select()'));
@@ -622,4 +623,56 @@ run("ONLINE BELT entry and transport parse and remain accessible from field and 
  assert(text("index.html").includes("./next/battle/online/"));
  assert(text("battle/index.html").includes("./online/"));
  for(const file of ["belt-engine.js","belt-room.js","belt-online.js"])new vm.SourceTextModule(text("battle/online/"+file));
+});
+
+run("FIELD journal preserves coalesced three attacks and deduplicates old history",()=>{
+ const attack=attackPacket({index:1,x:100,y:100,facing:"E"}),now=10000;
+ const row={events:{}};
+ for(let i=1;i<=3;i++){const patch=attackPatch(attack,i,now+i);row.seq=patch.seq;row.attack=patch.attack;row.events["e"+i]=patch["events/e"+i];}
+ const result=recentAttackEvents(row,0,false,now+4);
+ assert.deepEqual(result.events.map(e=>e.seq),[1,2,3]);assert.equal(result.lastSeq,3);
+ assert.equal(recentAttackEvents(row,3,false,now+5).events.length,0);
+ assert.equal(recentAttackEvents(row,0,true,now+5).events.length,0);
+ assert.equal(recentAttackEvents(row,0,false,now+3000).events.length,0);
+ assert.equal(motionPacket({height:999,action:1,airborne:true}).height,64);
+ assert.equal(motionPacket({action:1}).action,1);
+ const rules=JSON.parse(text("../firebase/database.rules.json")).rules.fieldCombat.$room.$connection;
+ assert(rules.pose.height);assert(rules.events.$slot.seq);
+});
+
+run("ONLINE BELT room diagnoses exact rejected Firebase operation",()=>{
+ const source=text("battle/online/belt-room.js"),ui=text("battle/online/belt-online.js");
+ assert(source.includes("beltRooms/meta 読込"));
+ assert(source.includes("beltRooms/meta 書込"));
+ assert(source.includes("beltRooms/members"));
+ assert(source.includes("beltRooms/state"));
+ assert(source.includes("publish(s,true)"));
+ assert(ui.includes("render();showError(e);"));
+});
+
+run("FIELD remote jump height interpolates independently of local jump",()=>{
+ const modules=JSON.parse(text("index.html").match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ const module={exports:{}};new Function("require","module","exports",modules["/src/multiplayer/RemotePlayerStore.ts"])(()=>{},module,module.exports);
+ const store=new module.exports.RemotePlayerStore({width:1600,height:1000});
+ const id="P0123456789abcdef01234567",self="Pabcdef0123456789abcdef01";
+ store.setPeers([{id,x:100,y:100,facing:"E",moving:false}],self);
+ store.setMotion({[id]:{pose:motionPacket({height:28,airborne:true,action:1,facing:"E"})}});
+ const peer=store.sample(.05)[0];
+ assert(peer.height>0&&peer.height<28);assert(peer.remoteAirborne);assert.equal(peer.y,100);
+ assert.equal(peer.remoteMotion.index,1);
+ store.markAttack(id,{index:2,dx:1,dy:0});
+ assert.equal(store.sample(.01)[0].remoteMotion.index,2);
+ store.clear();assert.equal(store.count(),0);assert.equal(store.poses.size,0);
+});
+run("FIELD two receivers independently apply reciprocal damage without repeated hits",()=>{
+ const a=new FieldCombat(),b=new FieldCombat();a.enable();b.enable();
+ const world={width:1600,height:1000,obstacles:[]};
+ const pa={x:100,y:100,halfSize:15},pb={x:150,y:100,halfSize:15};
+ assert(a.receive({index:1,x:pb.x,y:pb.y,facing:"W"}));
+ assert(b.receive({index:1,x:pa.x,y:pa.y,facing:"E"}));
+ for(let i=0;i<12;i++){a.tick(.05,world,pa);b.tick(.05,world,pb);}
+ assert.equal(a.hp,88);assert.equal(b.hp,88);
+ a.setPeerHp({b:100});a.setPeerHp({b:88});
+ assert.equal(a.peerHits.get("b").damage,12);
+ a.setPeerHp({b:88});assert.equal(a.peerHits.get("b").damage,12);
 });

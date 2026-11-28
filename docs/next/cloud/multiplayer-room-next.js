@@ -1,4 +1,5 @@
-import { attackPacket } from "../runtime/field-combat.js?v=1";
+import { attackPacket } from "../runtime/field-combat.js?v=2";
+import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=1";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
@@ -58,7 +59,7 @@ function selfState(){
 let api=null,app=null,auth=null,db=null;
 let session=null,sequence=0,token=0;
 let unsubRoom=null,unsubConnection=null,sendTimer=null,lastSent=null,lastWriteAt=0;
-let unsubCombat=null,combatSeq=0;
+let unsubCombat=null,combatSeq=0,serverOffset=0,unsubClock=null;
 const combatStatus=document.getElementById("room-combat-status");
 const combatSay=message=>{if(combatStatus)combatStatus.textContent=message;};
 const configured=!!(firebaseConfig&&firebaseConfig.apiKey&&firebaseConfig.projectId&&firebaseConfig.appId&&firebaseConfig.databaseURL);
@@ -148,6 +149,7 @@ async function leaveRoom(){
   const old=session;session=null;lastSent=null;lastWriteAt=0;
   port.clearPeers();
   if(unsubCombat){unsubCombat();unsubCombat=null;}
+  if(unsubClock){unsubClock();unsubClock=null;}
   port.disableCombat?.();combatSay('攻撃同期：未接続');
   if(old?.combatRef&&api){try{await api.remove(old.combatRef);await api.onDisconnect(old.combatRef).cancel();}catch{}}
   showInvite();
@@ -194,6 +196,7 @@ async function joinRoom(raw) {
       port.setPeers(entries,id);
       if(session.connected)say("接続中："+session.count+"人が同じフィールドにいます","online");
     },e=>say("共有フィールドの読込エラー："+e.message,"error"));
+    unsubClock=api.onValue(api.ref(db,'.info/serverTimeOffset'),snap=>{serverOffset=Number(snap.val())||0;});
     unsubConnection=api.onValue(api.ref(db,".info/connected"),async snap=>{
       if(current!==token)return;
       if(!snap.val()){
@@ -210,10 +213,10 @@ async function joinRoom(raw) {
         if(current!==token)return;
         session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
-        startCombat(session,current).catch(e=>{if(current===token){combatSay("攻撃同期：利用不可（ルール確認）");console.warn("field combat",e?.message);}});
+        startCombat(session,current).catch(e=>{if(current===token){combatSay("攻撃同期：利用不可 / "+(e?.message||e)+"（fieldCombatのルール確認）");console.warn("field combat",e?.message);}});
       }catch(e){say("参加に失敗："+e.message,"error");}
     },e=>say("接続確認エラー："+e.message,"error"));
-    sendTimer=setInterval(()=>publish(current),125);
+    sendTimer=setInterval(()=>publish(current),100);
     setAvailable(true);
     ui.leave.disabled=false;showInvite();
   }catch(e){if(current===token){await leaveRoom();say("参加できません："+(e?.message||e),"error");}}
@@ -223,7 +226,8 @@ async function startCombat(active,expected){
   const combatRef=api.ref(db,"fieldCombat/"+active.code+"/"+active.id);
   active.combatRef=combatRef;
   if(unsubCombat){unsubCombat();unsubCombat=null;}
-  await api.set(combatRef,{owner:auth.currentUser.uid,hp:100,seq:0});
+  await api.set(combatRef,{owner:auth.currentUser.uid,hp:100,seq:0,pose:motionPacket(port.getMotion?.())});
+  active.lastPose=null;active.lastPoseAt=0;active.poseWriting=false;
   if(session!==active||expected!==token){try{await api.remove(combatRef);}catch{}return;}
   await api.onDisconnect(combatRef).remove();
   if(session!==active||expected!==token||!active.connected)return;
@@ -237,12 +241,12 @@ async function startCombat(active,expected){
     for(const [id,row] of Object.entries(rows)){
       if(id===active.id||!row)continue;
       if(Number.isInteger(row.hp)&&row.hp>=0&&row.hp<=100)hps[id]=row.hp;
-      const seq=row.seq;
-      if(!Number.isSafeInteger(seq)||seq<=0||!row.attack)continue;
-      if(!baseline&&seq>(seen.get(id)||0))port.receiveAttack(row.attack);
-      seen.set(id,Math.max(seen.get(id)||0,seq));
+      const result=recentAttackEvents(row,seen.get(id)||0,baseline,Date.now()+serverOffset);
+      seen.set(id,result.lastSeq);
+      for(const attack of result.events)port.receiveAttack(attack,id);
     }
     baseline=false;port.setPeerHp(hps);
+    port.setPeerMotion?.(Object.fromEntries(Object.entries(rows).filter(([id,row])=>id!==active.id&&row?.pose).map(([id,row])=>[id,{pose:motionPacket(row.pose)}])));
   },e=>{if(session===active){active.combatReady=false;port.disableCombat();combatSay("攻撃同期：受信エラー");}});
   combatSay("攻撃同期：有効 · 試験用HP 100");
 }
@@ -251,7 +255,7 @@ window.addEventListener("gedo-field-attack",event=>{
   if(!active?.connected||!active.combatReady)return;
   const attack=attackPacket(event.detail);
   if(!attack)return;
-  api.update(active.combatRef,{seq:++combatSeq,attack:{...attack,at:api.serverTimestamp()}})
+  api.update(active.combatRef,attackPatch(attack,++combatSeq,api.serverTimestamp()))
     .catch(e=>{if(session===active)combatSay("攻撃同期：送信エラー");});
 });
 window.addEventListener("gedo-field-hp",event=>{
@@ -260,8 +264,19 @@ window.addEventListener("gedo-field-hp",event=>{
   combatSay(hp===0?"HP 0：初期位置に戻るボタンで復帰":"攻撃同期：有効 · HP "+hp+"/100");
   api.update(active.combatRef,{hp}).catch(e=>{if(session===active)combatSay("HP同期：送信エラー");});
 });
+async function publishPose(active){
+  if(!active?.combatReady||active.poseWriting)return;
+  const pose=motionPacket(port.getMotion?.()),key=JSON.stringify(pose),now=Date.now();
+  if(active.lastPose===key&&now-active.lastPoseAt<750)return;
+  active.poseWriting=true;
+  try{await api.update(active.combatRef,{pose});active.lastPose=key;active.lastPoseAt=now;}
+  catch(e){if(session===active)combatSay('状態同期：送信エラー '+e.message);}
+  finally{active.poseWriting=false;}
+}
 async function publish(expected){
-  if(!session||!session.connected||session.publishing||expected!==token)return;
+  if(!session||!session.connected||expected!==token)return;
+  publishPose(session);
+  if(session.publishing)return;
   const p=port.getSelf();
   const next={x:p.x,y:p.y,facing:p.facing,moving:!!p.moving};
   const now=Date.now();

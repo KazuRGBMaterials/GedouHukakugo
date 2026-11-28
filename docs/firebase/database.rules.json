@@ -202,6 +202,74 @@
           },
           "$other": {
             ".validate": false
+          },
+          "pose": {
+            ".validate": "newData.hasChildren(['height','airborne','action','charge','angle','chargeSeconds','dash','facing'])",
+            "height": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 64"
+            },
+            "airborne": {
+              ".validate": "newData.isBoolean()"
+            },
+            "action": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 3"
+            },
+            "charge": {
+              ".validate": "newData.isBoolean()"
+            },
+            "angle": {
+              ".validate": "newData.isNumber() && newData.val() >= -3.15 && newData.val() <= 3.15"
+            },
+            "chargeSeconds": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1.4"
+            },
+            "dash": {
+              ".validate": "newData.isBoolean()"
+            },
+            "facing": {
+              ".validate": "newData.isString() && newData.val().matches(/^(N|NE|E|SE|S|SW|W|NW)$/)"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "events": {
+            "$slot": {
+              ".validate": "$slot.matches(/^e([0-9]|1[0-5])$/) && newData.hasChildren(['index','x','y','dx','dy','radius','combo','kind','at','seq'])",
+              "index": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+              },
+              "dx": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+              },
+              "dy": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+              },
+              "radius": {
+                ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 22"
+              },
+              "combo": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+              },
+              "kind": {
+                ".validate": "newData.isString() && (newData.val() == 'cast' || newData.val() == 'dive' || newData.val() == 'land')"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 30000"
+              },
+              "$other": {
+                ".validate": false
+              },
+              "seq": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000000000"
+              }
+            }
           }
         }
       }

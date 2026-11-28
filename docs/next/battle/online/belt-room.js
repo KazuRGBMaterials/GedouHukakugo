@@ -5,6 +5,12 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
  let active=null;
  const ref=(code,part)=>api.ref(db,"beltRooms/"+code+"/"+part);
  const status=message=>onStatus(message);
+ async function stage(label,fn){
+  try{return await fn();}catch(e){
+   const detail=String(e?.message||e),permission=/permission.denied|permission_denied|permission denied/i.test(detail+" "+(e?.code||""));
+   throw Error(label+"："+detail+(permission?" ｜ Realtime Database の beltRooms ルールが公開済みか確認してください":""));
+  }
+ }
  const memberLabel=label=>String(label||"プレイヤー").trim().slice(0,16)||"プレイヤー";
  async function leave(){
   const old=active;active=null;
@@ -13,7 +19,7 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   try{await api.remove(ref(old.code,"members/"+uid));await api.onDisconnect(ref(old.code,"members/"+uid)).cancel();}catch{}
   status("退出しました");
  }
- function publish(s){
+ function publish(s,strict=false){
   if(active!==s||!s.host)return Promise.resolve();
   const payload=JSON.stringify(s.state);
   if(payload.length>120000){status("同期データが大きすぎます");return Promise.resolve();}
@@ -22,15 +28,15 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   s.tail=s.tail.catch(()=>{}).then(()=>{
    if(active!==s)return;
    return api.set(ref(s.code,"state"),value);
-  }).catch(e=>status("戦闘状態の送信エラー："+e.message));
+  }).catch(e=>{if(strict)throw e;status("戦闘状態の送信エラー："+e.message);});
   return s.tail;
  }
  async function enter(code,meta,label,host){
   const s={code,meta,host,state:host?lobby(meta.mode):null,members:{},unsubs:[],timer:null,tail:Promise.resolve(),seen:new Set()};
   const member=ref(code,"members/"+uid);
   // Deletion of an existing member is owner-authorized; register after creation.
-  await api.set(member,{label:memberLabel(label),joinedAt:api.serverTimestamp()});
-  try{await api.onDisconnect(member).remove();}catch(e){try{await api.remove(member);}catch{}throw e;}
+  await stage("参加者登録（beltRooms/members）",()=>api.set(member,{label:memberLabel(label),joinedAt:api.serverTimestamp()}));
+  try{await stage("切断時の退出予約（beltRooms/members）",()=>api.onDisconnect(member).remove());}catch(e){try{await api.remove(member);}catch{}throw e;}
   active=s;
   const error=e=>{if(active===s)status("同期エラー："+e.message);};
   s.unsubs.push(api.onValue(ref(code,"members"),snap=>{
@@ -38,7 +44,7 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
    if(!s.members[meta.owner])status("ホストが接続していません。ホスト不在時は進行が止まります");
   },error));
   if(host){
-   await publish(s);
+   await stage('初期戦闘状態の登録（beltRooms/state）',()=>publish(s,true));
    s.unsubs.push(api.onValue(ref(code,"inputs"),snap=>{
     if(active!==s)return;
     const rows=snap.val()||{},pending=[];
@@ -78,8 +84,13 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   await leave();
   for(let i=0;i<5;i++){
    const code=makeRoomCode(),meta={owner:uid,mode,createdAt:api.serverTimestamp()};
-   const tx=await api.runTransaction(ref(code,"meta"),old=>old==null?meta:undefined,{applyLocally:false});
-   if(tx.committed)return enter(code,meta,label,true);
+   // The 12-character random code is checked first. Rules allow metadata
+   // creation only when absent, so even a rare concurrent collision is safe.
+   const metaRef=ref(code,"meta");
+   const existing=await stage("ルームコード確認（beltRooms/meta 読込）",()=>api.get(metaRef));
+   if(existing.exists())continue;
+   await stage("ルーム作成（beltRooms/meta 書込）",()=>api.set(metaRef,meta));
+   return enter(code,meta,label,true);
   }
   throw Error("ルームを作成できません");
  }
@@ -87,7 +98,7 @@ export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onSta
   const code=normalizeRoomCode(raw);
   if(!code)throw Error("招待コードは12文字です");
   await leave();
-  const snap=await api.get(ref(code,"meta"));
+  const snap=await stage("ルーム確認（beltRooms/meta 読込）",()=>api.get(ref(code,"meta")));
   if(!snap.exists())throw Error("ルームが見つかりません");
   const meta=snap.val();if(!["coop","versus"].includes(meta.mode))throw Error("不正なルーム");
   return enter(code,meta,label,false);

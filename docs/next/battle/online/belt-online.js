@@ -1,5 +1,5 @@
 import {createFirebaseGateway} from "../../cloud/firebase-service.js?v=4";
-import {createBeltRoom} from "./belt-room.js?v=1";
+import {createBeltRoom} from "./belt-room.js?v=2";
 import {ownedSide,sideName,availableCommand} from "./belt-engine.js?v=1";
 import {COMMANDS,TIMELINE_SIZE,canShiftImpact,isManual,editableAttack} from "../../../battle/rules.js?v=17";
 import {gridSides,teamOf,targetFor,jumpLandingCandidates} from "../../../battle/grid-rules.js?v=7";
@@ -29,7 +29,7 @@ async function connect(kind){
   const name=$("name").value;
   const code=kind==="join"?await room.join($("code").value,name):await room.create(kind,name);
   const url=new URL(location.href);url.searchParams.set("room",code);history.replaceState(null,"",url);
- }catch(e){showError(e);await room?.leave();room=null;state=null;members={};render();}
+ }catch(e){await room?.leave();room=null;state=null;members={};render();showError(e);}
  finally{connecting=false;updateLobby();}
 }
 async function send(intent){
