@@ -205,7 +205,7 @@ run("FIELD NEXT avatar slider changes only visual size without moving player fee
  assert.equal(rows[0].y+rows[0].h,player.y+FIELD_AVATAR_SIZE.baselineOffset);
  const html=text("index.html");
  assert(html.includes('id="next-avatar-scale"'));
- assert(html.includes('field-controls-responsive.css?v=3'));
+ assert(html.includes('field-controls-responsive.css?v=4'));
  const css=text("runtime/field-controls-responsive.css");
  for(const term of [
   "grid-template-columns:repeat(3,var(--field-face))",
@@ -230,7 +230,7 @@ run("FIELD NEXT Safari 100% menu uses full frame and permits native touch scroll
  const settings=html.indexOf('id="next-visual-mode"',opening);
  assert(opening>0&&close>opening&&close<settings);
  assert.equal((html.match(/id="menu-close"/g)||[]).length,1);
- assert(html.includes('field-controls-responsive.css?v=3'));
+ assert(html.includes('field-controls-responsive.css?v=4'));
  assert(html.includes("event.target.closest('#game-menu')"));
  const css=text("runtime/field-controls-responsive.css");
  for(const fragment of [
@@ -552,4 +552,19 @@ run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  assert(source.includes('ui.invite.select()'));
  assert(source.includes('ui.panel.hidden=false'));
  assert(source.includes('if(!session?.connected)return;'));
+});
+
+run("FIELD dual slot selections stay independent and slash direction quantizes eight ways",()=>{
+ const modules=JSON.parse(text("index.html").match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ const load=name=>{const module={exports:{}};new Function("require","module","exports",modules[name])(()=>{},module,module.exports);return module.exports;};
+ const {ActionState}=load("/src/actions/ActionState.ts");
+ const {ActionButtons}=load("/src/actions/ActionButtons.ts");
+ const state=new ActionState();
+ assert.equal(state.skillIndex("Y"),0);assert.equal(state.skillIndex("X"),1);
+ state.changeSlot("Y",1);assert.equal(state.skillIndex("X"),1);
+ state.changeSlot("X",1);assert.equal(state.skillIndex("Y"),1);assert.equal(state.skillIndex("X"),2);
+ assert.equal(ActionButtons.prototype.direction(3,2,"N"),"N");
+ assert.equal(ActionButtons.prototype.direction(-30,30,"N"),"SW");
+ assert.equal(ActionButtons.prototype.direction(0,-30,"S"),"N");
+ assert(text("index.html").includes('id="btn-menu"'));
 });
