@@ -6,6 +6,7 @@ import {fileURLToPath} from "node:url";
 import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, createNextContent } from "../content/index.js";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
+import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
 import { validateMap, STORAGE_KEY } from "../editor/map-schema.js";
@@ -186,7 +187,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
    hudText:"SKILL 4 · 突撃",query:"?editorMap=1"}).field,"エディタ試遊");
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
- assert(html.includes('./next/runtime/field-status.js?v=2'));
+ assert(html.includes('./next/runtime/field-status.js?v=3'));
  assert(html.includes('field-visual.js?v=10'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
@@ -546,7 +547,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=5"));
+ assert(html.includes("multiplayer-room-next.js?v=6"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('navigator.clipboard.writeText(address)'));
  assert(source.includes('ui.invite.select()'));
@@ -567,4 +568,24 @@ run("FIELD dual slot selections stay independent and slash direction quantizes e
  assert.equal(ActionButtons.prototype.direction(-30,30,"N"),"SW");
  assert.equal(ActionButtons.prototype.direction(0,-30,"S"),"N");
  assert(text("index.html").includes('id="btn-menu"'));
+});
+
+run("FIELD remote attacks hit once, respect obstacle and reset HP",()=>{
+ const updates=[],combat=new FieldCombat(hp=>updates.push(hp));
+ const world={width:1600,height:1000,obstacles:[]},target={x:150,y:100,halfSize:15};
+ const a={index:0,x:100,y:100,facing:"E",radius:8};
+ assert.equal(combat.receive(a),false);
+ combat.enable();assert(combat.receive(a));
+ for(let i=0;i<20;i++)combat.tick(.05,world,target);
+ assert.equal(combat.hp,90);
+ combat.reset();
+ assert(combat.receive(a));for(let i=0;i<20;i++)combat.tick(.05,{...world,obstacles:[{x:132,y:75,w:10,h:50}]},target);
+ assert.equal(combat.hp,100);
+ assert(combat.receive({index:2,x:100,y:100,facing:"E"}));
+ for(let i=0;i<8;i++)combat.tick(.05,world,target);
+ assert.equal(combat.hp,80);
+ assert.equal(attackPacket({index:99,x:100,y:100}),null);
+ assert.equal(attackPacket({index:0,x:100,y:100,dx:100,dy:0}).dx,1);
+ const rules=JSON.parse(text("../firebase/database.rules.json"));
+ assert(rules.rules.fieldCombat.$room.$connection.attack.$other[".validate"]===false);
 });
