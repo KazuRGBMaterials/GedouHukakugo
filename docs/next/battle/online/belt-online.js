@@ -6,7 +6,7 @@ import {ownedSide} from "./belt-engine.js?v=3";
 // UI/transport adapter only. The same battle.js renders solo and multiplayer.
 export function bindBeltOnline({onSnapshot,onLeave,onUnlock,onStatus}){
  const $=id=>document.getElementById(id),gateway=createFirebaseGateway();
- let room=null,state=null,members={},connecting=false,waiting=null,sending=false;
+ let room=null,state=null,members={},connecting=false,waiting=null,sending=false,hadBattle=false;
  const status=message=>{$("status").textContent=message;};
  const feedback=message=>{$("online-command-status").textContent=message;onStatus?.(message);};
  const prefill=new URLSearchParams(location.search).get("room");if(prefill)$("code").value=prefill.toUpperCase().slice(0,12);
@@ -22,7 +22,8 @@ export function bindBeltOnline({onSnapshot,onLeave,onUnlock,onStatus}){
   if(active){const u=new URL(location.href);u.searchParams.set("room",session.code);$("invite").value=u.href;$("code").value=session.code;}
  }
  function snapshot(next,session){
-  const firstBattle=!state?.battle&&!!next.battle;
+  const firstBattle=!hadBattle&&!!next.battle;
+  hadBattle=!!next.battle;
   state=next;
   const ack=next.acks?.[room.getUid()];if(waiting&&ack?.id===waiting){feedback(ack.message);waiting=null;}
   if(firstBattle)$("online-room").open=false;
@@ -36,7 +37,7 @@ export function bindBeltOnline({onSnapshot,onLeave,onUnlock,onStatus}){
    const name=$("name").value;
    const code=kind==="join"?await room.join($("code").value,name):await room.create(kind,name);
    const url=new URL(location.href);url.searchParams.set("room",code);history.replaceState(null,"",url);
-  }catch(e){await room?.leave();room=null;state=null;members={};onLeave();status(e.message);}
+  }catch(e){await room?.leave();room=null;state=null;members={};hadBattle=false;onLeave();status(e.message);}
   finally{connecting=false;updateLobby();}
  }
  async function send(intent){
@@ -50,7 +51,7 @@ export function bindBeltOnline({onSnapshot,onLeave,onUnlock,onStatus}){
  }
  const start=()=>room?.start().catch(e=>status(e.message));
  $("coop").onclick=()=>connect("coop");$("versus").onclick=()=>connect("versus");$("join").onclick=()=>connect("join");
- $("leave").onclick=async()=>{await room?.leave();room=null;state=null;members={};waiting=null;feedback("");onLeave();$("online-room").open=true;updateLobby();const url=new URL(location.href);url.searchParams.delete("room");history.replaceState(null,"",url);};
+ $("leave").onclick=async()=>{await room?.leave();room=null;state=null;members={};hadBattle=false;waiting=null;feedback("");onLeave();$("online-room").open=true;updateLobby();const url=new URL(location.href);url.searchParams.delete("room");history.replaceState(null,"",url);};
  $("prepare").onclick=()=>room.prepare({size:Number($("size").value),enemies:Number($("enemies").value)}).catch(e=>status(e.message));
  $("online-start").onclick=start;
  $("invite").onfocus=()=>$("invite").select();
