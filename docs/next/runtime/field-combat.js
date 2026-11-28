@@ -37,17 +37,17 @@ export class FieldCombat{
   for(const [id,hp] of Object.entries(values||{})){const old=this.peerHp[id];if(Number.isFinite(old)&&hp<old)this.peerHits.set(id,{damage:old-hp,life:.65});}
   this.peerHp=values||{};
  }
- receive(detail){
+ receive(detail,{visualOnly=false}={}){
   if(!this.enabled)return false;
   const a=attackPacket(detail);if(!a)return false;
   if(this.effects.length>=120)this.effects.shift();
   const x=a.x+(a.kind==="cast"&&a.index!==3?a.dx*24:0),y=a.y+(a.kind==="cast"&&a.index!==3?a.dy*24:0);
   const life=a.kind==="dive"?.185:a.kind==="land"?.30:[1.25,.42,LASER_DURATION,.44][a.index];
-  this.effects.push({...a,x,y,life,maxLife:life,hit:false,length:0,age:0,stopped:false,pulses:0});
+  this.effects.push({...a,x,y,life,maxLife:life,hit:false,length:0,age:0,stopped:false,pulses:0,visualOnly});
   return true;
  }
  damage(e,player){
-  if((e.hit&&e.index!==2)||!this.hp||e.kind==="dive")return;
+  if(e.visualOnly||(e.hit&&e.index!==2)||!this.hp||e.kind==="dive")return;
   e.hit=true;
   const amount=e.index===0?fireDamage(e.radius):FIELD_DAMAGE[e.index],damage=Math.min(this.hp,amount);
   this.hp-=damage;this.regenTimer=0;this.flash=.45;this.impacts.push({x:player.x,y:player.y,life:.25,damage});this.onHp(this.hp);
@@ -85,7 +85,7 @@ export class FieldCombat{
      const x=e.x+e.dx*distance/steps,y=e.y+e.dy*distance/steps;
      if(blocked(x,y,e.radius,world)){e.stopped=true;e.life=.16;break;}
      e.x=x;e.y=y;
-     if(Math.hypot(x-player.x,y-player.y)<=half+e.radius){
+     if(!e.visualOnly&&Math.hypot(x-player.x,y-player.y)<=half+e.radius){
       this.damage(e,player);if(e.index!==3){e.stopped=true;e.life=.18;break;}
      }
     }
