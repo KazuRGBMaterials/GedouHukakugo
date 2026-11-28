@@ -1,5 +1,5 @@
 /** Local FIELD enemies. No DOM, database, or renderer dependencies in the AI. */
-import {FieldCombat,attackPacket} from "./field-combat.js?v=6";
+import {FieldCombat,attackPacket} from "./field-combat.js?v=7";
 export const LASER_CHARGE_SECONDS=1.5;
 export const ENEMY_SPAWNS=Object.freeze([
  {id:"slash1",type:"slash",label:"近接型",x:1220,y:140,hp:55,halfSize:15,speed:165},
@@ -54,8 +54,10 @@ export class FieldEnemies{
   const duration=index===2?LASER_CHARGE_SECONDS:index===0?(e.type==="boss"?1.4:.4):index===3?.28:.16;
   e.windup={index,elapsed:0,duration,aim:{x:player.x,y:player.y}};e.moving=false;
  }
- tick(dt,world,player,playerHp){
+ tick(dt,world,player,playerHp){return this.tickParty(dt,world,[{...player,hp:playerHp}]);}
+ tickParty(dt,world,party){
   if(!this.active)return;
+  const alive=party.filter(p=>p.hp>0&&Number.isFinite(p.x)&&Number.isFinite(p.y));
   dt=Math.max(0,Math.min(.05,Number(dt)||0));
   for(const e of this.enemies){
    if(e.hp<=0)continue;
@@ -64,7 +66,8 @@ export class FieldEnemies{
    if(e.pose){e.pose.life-=dt;if(e.pose.life<=0)e.pose=null;}
    if(e.combat.applyKnockback(dt,world,e)){e.windup=null;e.dash=null;continue;}
    e.moving=false;e.cooldown=Math.max(0,e.cooldown-dt);
-   if(playerHp<=0){e.windup=null;e.dash=null;continue;}
+   const player=alive.reduce((best,p)=>!best||Math.hypot(p.x-e.x,p.y-e.y)<Math.hypot(best.x-e.x,best.y-e.y)?p:best,null);
+   if(!player){e.windup=null;e.dash=null;continue;}
    const dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy),boss=e.type==="boss";
    const aggro=boss?520:340,leash=boss?530:420;
    if(d<aggro)e.aggro=true;
@@ -107,6 +110,20 @@ export class FieldEnemies{
   }
   this.enemies=this.enemies.filter(e=>e.hp>0);
  }
+}
+/** Snapshot only visual fields. Guests do not execute AI or enemy HP simulation. */
+export function enemySnapshot(system){
+ return system.enemies.filter(e=>e.hp>0).map(e=>({id:e.id,x:Math.round(e.x*10)/10,y:Math.round(e.y*10)/10,hp:e.hp,facing:e.facing,moving:!!e.moving,windup:e.windup?structuredClone(e.windup):null,flash:e.combat.flash>0}));
+}
+export function enemyMirror(rows){
+ const list=Array.isArray(rows)?rows:[],enemies=[];
+ for(const def of ENEMY_SPAWNS){
+  const r=list.find(x=>x?.id===def.id);
+  if(!r||!Number.isFinite(r.x)||!Number.isFinite(r.y)||!Number.isInteger(r.hp)||r.hp<=0||r.hp>def.hp||r.x<0||r.x>1600||r.y<0||r.y>1000)continue;
+  const w=r.windup,windup=w&&Number.isInteger(w.index)&&w.index>=0&&w.index<=3&&Number.isFinite(w.elapsed)&&Number.isFinite(w.duration)&&w.duration>0&&Number.isFinite(w.aim?.x)&&Number.isFinite(w.aim?.y)?w:null;
+  enemies.push({...def,x:r.x,y:r.y,hp:r.hp,facing:["N","NE","E","SE","S","SW","W","NW"].includes(r.facing)?r.facing:"S",moving:!!r.moving,windup,combat:{maxHp:def.hp,flash:r.flash?.5:0,impacts:[]}});
+ }
+ return {active:true,enemies};
 }
 /** Uses existing graphics via injected drawing port; fallback visible during loading. */
 export function drawFieldEnemies(ctx,system,drawSprite,elapsed=0){
