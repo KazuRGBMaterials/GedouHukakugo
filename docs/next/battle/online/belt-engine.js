@@ -1,4 +1,4 @@
-import {createBattle,COMMANDS,canReserve,reserve,isManual,shiftImpact,setQueuedTarget,setQueuedLanding,startBattle,advanceBattle as advanceCore} from "../../../battle/rules.js?v=17";
+import {createBattle,COMMANDS,nextAction,canReserve,reserve,isManual,shiftImpact,setQueuedTarget,setQueuedLanding,startBattle,advanceBattle as advanceCore} from "../../../battle/rules.js?v=17";
 import {PARTY_SIDES,FOE_SIDES,gridSides,teamOf,normalizeGridSize} from "../../../battle/grid-rules.js?v=7";
 import {withWaitHealthRecovery} from "../rest-recovery.js";
 const advance=withWaitHealthRecovery(advanceCore,{sidesForBattle:gridSides});
@@ -64,7 +64,8 @@ export function beginBattle(state){
 }
 export function tickBattle(state){
  if(state.phase!=="running")return false;
- advance(state.battle);state.phase=state.battle.phase;state.revision++;return true;
+ const processed=Object.fromEntries(gridSides(state.battle).map(side=>[side,nextAction(state.battle,side)]));
+ advance(state.battle);state.processed=Object.fromEntries(Object.entries(processed).filter(([,action])=>action).map(([side,action])=>[side,{...action}]));state.phase=state.battle.phase;state.revision++;return true;
 }
 export function availableCommand(state,uid,id,cell){
  const side=ownedSide(state,uid),b=state.battle;

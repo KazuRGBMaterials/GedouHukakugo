@@ -1,15 +1,4 @@
 <!doctype html>
-<html lang="ja">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>外道不覚悟 | ベルトライン協力・対戦</title><link rel="stylesheet" href="./belt-online.css?v=1"></head>
-<body><main>
-<header><a href="../../">フィールドへ</a><a href="../?grid=1">一人用戦闘へ</a><h1>ベルトライン戦闘 ONLINE</h1><button id="battle-sound" type="button" aria-pressed="true">サウンド ON</button><p>従来のマス目・予約・インパクト・スタミナ・相性を共有。ホストが進行し、全参加者が各自のキャラクターを操作します。</p></header>
-<section class="panel" aria-label="オンラインルーム">
-<div class="row"><label>表示名<input id="name" maxlength="16" value="MAGE" autocomplete="off"></label><label>招待コード<input id="code" maxlength="12" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label></div>
-<div class="row"><button id="coop">協力ルーム作成</button><button id="versus">対戦ルーム作成</button><button id="join">コードで参加</button><button id="leave" disabled>退出</button></div>
-<label id="invite-label" hidden>招待URL<input id="invite" type="url" readonly><button id="copy" type="button">招待URLを共有</button></label>
-<p id="status" role="status">未接続</p><p id="members"></p>
-<div id="host-controls" hidden><div class="row"><label>盤面<select id="size"><option>5</option><option selected>7</option><option>9</option><option>11</option></select></label><label>協力時の敵数<select id="enemies"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label><button id="prepare">準備開始（参加者確定）</button><button id="start" disabled>戦闘開始</button></div></div>
-<p class="sub">協力は最大4人の操作枠、対戦は最大4対4の操作枠。追加参加者は観戦になります。ホスト切断時は進行停止。</p>
-</section>
-<section id="game" hidden class="panel"><div class="row"><strong id="phase">準備</strong><strong id="self"></strong><span id="feedback"></span><span id="command-feedback" role="status" aria-live="polite"></span></div><div id="fighters"></div><div class="board-scroll"><div id="board" aria-label="戦闘マス目"></div></div><p id="target"></p><div id="commands" class="commands"></div><div class="row"><button id="shift">火炎を1枠ずらす</button></div><h2>ベルトライン予約</h2><div class="belt-scroll"><div id="belt"></div></div><h2>戦闘ログ</h2><div id="log"></div></section>
-</main><script type="module" src="./belt-online.js?v=4"></script></body></html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>外道不覚悟 | ベルトライン戦闘 ONLINE</title></head>
+<body><p>共通のベルトライン戦闘画面を開きます。</p><a href="../?grid=1&amp;online=1">オンライン戦闘へ</a>
+<script>const url=new URL("../",location.href);url.search=location.search;url.searchParams.set("grid","1");url.searchParams.set("online","1");location.replace(url.href);</script></body></html>

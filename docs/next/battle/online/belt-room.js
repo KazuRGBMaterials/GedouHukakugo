@@ -1,5 +1,5 @@
 import {makeRoomCode,normalizeRoomCode} from "../../cloud/identity.js";
-import {lobby,prepareBattle,beginBattle,tickBattle,applyIntent,cleanIntent} from "./belt-engine.js?v=2";
+import {lobby,prepareBattle,beginBattle,tickBattle,applyIntent,cleanIntent} from "./belt-engine.js?v=3";
 export function createBeltRoom({connection,onState=()=>{},onMembers=()=>{},onStatus=()=>{}}){
  const {api,db,uid}=connection;
  let active=null;

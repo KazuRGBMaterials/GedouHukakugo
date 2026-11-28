@@ -148,10 +148,10 @@ export function resolveMovement(battle, actions, landings, report) {
   }
 }
 
-export function enemyThreats(battle) {
+export function enemyThreats(battle, perspective = "player") {
   if (battle.phase === "finished") return [];
   const { grid, tick } = battle;
-  return opposingSides(battle, "player").flatMap(side => {
+  return opposingSides(battle, perspective).flatMap(side => {
     const action = battle[side].actions.find(item => item.status === "pending" && item.start <= tick + 1 && item.impact > tick);
     if (action?.commandId === "fire") return [{ side, action, cells: fireCells(grid[side], grid) }];
     if (action?.commandId === "heavy" || action?.commandId === "quick") {
