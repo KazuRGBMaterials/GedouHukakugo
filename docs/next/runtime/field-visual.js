@@ -10,12 +10,13 @@ import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js?v=2";
 
 // Visual-only change. World coordinates, collision body and skill hitboxes
 // keep their existing dimensions. Bottom edge stays anchored at player.y+23.
-export const FIELD_AVATAR_SIZE=Object.freeze({width:52,height:73,baselineOffset:23});
+export const FIELD_AVATAR_SIZE=Object.freeze({width:32,height:45,baselineOffset:23});
 
 export function createFieldVisualPort({
   content = nextContent,
   canvasLayers = createLayeredCanvas(),
-  visualMode = () => document.getElementById("next-visual-mode")?.value || "layered"
+  visualMode = () => document.getElementById("next-visual-mode")?.value || "layered",
+  avatarScale = () => Number(globalThis.document?.getElementById("next-avatar-scale")?.value||100)/100
 } = {}) {
   const fieldGraphics = () => content.registry.get("characters","mage-next")?.graphics;
   const isLayered = () => visualMode() !== "legacy";
@@ -55,7 +56,10 @@ export function createFieldVisualPort({
     if(!isLayered())return false;
     const graphics=fieldGraphics();
     if(graphics?.mode!=="layered")return false;
-    const {width:w,height:h,baselineOffset}=FIELD_AVATAR_SIZE;
+    const factor=Math.min(1.5,Math.max(0.7,Number(avatarScale())||1));
+    const {baselineOffset}=FIELD_AVATAR_SIZE;
+    const w=Math.round(FIELD_AVATAR_SIZE.width*factor);
+    const h=Math.round(FIELD_AVATAR_SIZE.height*factor);
     const x=Math.round(player.x-w/2),y=Math.round(player.y-h+baselineOffset);
     const time=Number.isFinite(walkingTime)?walkingTime:elapsed;
     if(player.moving&&!airborne && drawWalk(ctx,graphics,player.facing,x,y,w,h,time))return true;
@@ -153,6 +157,24 @@ export function setupFieldControls(port) {
   const map=document.getElementById("next-map-choice");
   const open=document.getElementById("next-map-open");
   const saved="gedo-next-field-visual-mode-v1";
+  // Cosmetic size preference is distinct from gameplay and save revisions.
+  const sizeSlider=document.getElementById("next-avatar-scale");
+  const sizeLabel=document.getElementById("next-avatar-scale-label");
+  const sizeKey="gedo-next-field-avatar-scale-v1";
+  if(sizeSlider){
+    try{
+      const persisted=Number(localStorage.getItem(sizeKey));
+      if(Number.isFinite(persisted)&&persisted>=70&&persisted<=150)
+        sizeSlider.value=String(persisted);
+    }catch{}
+    const updateSize=()=>{
+      const value=Math.min(150,Math.max(70,Number(sizeSlider.value)||100));
+      if(sizeLabel)sizeLabel.textContent=value+"%";
+      try{localStorage.setItem(sizeKey,String(value));}catch{}
+    };
+    sizeSlider.addEventListener("input",updateSize);
+    updateSize();
+  }
   try { if(localStorage.getItem(saved)==="legacy")mode.value="legacy"; }catch{}
   mode?.addEventListener("change",()=>{
     try{localStorage.setItem(saved,mode.value);}catch{}
