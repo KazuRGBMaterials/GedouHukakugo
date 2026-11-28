@@ -32,3 +32,21 @@ export function chooseCoopLeader(meta,players,now){
  if(owner?.owner===meta?.owner&&activeCoopPlayer(owner,now))return meta.connection;
  return Object.keys(players||{}).filter(id=>/^P[a-f0-9]{24}$/.test(id)&&activeCoopPlayer(players[id],now)).sort()[0]||null;
 }
+
+/** A room is not presented as ready until its initial shared enemy checkpoint exists.
+ * A reconnect may find a committed checkpoint: never overwrite it with fresh enemies.
+ */
+export async function bootstrapCoop({read,write,initial,creator,id,timestamp}){
+ const existing=await read();
+ if(existing!==null&&existing!==undefined){
+  const result=readNpcSnapshot(existing.payload,0,true);
+  if(!result)throw Error("CPU敵の保存データが不正です");
+  return {row:existing,enemies:result.enemies};
+ }
+ if(!creator)return null;
+ const enemies=initial();
+ if(!Array.isArray(enemies)||enemies.length!==5||!enemies.some(e=>e.id==="hellor"&&e.hp===400))throw Error("CPU敵の初期データがありません");
+ const row={revision:1,payload:createNpcJournal().serialize(enemies),writer:id,updatedAt:timestamp()};
+ await write(row);
+ return {row,enemies};
+}
