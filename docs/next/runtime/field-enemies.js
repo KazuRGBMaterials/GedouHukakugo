@@ -36,6 +36,21 @@ export class FieldEnemies{
    e.combat.enable();return e;
   });
  }
+ // Restore the last committed encounter, not a fresh spawn. Missing IDs stay defeated.
+ restore(rows){
+  if(!Array.isArray(rows))return false;
+  const mirror=enemyMirror(rows);
+  if(mirror.enemies.length!==rows.length)return false;
+  this.reset();
+  const byId=new Map(mirror.enemies.map(e=>[e.id,e]));
+  this.enemies=this.enemies.filter(e=>byId.has(e.id));
+  for(const e of this.enemies){
+   const s=byId.get(e.id),raw=rows.find(r=>r.id===e.id);
+   Object.assign(e,{x:s.x,y:s.y,hp:s.hp,facing:s.facing,moving:false,windup:s.windup?structuredClone(s.windup):null,aggro:!!raw.aggro,cooldown:Math.max(0,Math.min(3,Number(raw.cooldown)||0)),combo:Math.max(0,Math.min(3,Math.trunc(raw.combo)||0)),nextSkill:Math.max(0,Math.trunc(raw.nextSkill)||0)});
+   e.combat.hp=s.hp;
+  }
+  return true;
+ }
  setActive(value){this.active=!!value;if(!this.active)for(const e of this.enemies){e.windup=null;e.dash=null;e.combat.effects=[];}}
  receive(detail){
   if(!this.active||!attackPacket(detail))return false;
@@ -113,7 +128,7 @@ export class FieldEnemies{
 }
 /** Snapshot only visual fields. Guests do not execute AI or enemy HP simulation. */
 export function enemySnapshot(system){
- return system.enemies.filter(e=>e.hp>0).map(e=>({id:e.id,x:Math.round(e.x*10)/10,y:Math.round(e.y*10)/10,hp:e.hp,facing:e.facing,moving:!!e.moving,windup:e.windup?structuredClone(e.windup):null,flash:e.combat.flash>0}));
+ return system.enemies.filter(e=>e.hp>0).map(e=>({id:e.id,x:Math.round(e.x*10)/10,y:Math.round(e.y*10)/10,hp:e.hp,facing:e.facing,moving:!!e.moving,windup:e.windup?structuredClone(e.windup):null,flash:e.combat.flash>0,aggro:e.aggro,cooldown:e.cooldown,combo:e.combo,nextSkill:e.nextSkill}));
 }
 export function enemyMirror(rows){
  const list=Array.isArray(rows)?rows:[],enemies=[];
