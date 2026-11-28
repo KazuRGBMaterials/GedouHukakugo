@@ -151,6 +151,60 @@
           }
         }
       }
+    },
+    "fieldCombat": {
+      "$room": {
+        ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+        "$connection": {
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && $connection.matches(/^P[a-f0-9]{24}$/) && ((!newData.exists() && data.child('owner').val() == auth.uid) || (newData.exists() && root.child('rooms/'+$room+'/players/'+$connection+'/owner').val() == auth.uid && newData.child('owner').val() == auth.uid && (!data.exists() || data.child('owner').val() == auth.uid)))",
+          ".validate": "newData.hasChildren(['owner','hp','seq']) && ((newData.child('seq').val() == 0 && !newData.child('attack').exists()) || (newData.child('seq').val() > 0 && newData.child('attack').exists()))",
+          "owner": {
+            ".validate": "newData.isString() && newData.val() == auth.uid"
+          },
+          "hp": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "seq": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+          },
+          "attack": {
+            ".validate": "newData.hasChildren(['index','x','y','dx','dy','radius','combo','kind','at'])",
+            "index": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1600"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            },
+            "dx": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "dy": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "radius": {
+              ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 22"
+            },
+            "combo": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+            },
+            "kind": {
+              ".validate": "newData.isString() && (newData.val() == 'cast' || newData.val() == 'dive' || newData.val() == 'land')"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }
