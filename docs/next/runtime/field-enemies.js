@@ -126,6 +126,10 @@ export class FieldEnemies{
   this.enemies=this.enemies.filter(e=>e.hp>0);
  }
 }
+/** Fresh rooms never inherit the local solo encounter or its defeated enemies. */
+export function initialEnemySnapshot(){
+ return ENEMY_SPAWNS.map(s=>({id:s.id,x:s.x,y:s.y,hp:s.hp,facing:"W",moving:false,windup:null,flash:false,aggro:false,cooldown:.35,combo:0,nextSkill:0}));
+}
 /** Snapshot only visual fields. Guests do not execute AI or enemy HP simulation. */
 export function enemySnapshot(system){
  return system.enemies.filter(e=>e.hp>0).map(e=>({id:e.id,x:Math.round(e.x*10)/10,y:Math.round(e.y*10)/10,hp:e.hp,facing:e.facing,moving:!!e.moving,windup:e.windup?structuredClone(e.windup):null,flash:e.combat.flash>0,aggro:e.aggro,cooldown:e.cooldown,combo:e.combo,nextSkill:e.nextSkill}));
