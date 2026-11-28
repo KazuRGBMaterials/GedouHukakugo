@@ -525,7 +525,7 @@
       "$room": {
         "meta": {
           ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
-          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && !data.exists() && newData.child('owner').val() == auth.uid",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && newData.exists() && newData.child('owner').val() == auth.uid && ((!data.exists()) || (newData.child('createdAt').val() == data.child('createdAt').val() && root.child('coopPlayers').child($room).child('players').child(newData.child('connection').val()).child('owner').val() == auth.uid && root.child('coopPlayers').child($room).child('players').child(newData.child('connection').val()).child('updatedAt').val() >= now - 15000 && (!root.child('coopPlayers').child($room).child('players').child(data.child('connection').val()).exists() || root.child('coopPlayers').child($room).child('players').child(data.child('connection').val()).child('updatedAt').val() < now - 15000)))",
           ".validate": "newData.hasChildren(['owner','connection','createdAt'])",
           "owner": {
             ".validate": "newData.isString() && newData.val() == auth.uid"
@@ -534,7 +534,7 @@
             ".validate": "newData.isString() && newData.val().matches(/^P[a-f0-9]{24}$/)"
           },
           "createdAt": {
-            ".validate": "newData.isNumber() && newData.val() >= now - 120000 && newData.val() <= now + 30000"
+            ".validate": "newData.isNumber() && ((data.exists() && newData.val() == data.val()) || (!data.exists() && newData.val() >= now - 120000 && newData.val() <= now + 30000))"
           },
           "$other": {
             ".validate": false
@@ -542,8 +542,8 @@
         },
         "state": {
           ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
-          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && root.child('fieldCoop').child($room).child('meta').child('owner').val() == auth.uid && root.child('coopPlayers').child($room).child('players').child(root.child('fieldCoop').child($room).child('meta').child('connection').val()).child('owner').val() == auth.uid && newData.exists()",
-          ".validate": "newData.hasChildren(['revision','payload','updatedAt']) && (!data.exists() || newData.child('revision').val() >= data.child('revision').val())",
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && newData.exists() && root.child('fieldCoop').child($room).child('meta').child('owner').val() == auth.uid && newData.child('writer').val() == root.child('fieldCoop').child($room).child('meta').child('connection').val() && root.child('coopPlayers').child($room).child('players').child(newData.child('writer').val()).child('owner').val() == auth.uid && root.child('coopPlayers').child($room).child('players').child(newData.child('writer').val()).child('updatedAt').val() >= now - 15000",
+          ".validate": "newData.hasChildren(['revision','payload','updatedAt','writer']) && (!data.exists() || newData.child('revision').val() > data.child('revision').val())",
           "revision": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
           },
@@ -555,6 +555,9 @@
           },
           "$other": {
             ".validate": false
+          },
+          "writer": {
+            ".validate": "newData.isString() && newData.val().matches(/^P[a-f0-9]{24}$/)"
           }
         }
       }

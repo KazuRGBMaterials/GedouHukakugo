@@ -1,5 +1,6 @@
 // Real RTDB rules emulator, not a permissive mock transport.
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import {initializeTestEnvironment,assertSucceeds,assertFails} from "@firebase/rules-unit-testing";
 import {ref,set,get,push,update,serverTimestamp,remove} from "firebase/database";
 const env=await initializeTestEnvironment({projectId:"demo-gedo",database:{rules:fs.readFileSync(process.argv[2],"utf8")}});
@@ -53,11 +54,20 @@ try{
   const attack={index:1,x:100+i*50,y:100,dx:i?-1:1,dy:0,radius:15,combo:1,kind:"cast",at:now()};
   await assertSucceeds(update(ref(db,coCombat+ids[i]),{seq:1,attack,"events/e1":{...attack,seq:1}}));
  }
- const snap={revision:1,payload:JSON.stringify({enemies:[],events:[]}),updatedAt:now()};
+ const snap={revision:1,payload:JSON.stringify({enemies:[{id:"hellor",hp:370}],events:[]}),writer:ids[0],updatedAt:now()};
  await assertSucceeds(set(ref(host,coop+"/state"),snap));await assertSucceeds(get(ref(guest,coop+"/state")));
  await assertFails(set(ref(guest,coop+"/state"),{...snap,revision:2}));
  await assertFails(update(ref(guest,coCombat+ids[0]),{hp:0}));
+ const oldMeta=(await get(ref(guest,coop+"/meta"))).val();
+ const takeover={...oldMeta,owner:"guest",connection:ids[1]};
+ await assertFails(set(ref(guest,coop+"/meta"),takeover));
+ await assertFails(set(ref(outsider,coop+"/meta"),{...oldMeta,owner:"outsider",connection:"P"+"3".repeat(24)}));
  await assertSucceeds(remove(ref(host,coPos+ids[0])));
+ await assertSucceeds(set(ref(guest,coop+"/meta"),takeover));
+ const checkpoint=(await get(ref(guest,coop+"/state"))).val();assert(checkpoint.payload===snap.payload);
  await assertFails(set(ref(host,coop+"/state"),{...snap,revision:2}));
+ await assertFails(set(ref(guest,coop+"/state"),{...snap,revision:2}));
+ await assertFails(set(ref(guest,coop+"/state"),{...snap,writer:ids[1],revision:1}));
+ await assertSucceeds(set(ref(guest,coop+"/state"),{...snap,writer:ids[1],revision:2,payload:JSON.stringify({enemies:[{id:"hellor",hp:340}],events:[]})}));
  console.log("PASS real RTDB rules: both guests and hosts, command variants, field attacks, HP and isolation");
 }finally{await env.cleanup();}
