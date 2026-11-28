@@ -3,7 +3,8 @@ import {
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle as advanceCoreBattle, fighterName as coreFighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
 } from "../../battle/rules.js?v=16";
-import { createBattleAudio } from "../../battle/audio.js?v=1";
+import { createBattleAudio } from "../../battle/audio.js?v=2";
+import { victoryFanfare } from "./victory-fanfare.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "../../battle/grid-rules.js?v=7";
 import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
 import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
@@ -160,7 +161,7 @@ let battleTimer = null;
 let largestHit = null;
 const displayedHits = {};
 const buttons = new Map();
-const audio = createBattleAudio(el("battle-bgm"));
+const audio = createBattleAudio(el("battle-bgm"),{victoryEffect:victoryFanfare});
 let renderGrid;
 if (gridMode) {
   el("grid-panel").hidden = false;
