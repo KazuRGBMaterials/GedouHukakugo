@@ -36,7 +36,7 @@ const planningSeconds = 8;
 const urlParams = new URLSearchParams(window.location.search);
 const onlineMode = urlParams.get("online") === "1";
 const gridMode = onlineMode || urlParams.get("grid") === "1";
-let onlineState=null,onlineSide=null,onlineHost=false,onlineAdapter=null,onlineCode=null;
+let onlineState=null,onlineSide=null,onlineHost=false,onlineAdapter=null,onlineCode=null,onlineHasBattle=false;
 const canControl = side=>!onlineMode||onlineSide===side;
 const visualSelect = el("next-visual-mode");
 const characterSelect = el("next-character");
@@ -664,10 +664,11 @@ bindGameTaps(document);
 if(onlineMode){
  document.body.classList.add("belt-online","online-lobby");el("online-room").hidden=false;el("battle-title").textContent="ベルトライン戦闘 ONLINE";
  el("grid-instructions").textContent="各自のキャラだけを操作できます。敵のマスをタップして狙いを指定、空きマスをタップして移動を予約。ホストが戦闘開始します。";
- onlineAdapter=bindBeltOnline({onUnlock:()=>audio.unlock(),onStatus:msg=>{el("input-status").textContent=msg;},onLeave:()=>{onlineState=null;onlineSide=null;onlineCode=null;onlineHost=false;targets={};victoryGate.reset();audio.setMusic(false);audio.stopEffects();document.body.classList.add("online-lobby");},onSnapshot:(next,info)=>{
-  const prevPhase=onlineState?.phase,prevTick=battle.tick,newMatch=onlineCode!==info.code||!onlineState?.battle;
+ onlineAdapter=bindBeltOnline({onUnlock:()=>audio.unlock(),onStatus:msg=>{el("input-status").textContent=msg;},onLeave:()=>{onlineState=null;onlineSide=null;onlineCode=null;onlineHost=false;onlineHasBattle=false;targets={};victoryGate.reset();audio.setMusic(false);audio.stopEffects();document.body.classList.add("online-lobby");},onSnapshot:(next,info)=>{
+  const prevPhase=onlineHasBattle?battle.phase:null,prevTick=battle.tick,newMatch=onlineCode!==info.code||!onlineHasBattle;
   onlineState=next;onlineSide=info.side;onlineHost=info.host;onlineCode=info.code;
   if(!next.battle)return;
+  onlineHasBattle=true;
   // Preserve renderer identity between network snapshots so travel and impact animations run.
   if(newMatch){battle=structuredClone(next.battle);targets={};largestHit=null;delete displayedHits.player;delete displayedHits.enemy;}
   else Object.assign(battle,structuredClone(next.battle));
