@@ -1,7 +1,7 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
-import { attackPacket } from "../runtime/field-combat.js?v=9";
+import { attackPacket } from "../runtime/field-combat.js?v=10";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
-import { createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop,readHitEvents } from "../runtime/field-coop-sync.js?v=5";
+import { createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop,readHitEvents } from "../runtime/field-coop-sync.js?v=6";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
