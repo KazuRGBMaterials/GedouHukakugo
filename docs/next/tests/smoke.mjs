@@ -549,7 +549,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=8"));
+ assert(html.includes("multiplayer-room-next.js?v=9"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('navigator.clipboard.writeText(address)'));
  assert(source.includes('ui.invite.select()'));
@@ -675,4 +675,23 @@ run("FIELD two receivers independently apply reciprocal damage without repeated 
  a.setPeerHp({b:100});a.setPeerHp({b:88});
  assert.equal(a.peerHits.get("b").damage,12);
  a.setPeerHp({b:88});assert.equal(a.peerHits.get("b").damage,12);
+});
+
+run("Room code input preserves native text entry, normalizes on join only",()=>{
+ const field=text("index.html"),source=text("cloud/multiplayer-room-next.js");
+ assert(!/ui\.code\.addEventListener\(["']input/.test(source));
+ assert(source.includes("const code=validCode(ui.code.value)"));
+ const valid=source.match(/function validCode\(raw\) \{[^\n]+\}/)[0];
+ const normalize=new Function(valid+";return validCode;")();
+ assert.equal(normalize("aabb2233"),"AABB2233");
+ assert.equal(normalize("abcd2345"),"ABCD2345");
+ assert.equal(normalize("abcd-2345"),"ABCD2345");
+ assert.equal(normalize("abc"),null);
+ for(const [file,id] of [["index.html","room-code"],["battle/online/index.html","code"],["online/index.html","online-code"]]){
+  const input=text(file).match(new RegExp('<input id="'+id+'"[^>]+>'))[0];
+  assert(input.includes('autocapitalize="none"'));assert(input.includes('autocorrect="off"'));assert(input.includes('autocomplete="off"'));
+ }
+ const modules=JSON.parse(field.match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ assert(modules["/src/actions/ActionButtons.ts"].includes("if(!this.gestures.has('key-'+key))return;"));
+ assert(modules["/src/input/KeyboardInput.ts"].includes("if(!this.held.has(key))return;"));
 });
