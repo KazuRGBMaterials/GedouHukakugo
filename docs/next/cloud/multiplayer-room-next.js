@@ -174,7 +174,7 @@ async function joinRoom(raw) {
   }
   if(session)await leaveRoom();
   const current=++token;
-  sequence=0;setAvailable(false);say("匿名認証と接続を確認しています…");
+  sequence=0;combatSeq=0;setAvailable(false);say("匿名認証と接続を確認しています…");
   try{
     await ensureReady();
     if(current!==token)return;
@@ -227,7 +227,7 @@ async function startCombat(active,expected){
   if(session!==active||expected!==token){try{await api.remove(combatRef);}catch{}return;}
   await api.onDisconnect(combatRef).remove();
   if(session!==active||expected!==token||!active.connected)return;
-  combatSeq=0;port.enableCombat();active.combatReady=true;
+  port.enableCombat();active.combatReady=true;
   const seen=new Map();
   // First snapshot establishes a baseline; old attacks never replay on joining.
   let baseline=true;
