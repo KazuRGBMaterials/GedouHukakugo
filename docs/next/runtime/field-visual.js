@@ -138,7 +138,7 @@ export function installFieldLayeredRenderers({
     Renderer.prototype.drawAirborne=function(player) {
       if (!visualPort.isLayered()) return airborneLegacy.call(this,player);
       const height=Math.max(0,Number(
-        this.skills?.aerialSlash?.height ?? this.actions?.jumpOffset?.() ?? 0
+        player.remoteHeight ?? this.skills?.aerialSlash?.height ?? this.actions?.jumpOffset?.() ?? 0
       )||0);
       const ctx=this.ctx;
       // The shadow stays on the ground, while JumpRenderer has already
