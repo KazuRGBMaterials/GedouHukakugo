@@ -193,7 +193,7 @@ run("FIELD NEXT X-menu status reads actual movement and skill, and marks combat 
  const html=text("index.html");
  assert(html.includes('./next/runtime/field-status.css?v=1'));
  assert(html.includes('./next/runtime/field-status.js?v=3'));
- assert(html.includes('field-visual.js?v=12'));
+ assert(html.includes('field-visual.js?v=13'));
  const source=text("runtime/field-status.js");
  assert(source.includes("Lv・HP・MPは既存HUDに合わせた仮表示"));
  assert(source.includes('doc.getElementById("game-menu")'));
@@ -552,7 +552,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=13"));
+ assert(html.includes("multiplayer-room-next.js?v=14"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('await shareInvite(address)'));
  assert(text('runtime/invite-share.js').includes('nav.clipboard.writeText(url)'));
@@ -807,4 +807,34 @@ run("FIELD enemy spawns, separate attack roles and boss HP",()=>{
  const boss=system.enemies.find(e=>e.type==="boss");system.receive({index:0,x:boss.x-75,y:boss.y,facing:"E",radius:22});
  for(let i=0;i<20;i++)system.tick(.05,world,{x:100,y:100},100);
  assert.equal(boss.hp,370);system.setActive(false);assert(!system.receive({index:1,x:100,y:100,facing:"E"}));system.reset();assert.equal(system.enemies.find(e=>e.type==="boss").hp,400);
+});
+
+run("FIELD regeneration is player-only, bounded and never revives at zero",()=>{
+ const updates=[],c=new FieldCombat(hp=>updates.push(hp),100,{regenerate:true});
+ const w={width:1600,height:1000,obstacles:[]},p={x:150,y:100,halfSize:15};c.enable();c.hp=95;
+ for(let i=0;i<19;i++)c.tick(.05,w,p);assert.equal(c.hp,95);c.tick(.05,w,p);assert.equal(c.hp,96);
+ for(let i=0;i<100;i++)c.tick(.05,w,p);assert.equal(c.hp,100);assert.equal(updates.at(-1),100);
+ c.hp=0;for(let i=0;i<60;i++)c.tick(.05,w,p);assert.equal(c.hp,0);c.reset();assert.equal(c.hp,100);
+ const enemy=new FieldCombat(()=>{},400);enemy.enable();enemy.hp=370;for(let i=0;i<60;i++)enemy.tick(.05,w,p);assert.equal(enemy.hp,370);
+});
+run("FIELD defeated enemies are removed and no longer act",()=>{
+ const spawn={...ENEMY_SPAWNS[0],hp:6};let defeated=0,attacks=0;
+ const e=new FieldEnemies({spawns:[spawn],onDefeat:()=>defeated++,sendAttack:()=>attacks++});
+ const w={width:1600,height:1000,obstacles:[]},p={x:100,y:100,halfSize:15};
+ e.receive({index:0,x:spawn.x-40,y:spawn.y,facing:"E",radius:22});
+ for(let i=0;i<40;i++)e.tick(.05,w,p,100);
+ assert.equal(e.enemies.length,0);assert.equal(defeated,1);assert.equal(attacks,0);
+ e.reset();assert.equal(e.enemies.length,1);
+});
+run("FIELD Hellor uses actual sheet dimensions; downed body rotates instead of standing",()=>{
+ const png=fs.readFileSync(path.join(docs,"battle/assets/hellor-8dir.png"));
+ const naturalWidth=png.readUInt32BE(16),naturalHeight=png.readUInt32BE(20);
+ assert.equal(naturalWidth%4,0);assert.equal(naturalHeight%2,0);
+ const frames=[],rotations=[],draws=[];
+ const image={complete:true,naturalWidth,naturalHeight};
+ const port=createFieldVisualPort({visualMode:()=>"layered",avatarScale:()=>1,canvasLayers:{load:()=>image,draw:(...args)=>{draws.push(args);return true;}}});
+ const ctx={save(){},restore(){},translate(){},rotate(r){rotations.push(r);},drawImage(...args){frames.push(args);}};
+ assert(port.drawEnemy(ctx,{type:"boss",x:1400,y:830,facing:"W"},3.2,0));
+ assert.equal(frames[0][3],naturalWidth/4);assert.equal(frames[0][4],naturalHeight/2);
+ assert(port.drawDowned(ctx,{x:100,y:100}));assert.equal(rotations[0],-Math.PI/2);assert.equal(draws.length,1);
 });

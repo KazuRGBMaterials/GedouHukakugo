@@ -29,10 +29,10 @@ function distanceToLine(px,py,x,y,dx,dy,len){
  return Math.hypot(px-x-t*dx,py-y-t*dy);
 }
 export class FieldCombat{
- constructor(onHp=()=>{},maxHp=100){this.onHp=onHp;this.maxHp=Math.max(1,Number(maxHp)||100);this.hp=this.maxHp;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];this.knockback=null;}
+ constructor(onHp=()=>{},maxHp=100,{regenerate=false}={}){this.onHp=onHp;this.regenerate=regenerate;this.regenTimer=0;this.maxHp=Math.max(1,Number(maxHp)||100);this.hp=this.maxHp;this.enabled=false;this.effects=[];this.peerHp={};this.flash=0;this.peerHits=new Map();this.impacts=[];this.knockback=null;}
  enable(){if(!this.enabled){this.enabled=true;this.reset();}}
  disable(){this.enabled=false;this.effects=[];this.peerHp={};this.peerHits.clear();this.impacts=[];this.reset();}
- reset(){this.hp=this.maxHp;this.flash=0;this.knockback=null;this.effects=[];this.impacts=[];this.onHp(this.hp);}
+ reset(){this.regenTimer=0;this.hp=this.maxHp;this.flash=0;this.knockback=null;this.effects=[];this.impacts=[];this.onHp(this.hp);}
  setPeerHp(values){
   for(const [id,hp] of Object.entries(values||{})){const old=this.peerHp[id];if(Number.isFinite(old)&&hp<old)this.peerHits.set(id,{damage:old-hp,life:.65});}
   this.peerHp=values||{};
@@ -50,7 +50,7 @@ export class FieldCombat{
   if((e.hit&&e.index!==2)||!this.hp||e.kind==="dive")return;
   e.hit=true;
   const amount=e.index===0?fireDamage(e.radius):FIELD_DAMAGE[e.index],damage=Math.min(this.hp,amount);
-  this.hp-=damage;this.flash=.45;this.impacts.push({x:player.x,y:player.y,life:.25,damage});this.onHp(this.hp);
+  this.hp-=damage;this.regenTimer=0;this.flash=.45;this.impacts.push({x:player.x,y:player.y,life:.25,damage});this.onHp(this.hp);
   if(e.index===1){
    let dx=e.dx,dy=e.dy;
    if(e.kind==="land"){const len=Math.hypot(player.x-e.x,player.y-e.y);if(len>1){dx=(player.x-e.x)/len;dy=(player.y-e.y)/len;}}
@@ -93,6 +93,10 @@ export class FieldCombat{
    e.life-=dt;
   }
   this.effects=this.effects.filter(e=>e.life>0);
+  if(this.regenerate&&this.hp>0&&this.hp<this.maxHp){
+   this.regenTimer+=dt;
+   if(this.regenTimer>=1-1e-9){this.regenTimer=Math.max(0,this.regenTimer-1);this.hp=Math.min(this.maxHp,this.hp+1);this.onHp(this.hp);}
+  }else this.regenTimer=0;
  }
  applyKnockback(dt,world,player){
   const k=this.knockback;if(!k||!this.enabled||dt<=0)return false;

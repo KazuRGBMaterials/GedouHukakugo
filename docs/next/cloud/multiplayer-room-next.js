@@ -1,5 +1,5 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
-import { attackPacket } from "../runtime/field-combat.js?v=5";
+import { attackPacket } from "../runtime/field-combat.js?v=6";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
