@@ -294,7 +294,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
         <label>目印の色<select id="room-color"><option value="0">水色</option><option value="1">金色</option><option value="2">紫</option><option value="3">緑</option><option value="4">桃色</option><option value="5">黄色</option><option value="6">青緑</option><option value="7">薄紫</option></select></label>
         </div>
         <div class="room-code-row"><label>ルームコード<input id="room-code" maxlength="8" inputmode="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="例：ABCD2345" /></label></div>
-        <div class="room-buttons"><button id="room-create" type="button" class="primary" disabled>新しい部屋を作る</button><button id="room-join" type="button" disabled>コードで参加</button><button id="room-share" type="button" disabled>招待URLをコピー</button><button id="room-leave" type="button" disabled>退出</button></div>
+        <div class="room-buttons"><button id="room-create" type="button" class="primary" disabled>新しい部屋を作る</button><button id="room-join" type="button" disabled>コードで参加</button><button id="room-share" type="button" disabled>招待URLを共有</button><button id="room-leave" type="button" disabled>退出</button></div>
         <label id="room-invite-label" hidden style="margin-top:8px">招待URL（長押しでコピー可能）<input id="room-invite-url" type="url" readonly style="display:block;width:100%;min-height:44px;margin-top:4px;user-select:text;-webkit-user-select:text" /></label>
         <div id="room-combat-status" role="status" style="font-size:11px;margin-top:6px">攻撃同期：未接続</div>
         <div id="room-status" class="room-status" role="status" aria-live="polite">同期サービスを確認しています…</div>
@@ -338,6 +338,6 @@ load('/src/main.ts').startField({FieldDialogue, exampleFieldObjects, fieldObject
 <link rel="stylesheet" href="./next/cloud/cloud-save.css?v=1" />
 <script type="module" src="./next/cloud/init-field.js?v=4"></script>
 <script type="module" src="./next/runtime/field-status.js?v=3"></script>
-<script type="module" src="./next/cloud/multiplayer-room-next.js?v=9"></script>
+<script type="module" src="./next/cloud/multiplayer-room-next.js?v=10"></script>
 </body>
 </html>
