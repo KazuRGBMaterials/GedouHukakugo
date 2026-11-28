@@ -2,11 +2,12 @@ import {
   COMMANDS, TIMELINE_SIZE, SHIFT_STAMINA, createBattle, canReserve, reserve,
   canShiftImpact, shiftImpact, startBattle, nextAction, nextRecovery, advanceBattle as advanceCoreBattle, fighterName as coreFighterName,
   isManual, setAutomatic, setQueuedTarget, setQueuedLanding
-} from "../../battle/rules.js?v=16";
+} from "../../battle/rules.js?v=17";
 import { createBattleAudio } from "../../battle/audio.js?v=2";
-import { victoryFanfare } from "./victory-fanfare.js?v=1";
+import { victoryFanfare,createVictoryGate } from "./victory-fanfare.js?v=1";
 import { MOVE, cellName, gridSides, targetFor, teamOf, PARTY_SIDES, FOE_SIDES, normalizeGridSize } from "../../battle/grid-rules.js?v=7";
-import { bindBattleGrid } from "../../battle/grid-ui.js?v=16";
+import { bindBattleGrid } from "../../battle/grid-ui.js?v=17";
+import {bindBeltOnline} from "./online/belt-online.js?v=5";
 import { bindBattleFullscreen } from "../../battle/fullscreen.js?v=1";
 import { bindGameTaps } from "../../assets/game-taps.js?v=1";
 import { nextContent as battleContent, graphicsForBattle } from "../content/index.js?v=6";
@@ -24,6 +25,7 @@ const colorNames = { yellow: "黄", blue: "青", red: "赤" };
 const windups = { quick: "踏み込み", heavy: "振りかぶり", fire: "詠唱中", jumpSlash: "空中で構え" };
 const names = { player: "MAGE", enemy: "ネームレス" };
 const fighterName = (battle,side) => {
+  if(onlineMode&&onlineState?.roster?.[side])return onlineState.roster[side].label;
   const label=coreFighterName(battle,side);
   return side.startsWith("enemy") && !battle.grid?.enemyName
     ? label.replace("訓練用の見張り","ネームレス") : label;
@@ -32,11 +34,15 @@ const warnings = { heavy: "heavyWarning", fire: "fireWarning" };
 const outcomeSounds = { 勝利: "victory", 敗北: "defeat", 相打ち: "draw" };
 const planningSeconds = 8;
 const urlParams = new URLSearchParams(window.location.search);
-const gridMode = urlParams.get("grid") === "1";
+const onlineMode = urlParams.get("online") === "1";
+const gridMode = onlineMode || urlParams.get("grid") === "1";
+let onlineState=null,onlineSide=null,onlineHost=false,onlineAdapter=null,onlineCode=null;
+const canControl = side=>!onlineMode||onlineSide===side;
 const visualSelect = el("next-visual-mode");
 const characterSelect = el("next-character");
 const layerPortrait = createLayeredSpriteRenderer();
 const actorVisual = (side, state) => {
+  if(onlineMode&&onlineState?.roster?.[side]&&side.startsWith("enemy")&&visualSelect?.value!=="legacy")return battleContent.registry.get("characters","mage-next")?.graphics;
   if (visualSelect?.value === "legacy") return battleContent.visualFor(side,state);
   if (side.startsWith("enemy") && !state?.grid) return battleContent.registry.get("characters","nameless")?.graphics;
   if (!side.startsWith("enemy") && characterSelect?.value)
@@ -162,6 +168,7 @@ let largestHit = null;
 const displayedHits = {};
 const buttons = new Map();
 const audio = createBattleAudio(el("battle-bgm"),{victoryEffect:victoryFanfare});
+const victoryGate=createVictoryGate(()=>audio.play("victory"));
 let renderGrid;
 if (gridMode) {
   el("grid-panel").hidden = false;
@@ -175,9 +182,11 @@ if (gridMode) {
   renderGrid = bindBattleGrid({
     visualFor: actorVisual,
     terrainFor: battleContent.terrainFor,
+    online:onlineMode,canControl,nameFor:side=>onlineMode?fighterName(battle,side):({player:"MAGE",ally:"味方",ally2:"味方2",ally3:"味方3",enemy:"敵1",enemy2:"敵2",enemy3:"敵3",enemy4:"敵4"}[side]),
     onMove: position => queue("move", position),
     onTarget: side => {
       targets[controlled] = side;
+      if(onlineMode){if(!canControl(controlled))return;if(editableAttackForOnline())onlineAdapter?.send({kind:"target",target:side});render();return;}
       const updated = setQueuedTarget(battle, controlled, side);
       el("input-status").textContent = updated
         ? `${fighterName(battle, controlled)}の次の攻撃 → ${fighterName(battle, side)}`
@@ -185,6 +194,7 @@ if (gridMode) {
       render();
     },
     onLanding: position => {
+      if(onlineMode){if(canControl(controlled))onlineAdapter?.send({kind:"landing",...position});return;}
       if (setQueuedLanding(battle, controlled, position)) {
         el("input-status").textContent = `ジャンプ斬りの着地点 → ${cellName(position)}`;
         render();
@@ -196,6 +206,7 @@ if (gridMode) {
   for (const side of PARTY_SIDES) {
     el(`${side}-select`).addEventListener("click", () => selectFighter(side));
     el(`${side}-mode`).addEventListener("click", () => {
+      if(onlineMode)return;
       const enabled = !battle[side]?.automatic;
       if (!setAutomatic(battle, side, enabled)) return;
       automatic[side] = enabled;
@@ -246,11 +257,12 @@ function newBattle() {
 }
 
 function canChooseProfile() {
+  if(onlineMode)return false;
   return battle.phase === "planning" && PARTY_SIDES.every(side => !battle[side]?.actions.length);
 }
 
 function selectFighter(side) {
-  if (!battle[side]?.hp || battle.phase === "finished") return;
+  if (!canControl(side)||!battle[side]?.hp || battle.phase === "finished") return;
   controlled = side;
   el("input-status").textContent = `操作キャラ · ${fighterName(battle, side)}`;
   render();
@@ -271,7 +283,9 @@ for (const [id, command] of Object.entries(COMMANDS)) {
   el("commands").append(button);
 }
 
+function editableAttackForOnline(){return battle[controlled]?.actions.some(a=>a.status==="pending"&&["quick","heavy","jumpSlash"].includes(a.commandId)&&(battle.phase==="planning"||a.impact===battle.tick+1));}
 function queue(id, destination) {
+  if(onlineMode){if(canControl(controlled)&&isManual(battle,controlled)){audio.unlock();onlineAdapter?.send({kind:"reserve",command:id,...destination,target:targets[controlled]||""});}return;}
   if (!isManual(battle, controlled) || !reserve(battle, controlled, id, destination, targets[controlled])) return;
   audio.unlock();
   const message = destination ? `${cellName(destination)}への移動を予約（SC ${MOVE.sc}）。` : `${COMMANDS[id].name}を予約。`;
@@ -290,6 +304,7 @@ function queue(id, destination) {
 }
 
 function launch() {
+  if(onlineMode){if(onlineHost)onlineAdapter?.start();return;}
   if (battle.phase !== "planning") return;
   clearInterval(planningTimer);
   planningTimer = null;
@@ -499,8 +514,9 @@ function renderParty() {
     const selector = el(`${side}-select`);
     const name = fighterName(battle, side);
     const inactive = !actor?.hp || battle.phase === "finished";
-    mode.disabled = inactive;
-    selector.disabled = inactive;
+    mode.disabled = inactive||onlineMode;
+    selector.disabled = inactive||!canControl(side);
+    if(onlineMode)selector.textContent=name;
     mode.textContent = actor?.automatic ? "AUTO" : "手動";
     mode.setAttribute("aria-pressed", String(!!actor?.automatic));
     mode.setAttribute("aria-label", `${name}の自動操作`);
@@ -511,7 +527,8 @@ function renderParty() {
 }
 
 function render(processed) {
-  if (!battle[controlled]?.hp) {
+  if(onlineMode){controlled=onlineSide&&battle[onlineSide]?onlineSide:"player";}
+  else if (!battle[controlled]?.hp) {
     controlled = PARTY_SIDES.find(side => battle[side]?.hp) ?? "player";
   }
   const sides = battle.grid ? gridSides(battle) : ["player", "enemy"];
@@ -526,6 +543,7 @@ function render(processed) {
     el(`${side}-belt-label`).hidden = !battle[side];
   }
   el("enemy-belt-label").textContent = battle.enemy2 ? "敵1" : "敵";
+  if(onlineMode)for(const side of sides){el(`${side}-belt-label`).textContent=fighterName(battle,side);el(`${side}-belt`).classList.toggle("party-belt",side===onlineSide);el(`${side}-belt-label`).classList.toggle("party-belt-label",side===onlineSide);}
   el("battle-enemy-name").textContent = fighterName(battle, "enemy");
   for (const side of FOE_SIDES.slice(1)) {
     if (battle[side]) el(`battle-${side}-name`).textContent = fighterName(battle, side);
@@ -540,6 +558,7 @@ function render(processed) {
     : `戦闘中 · ${battle.tick} 枠経過`;
   el("battle-status").textContent = gridMode && battle.phase === "planning"
     ? "技や移動を予約し、準備ができたら「戦闘開始」。" : status;
+  if(onlineMode){const won=onlineSide&&(teamOf(onlineSide)==="enemy"?battle.outcome==="敗北":battle.outcome==="勝利");el("battle-status").textContent=(onlineSide?`操作：${fighterName(battle,onlineSide)} · `:"観戦 · ")+(battle.phase==="finished"?(battle.outcome==="相打ち"?"相打ち":onlineSide?(won?"勝利":"敗北"):battle.outcome==="勝利"?"味方側勝利":"敵側勝利"):battle.phase==="planning"?"初手を予約してください":`${battle.tick}枠経過`);}
   if (renderGrid) {
     targets[controlled] = targetFor(battle, controlled, targets[controlled]);
     renderGrid(battle, processed, controlled, targets[controlled]);
@@ -578,10 +597,10 @@ function render(processed) {
       : "人数・マス目・敵の種類・性格・戦術を変えるには「最初から」を押してください。";
   }
   el("time-axis").replaceChildren(...Array.from({length: TIMELINE_SIZE}, (_,i) => slot("beat-number", battle.tick + i + 1)));
-  const manual = isManual(battle, controlled);
+  const manual = canControl(controlled)&&isManual(battle, controlled);
   el("commands").setAttribute("aria-label", `${fighterName(battle, controlled)}のコマンド入力`);
   for (const [id, button] of buttons) button.disabled = !manual || !canReserve(battle, controlled, id);
-  el("start").hidden = battle.phase !== "planning";
+  el("start").hidden = battle.phase !== "planning" || (onlineMode&&!onlineHost);
   el("shift").disabled = !manual || !canShiftImpact(battle, controlled);
   el("battle-log").replaceChildren(...battle.events.map(text => {
     const entry = document.createElement("p");
@@ -605,12 +624,14 @@ soundButton.addEventListener("click", () => {
 document.addEventListener("visibilitychange", audio.syncMusic);
 el("shift").title = `火炎の発生と後続を1枠遅らせる（スタミナ ${SHIFT_STAMINA}）`;
 el("shift").addEventListener("click", () => {
+  if(onlineMode){if(canControl(controlled))onlineAdapter?.send({kind:"shift"});return;}
   if (isManual(battle, controlled) && shiftImpact(battle, controlled)) {
     el("input-status").textContent = "火炎の発生を1枠遅らせました。";
     render();
   }
 });
 el("reset").addEventListener("click", () => {
+  if(onlineMode)return;
   clearInterval(planningTimer);
   clearInterval(battleTimer);
   planningTimer = null;
@@ -640,7 +661,25 @@ visualSelect?.addEventListener("change",()=>render());
 characterSelect?.addEventListener("change",()=>render());
 bindBattleFullscreen(el("battle-main"), el("battle-fullscreen"));
 bindGameTaps(document);
-render();
+if(onlineMode){
+ document.body.classList.add("belt-online","online-lobby");el("online-room").hidden=false;el("battle-title").textContent="ベルトライン戦闘 ONLINE";
+ el("grid-instructions").textContent="各自のキャラだけを操作できます。敵のマスをタップして狙いを指定、空きマスをタップして移動を予約。ホストが戦闘開始します。";
+ onlineAdapter=bindBeltOnline({onUnlock:()=>audio.unlock(),onStatus:msg=>{el("input-status").textContent=msg;},onLeave:()=>{onlineState=null;onlineSide=null;onlineCode=null;onlineHost=false;targets={};victoryGate.reset();audio.setMusic(false);audio.stopEffects();document.body.classList.add("online-lobby");},onSnapshot:(next,info)=>{
+  const prevPhase=onlineState?.phase,prevTick=battle.tick,newMatch=onlineCode!==info.code||!onlineState?.battle;
+  onlineState=next;onlineSide=info.side;onlineHost=info.host;onlineCode=info.code;
+  if(!next.battle)return;
+  // Preserve renderer identity between network snapshots so travel and impact animations run.
+  if(newMatch){battle=structuredClone(next.battle);targets={};largestHit=null;delete displayedHits.player;delete displayedHits.enemy;}
+  else Object.assign(battle,structuredClone(next.battle));
+  const advanced=!newMatch&&battle.tick>prevTick;
+  const processed=advanced?next.processed||{}:undefined;
+  if(prevPhase==="planning"&&battle.phase==="running"){audio.setMusic(true);audio.play("start");}
+  if(advanced)playImpact();
+  if(battle.phase==="finished")audio.setMusic(false);
+  const won=!!onlineSide&&(teamOf(onlineSide)==="enemy"?battle.outcome==="敗北":battle.outcome==="勝利");victoryGate.observe(info.code,battle.phase,won);
+  document.body.classList.remove("online-lobby");render(processed);
+ }});
+}else render();
 /**
  * Save only battle settings. In-progress combat stays local to the current
  * BATTLE instance; the online arena owns its own multiplayer snapshots.
