@@ -542,3 +542,14 @@ run("NEXT module imports exist",()=>{
  }
 });
 console.log("NEXT regression checks completed");
+
+run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
+ const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
+ assert(html.includes('id="room-invite-url" type="url" readonly'));
+ assert(html.includes("multiplayer-room-next.js?v=5"));
+ assert(source.includes('url.hash="room="+code'));
+ assert(source.includes('navigator.clipboard.writeText(address)'));
+ assert(source.includes('ui.invite.select()'));
+ assert(source.includes('ui.panel.hidden=false'));
+ assert(source.includes('if(!session?.connected)return;'));
+});
