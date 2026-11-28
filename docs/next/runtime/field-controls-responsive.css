@@ -109,9 +109,8 @@
 }
 
 
-/* Safari 100% layout: X-menu cannot cover the X button.
- * The menu has a scrollable content area and a sticky, always-visible close.
- * Do not scale the canvas or touch target coordinates. */
+/* Safari 100%: native menu scrolling and an always-visible close button.
+ * The menu temporarily overlays the controller; no canvas or hitbox scaling. */
 #app .game-frame .game-menu .menu-toolbar{
  position:sticky;top:0;z-index:2;display:flex;align-items:center;
  justify-content:space-between;gap:8px;margin:-4px -4px 9px;
@@ -121,14 +120,11 @@
  flex:none;min-height:36px;padding:5px 10px;font-size:12px;
  font-weight:700;white-space:nowrap;touch-action:manipulation;
 }
-/* Prioritize the in-game X key while an overlay menu is open. */
-#app .game-frame:has(#game-menu:not([hidden])) .action-panel{z-index:9;}
-#app .game-frame:has(#game-menu:not([hidden])) .action-panel .face-btn:not(.face-x),
-#app .game-frame:has(#game-menu:not([hidden])) .action-panel .shoulder-btn{
- opacity:.35;pointer-events:none;
-}
-/* On phone screens the menu uses space ABOVE the controls rather than
- * floating over the bottom-right X key. */
+/* Permit native vertical scrolling in the menu; isolate game gestures at their targets. */
+#app, #app .game-frame{touch-action:pan-y;}
+#app #field, #app .game-frame .control-panel, #app .game-frame .action-panel{touch-action:none;}
+#app .game-frame #game-menu:not([hidden]){z-index:20;touch-action:pan-y;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+/* On mobile use the full playable frame for the menu. */
 @media (max-width:740px), (pointer:coarse) and (max-height:600px){
  #app .topbar{height:45px;min-height:45px;padding:4px 8px;gap:6px;}
  #app .brand{gap:7px;}
@@ -163,7 +159,7 @@
  #app .game-frame .action-panel .diamond .face-btn{font-size:18px!important;}
  #app .game-frame .action-panel .diamond .face-btn small{font-size:8px;}
  #app .game-frame .game-menu{
-  left:7px;right:7px;top:7px;bottom:216px;
+  left:7px;right:7px;top:7px;bottom:7px;
   transform:none;width:auto;max-width:none;max-height:none;
   min-height:0;overflow:auto;overscroll-behavior:contain;
   padding:10px;font-size:11px;line-height:1.5;
@@ -192,7 +188,7 @@
  #app .game-frame .action-panel{
   --field-face:49px;--field-face-gap:5px;width:176px;right:6px;bottom:7px;
  }
- #app .game-frame .game-menu{bottom:212px;}
+ #app .game-frame .game-menu{bottom:7px;}
 }
 @media (max-height:600px){
  #app .topbar{height:39px;min-height:39px;padding:3px 7px;}
@@ -215,18 +211,17 @@
  #app .game-frame .joystick{width:88px;height:88px;}
  #app .game-frame .joystick-knob{width:42px;height:42px;}
  #app .game-frame .room-summary{display:none;}
- #app .game-frame .game-menu{bottom:194px;}
+ #app .game-frame .game-menu{bottom:7px;}
 }
-/* Landscape: fit menu to the LEFT of the controller, so the X button
- * stays exposed even at Safari 100% on a 667×375 display. */
+/* Landscape: use the full playable frame, with sticky close. */
 @media (orientation:landscape) and (max-height:600px){
  #app .game-frame .game-menu{
-  left:7px;right:177px;top:6px;bottom:6px;
+  left:7px;right:7px;top:6px;bottom:6px;
   width:auto;max-width:none;max-height:none;transform:none;
  }
 }
 @media (max-width:340px){
  #app .game-frame .character-hud{width:113px;}
  #app .game-frame .action-panel{--field-face:44px;--field-face-gap:4px;width:154px;right:4px;}
- #app .game-frame .game-menu{bottom:192px;}
+ #app .game-frame .game-menu{bottom:7px;}
 }
