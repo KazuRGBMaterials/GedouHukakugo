@@ -306,7 +306,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;touch-
   </div>
   <script type="module">
 import { FieldDialogue, exampleFieldObjects, fieldObjectDetails, withFieldObjects } from "./assets/field-objects.js?v=096";
-import { FieldCombat } from "./next/runtime/field-combat.js?v=2";
+import { FieldCombat } from "./next/runtime/field-combat.js?v=3";
 import { bindGameTaps, isGameTouchControl } from "./assets/game-taps.js?v=1";
 import { createFieldVisualPort, setupFieldControls, installFieldLayeredRenderers } from "./next/runtime/field-visual.js?v=11";
 const fieldVisualPort=createFieldVisualPort();
@@ -338,6 +338,6 @@ load('/src/main.ts').startField({FieldDialogue, exampleFieldObjects, fieldObject
 <link rel="stylesheet" href="./next/cloud/cloud-save.css?v=1" />
 <script type="module" src="./next/cloud/init-field.js?v=4"></script>
 <script type="module" src="./next/runtime/field-status.js?v=3"></script>
-<script type="module" src="./next/cloud/multiplayer-room-next.js?v=10"></script>
+<script type="module" src="./next/cloud/multiplayer-room-next.js?v=11"></script>
 </body>
 </html>
