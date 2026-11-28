@@ -1,7 +1,7 @@
 import {shareInvite} from "../runtime/invite-share.js?v=1";
 import { attackPacket } from "../runtime/field-combat.js?v=7";
 import {motionPacket,attackPatch,recentAttackEvents} from "../runtime/field-sync.js?v=2";
-import { createNpcJournal,readNpcSnapshot,chooseCoopLeader } from "../runtime/field-coop-sync.js?v=2";
+import { createNpcJournal,readNpcSnapshot,chooseCoopLeader,bootstrapCoop } from "../runtime/field-coop-sync.js?v=3";
 import { firebaseConfig } from "../../assets/firebase-config.js?v=4";
 
 /**
@@ -18,6 +18,7 @@ const ui = {
   color:document.getElementById("room-color"),
   mode:document.getElementById("room-mode"),
   create:document.getElementById("room-create"),
+  createVersus:document.getElementById("room-create-versus"),
   join:document.getElementById("room-join"),
   leave:document.getElementById("room-leave"),
   share:document.getElementById("room-share"),
@@ -108,9 +109,9 @@ ui.share.addEventListener("click",async()=>{
     say("招待URLを選択しました。長押ししてコピーしてください","online");
   }
 });
-function updateModeLabel(){ui.create.textContent=ui.mode.value==="coop"?"協力部屋を作る（CPU敵あり）":"対人部屋を作る（CPU敵なし）";}
-ui.mode.addEventListener("change",updateModeLabel);updateModeLabel();
-ui.create.addEventListener("click",()=>joinRoom(randomCode(),true));
+// Creation has explicit mode buttons; old PvP invite hashes only affect joining.
+ui.create.addEventListener("click",()=>{ui.mode.value="coop";void joinRoom(randomCode(),true,"coop");});
+ui.createVersus.addEventListener("click",()=>{ui.mode.value="versus";void joinRoom(randomCode(),true,"versus");});
 ui.join.addEventListener("click",()=>{
   const code=validCode(ui.code.value);
   if(!code){say("ルームコードは英数字8文字です","error");return;}
@@ -118,7 +119,7 @@ ui.join.addEventListener("click",()=>{
 });
 ui.leave.addEventListener("click",()=>leaveRoom());
 if(!configured){
-  ui.create.disabled=true;ui.join.disabled=true;
+  ui.create.disabled=true;ui.createVersus.disabled=true;ui.join.disabled=true;
   say("Firebase未設定：現在は1人用です。設定後は各端末から同じルームへ参加できます。");
 } else {
   // Explicit opt-in: do not load Firebase SDK or authenticate just because
@@ -148,7 +149,7 @@ async function ensureReady(){
   if(!auth.currentUser)throw new Error("匿名認証に失敗しました");
 }
 function setAvailable(connected){
-  ui.create.disabled=!connected||!!session;ui.join.disabled=!connected||!!session;ui.mode.disabled=!connected||!!session;
+  ui.create.disabled=!connected||!!session;ui.createVersus.disabled=!connected||!!session;ui.join.disabled=!connected||!!session;ui.mode.disabled=!connected||!!session;
   ui.leave.disabled=!connected;ui.share.disabled=!session?.connected;
 }
 async function leaveRoom(){
@@ -180,8 +181,8 @@ function connectionId() {
   const b=new Uint8Array(12);crypto.getRandomValues(b);
   return "P"+Array.from(b,v=>v.toString(16).padStart(2,"0")).join("");
 }
-async function joinRoom(raw,creating=false) {
-  const mode=ui.mode.value==="coop"?"coop":"versus";
+async function joinRoom(raw,creating=false,explicitMode=null) {
+  const mode=explicitMode||(ui.mode.value==="coop"?"coop":"versus");
   const code=validCode(raw);
   if(!code){say("正しい8文字のルームコードを入力してください","error");return;}
   if(!api) {
@@ -211,7 +212,7 @@ async function joinRoom(raw,creating=false) {
     }
     const playersRef=api.ref(db,(mode==="coop"?"coopPlayers/":"rooms/")+code+"/players");
     const selfRef=api.child(playersRef,id);
-    session={code,id,selfRef,playersRef,mode,host:false,meta,hostId:meta?.connection,players:{},count:0,connected:false,publishing:false,
+    session={code,id,selfRef,playersRef,mode,creator:creating,host:false,meta,hostId:meta?.connection,players:{},count:0,connected:false,publishing:false,
       npcJournal:createNpcJournal(),npcRevision:0,npcWriting:false,npcLastAt:0,npcSeen:0,npcBaseline:true,hostPresent:false,npcReady:false,npcReceivedAt:0};
     ui.code.value=code;
     ui.name.value=ui.name.value.trim().slice(0,16)||"プレイヤー";
@@ -242,10 +243,36 @@ async function joinRoom(raw,creating=false) {
         if(current!==token)return;
         await api.set(selfRef,selfState());
         if(current!==token)return;
-        port.setRoomActive?.(true);if(mode==="coop"){port.setCoopRole?.("guest");port.pauseCoop?.();npcSay("協力戦闘：同期準備中");}session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
+        const active=session;
+        if(mode==="coop"){
+          npcSay("協力戦闘：CPU敵データ準備中");
+          const self=(await api.get(selfRef)).val();
+          if(current!==token)return;
+          if(!self||self.owner!==auth.currentUser.uid)throw Error("協力参加者の登録を確認できません");
+          active.players={...active.players,[id]:self};
+          const stateRef=api.ref(db,"fieldCoop/"+code+"/state");
+          const boot=await bootstrapCoop({
+           read:async()=>(await api.get(stateRef)).val(),
+           write:row=>api.set(stateRef,row),
+           initial:()=>port.getInitialCoopSnapshot?.(),
+           creator:active.creator&&active.hostId===id,id,timestamp:()=>api.serverTimestamp()
+          }).catch(e=>{throw Error("CPU初期化（fieldCoop/state）："+e.message);});
+          if(current!==token)return;
+          active.latestNpc=boot?.row||null;
+          // Never replace solo enemies with an empty view while the initial state is being written.
+          if(!boot&&active.creator)throw Error("CPU初期データがありません");
+          port.setRoomActive?.(true);port.setCoopRole?.("guest");port.pauseCoop?.();
+          if(boot)port.setCoopSnapshot?.(boot.enemies);
+          npcSay(boot?"協力戦闘：敵"+boot.enemies.length+"体・攻撃同期準備中":"協力戦闘：CPU初期化待ち");
+        }else port.setRoomActive?.(true);
+        session.connected=true;session.publishing=false;lastWriteAt=Date.now();showInvite();
         say("参加しました：ルーム "+code,"online");
         connectCombat(session,current);
-      }catch(e){say("参加に失敗："+e.message,"error");}
+      }catch(e){
+        if(current!==token)return;
+        const message="参加に失敗："+e.message;
+        await leaveRoom();say(message,"error");npcSay(message);
+      }
     },e=>say("接続確認エラー："+e.message,"error"));
     sendTimer=setInterval(()=>publish(current),100);
     setAvailable(true);
@@ -258,7 +285,8 @@ function connectCombat(active,expected){
   startCombat(active,expected).catch(e=>{
     if(session!==active||expected!==token)return;
     active.combatReady=false;port.pauseCoop?.();stopNpcSync(active);active.host=false;active.npcReady=false;port.disableCombat?.();
-    combatSay("攻撃同期：接続失敗 / "+(e?.message||e)+"（fieldCombatのルール確認）");
+    combatSay("攻撃同期：接続失敗 / "+(e?.message||e)+"（"+(active.mode==="coop"?"coopCombat":"fieldCombat")+"）");
+    if(active.mode==="coop")npcSay("敵は表示中・攻撃同期失敗："+(e?.message||e));
     console.warn("field combat",e?.message);
     if(active.connected)combatRetry=setTimeout(()=>connectCombat(active,expected),5000);
   }).finally(()=>{active.combatStarting=false;});
@@ -308,6 +336,7 @@ function startNpcSync(active,expected){
  active.npcRef=api.ref(db,"fieldCoop/"+active.code+"/state");
  active.metaRef=api.ref(db,"fieldCoop/"+active.code+"/meta");
  active.host=false;active.npcReady=false;active.npcRetryAt=0;active.npcBaseline=true;
+ npcSay("協力戦闘：管理者確認中");
  port.setCoopRole?.("guest");port.pauseCoop?.();
  active.unsubMeta=api.onValue(active.metaRef,snap=>{
   if(session!==active||expected!==token||!active.combatReady)return;
@@ -327,6 +356,7 @@ function startNpcSync(active,expected){
   if(row.writer!==active.hostId||chooseCoopLeader(active.meta,active.players,Date.now()+serverOffset)!==active.hostId||Date.now()+serverOffset-row.updatedAt>5000){
    port.pauseCoop?.();active.npcReady=false;npcSay("CPU管理者交代中・敵HP維持");return;
   }
+  if(active.hostId===active.id){port.pauseCoop?.();return;}
   active.npcSeen=result.lastSeq;active.npcBaseline=false;active.npcReady=true;active.npcReceivedAt=Date.now();
   port.setCoopRole?.("guest");port.setCoopSnapshot?.(result.enemies);
   for(const detail of result.events)port.receiveNpcAttack?.(detail);
@@ -380,7 +410,7 @@ async function publishNpc(active,force=false){
  try{
   active.npcWritePromise=api.set(active.npcRef,{revision:++active.npcRevision,payload,writer:active.id,updatedAt:api.serverTimestamp()});
   await active.npcWritePromise;
-  if(session===active&&active.connected&&active.combatReady&&active.npcGeneration===generation&&active.host&&active.hostId===active.id){active.npcLastPayload=payload;active.npcLastAt=now;if(!active.npcReady){active.npcReady=true;port.setCoopRole?.("host");}}
+  if(session===active&&active.connected&&active.combatReady&&active.npcGeneration===generation&&active.host&&active.hostId===active.id){active.npcLastPayload=payload;active.npcLastAt=now;if(!active.npcReady){active.npcReady=true;port.setCoopRole?.("host");npcSay("協力戦闘：同期成功・敵"+enemies.length+"体（管理端末）");}}
  }catch(e){if(session===active&&active.npcGeneration===generation){active.npcReady=false;active.npcRetryAt=Date.now()+3000;port.pauseCoop?.();npcSay("CPU同期エラー："+e.message+"（最新Firebaseルール確認）");}}
  finally{active.npcWriting=false;active.npcWritePromise=null;}
 }
