@@ -1,4 +1,4 @@
-export function createBattleAudio(music) {
+export function createBattleAudio(music,{victoryEffect}={}) {
   let enabled = true;
   let musicWanted = false;
   let context;
@@ -128,7 +128,7 @@ export function createBattleAudio(music) {
       tone(t, .12, 520, 530, .09);
       tone(t + .08, .18, 695, 705, .10);
     },
-    victory: t => notes(t, [392, 494, 587, 784]),
+    victory: t => victoryEffect ? victoryEffect(t,{tone,noise}) : notes(t, [392, 494, 587, 784]),
     defeat: t => notes(t, [349, 294, 220, 147]),
     draw: t => notes(t, [349, 440, 392])
   };
