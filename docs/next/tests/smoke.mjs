@@ -649,3 +649,30 @@ run("ONLINE BELT room diagnoses exact rejected Firebase operation",()=>{
  assert(source.includes("publish(s,true)"));
  assert(ui.includes("render();showError(e);"));
 });
+
+run("FIELD remote jump height interpolates independently of local jump",()=>{
+ const modules=JSON.parse(text("index.html").match(/const modules=(\{[\s\S]*?\});\s*const cache=/)[1]);
+ const module={exports:{}};new Function("require","module","exports",modules["/src/multiplayer/RemotePlayerStore.ts"])(()=>{},module,module.exports);
+ const store=new module.exports.RemotePlayerStore({width:1600,height:1000});
+ const id="P0123456789abcdef01234567",self="Pabcdef0123456789abcdef01";
+ store.setPeers([{id,x:100,y:100,facing:"E",moving:false}],self);
+ store.setMotion({[id]:{pose:motionPacket({height:28,airborne:true,action:1,facing:"E"})}});
+ const peer=store.sample(.05)[0];
+ assert(peer.height>0&&peer.height<28);assert(peer.remoteAirborne);assert.equal(peer.y,100);
+ assert.equal(peer.remoteMotion.index,1);
+ store.markAttack(id,{index:2,dx:1,dy:0});
+ assert.equal(store.sample(.01)[0].remoteMotion.index,2);
+ store.clear();assert.equal(store.count(),0);assert.equal(store.poses.size,0);
+});
+run("FIELD two receivers independently apply reciprocal damage without repeated hits",()=>{
+ const a=new FieldCombat(),b=new FieldCombat();a.enable();b.enable();
+ const world={width:1600,height:1000,obstacles:[]};
+ const pa={x:100,y:100,halfSize:15},pb={x:150,y:100,halfSize:15};
+ assert(a.receive({index:1,x:pb.x,y:pb.y,facing:"W"}));
+ assert(b.receive({index:1,x:pa.x,y:pa.y,facing:"E"}));
+ for(let i=0;i<12;i++){a.tick(.05,world,pa);b.tick(.05,world,pb);}
+ assert.equal(a.hp,88);assert.equal(b.hp,88);
+ a.setPeerHp({b:100});a.setPeerHp({b:88});
+ assert.equal(a.peerHits.get("b").damage,12);
+ a.setPeerHp({b:88});assert.equal(a.peerHits.get("b").damage,12);
+});
