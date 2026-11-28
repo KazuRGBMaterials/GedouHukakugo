@@ -76,12 +76,21 @@ export function createFieldVisualPort({
     if(graphics.mode==='layered')return canvasLayers.draw(ctx,graphics,enemy.facing,x,y,w,h);
     if(graphics.mode!=='legacy'||!graphics.image)return false;
     const image=canvasLayers.load(new URL('../../battle/'+graphics.image.replace(/^\.\//,''),import.meta.url).href);
-    if(!image.complete||!image.naturalWidth)return false;
-    const dir=['S','SE','E','NE','N','NW','W','SW'].indexOf(enemy.facing),frame=graphics.directionFrames?.[Math.max(0,dir)]??0,fw=graphics.width,fh=graphics.height,cols=graphics.columns||4;
+    if(!image.complete||!image.naturalWidth||!image.naturalHeight)return false;
+    const dir=['S','SE','E','NE','N','NW','W','SW'].indexOf(enemy.facing),frame=graphics.directionFrames?.[Math.max(0,dir)]??0,cols=graphics.columns||4,rows=graphics.rows||2,fw=image.naturalWidth/cols,fh=image.naturalHeight/rows;
+    // The sheet may be exported at a higher resolution than its nominal CSS frame size.
+    if(frame<0||frame>=cols*rows||!Number.isInteger(fw)||!Number.isInteger(fh))return false;
     ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(image,frame%cols*fw,Math.floor(frame/cols)*fh,fw,fh,x,y,w,h);ctx.restore();return true;
   }
+  function drawDowned(ctx,player){
+    if(!isLayered())return false;
+    const graphics=fieldGraphics();if(graphics?.mode!=='layered')return false;
+    const factor=Math.min(1.5,Math.max(.7,Number(avatarScale())||1)),w=Math.round(FIELD_AVATAR_SIZE.width*factor),h=Math.round(FIELD_AVATAR_SIZE.height*factor);
+    ctx.save();ctx.translate(player.x,player.y+6);ctx.rotate(-Math.PI/2);
+    try{return canvasLayers.draw(ctx,graphics,'S',-w/2,-h/2,w,h);}finally{ctx.restore();}
+  }
   return Object.freeze({
-    draw, drawEnemy, isLayered,
+    draw, drawEnemy, drawDowned, isLayered,
     mapFor(id){return fieldMapFor(id,content);},
     registry:content.registry
   });
@@ -146,6 +155,15 @@ export function installFieldLayeredRenderers({
 
   for (const Renderer of [ArcaneFieldRenderer,ArcanePreviewRenderer]) {
     if (!Renderer?.prototype?.drawAirborne) continue;
+    const standing=Renderer.prototype.drawPlayer;
+    Renderer.prototype.drawPlayer=function(player){
+      if(!player.downed)return standing.call(this,player);
+      const ctx=this.ctx;shadow(ctx,player.x,player.y);
+      if(visualPort.drawDowned?.(ctx,player))return;
+      // Legacy/fallback sprite also lies on the ground, without active skill poses.
+      ctx.save();ctx.translate(player.x,player.y+6);ctx.rotate(-Math.PI/2);ctx.translate(-player.x,-player.y);
+      try{return AbilityRenderer.prototype.drawPlayer.call(this,{...player,moving:false,facing:'S'});}finally{ctx.restore();}
+    };
     const airborneLegacy=Renderer.prototype.drawAirborne;
     Renderer.prototype.drawAirborne=function(player) {
       if (!visualPort.isLayered()) return airborneLegacy.call(this,player);
