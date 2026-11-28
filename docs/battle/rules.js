@@ -67,7 +67,7 @@ function lastAction(actor) {
 }
 
 export function isManual(battle, side) {
-  return (teamOf(side) === "player" || battle.grid?.manualEnemySides?.includes(side)) && !!battle[side]?.hp && !battle[side].automatic;
+  return (teamOf(side) === "player" || !!battle.grid?.manualEnemySides?.includes(side)) && !!battle[side]?.hp && !battle[side].automatic;
 }
 
 export function setAutomatic(battle, side, automatic) {
