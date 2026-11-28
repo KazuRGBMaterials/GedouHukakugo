@@ -1,5 +1,5 @@
 /** Local FIELD enemies. No DOM, database, or renderer dependencies in the AI. */
-import {FieldCombat,attackPacket} from "./field-combat.js?v=7";
+import {FieldCombat,attackPacket,stepEnemyFire} from "./field-combat.js?v=8";
 export const LASER_CHARGE_SECONDS=1.5;
 export const ENEMY_SPAWNS=Object.freeze([
  {id:"slash1",type:"slash",label:"近接型",x:1220,y:140,hp:55,halfSize:15,speed:165},
@@ -26,13 +26,14 @@ function move(e,dx,dy,speed,dt,w){
  e.moving=Math.hypot(e.x-x,e.y-y)>.01;return e.moving;
 }
 export class FieldEnemies{
- constructor({sendAttack=()=>{},onDefeat=()=>{},spawns=ENEMY_SPAWNS}={}){
-  this.sendAttack=sendAttack;this.onDefeat=onDefeat;this.spawns=spawns;this.active=true;this.reset();
+ constructor({sendAttack=()=>{},onDefeat=()=>{},onHit=()=>{},spawns=ENEMY_SPAWNS}={}){
+  this.sendAttack=sendAttack;this.onDefeat=onDefeat;this.onHit=onHit;this.spawns=spawns;this.active=true;this.reset();
  }
  reset(){
+  this.fires=[];
   this.enemies=this.spawns.map(s=>{
    const e={...s,homeX:s.x,homeY:s.y,facing:"W",moving:false,aggro:false,cooldown:.35,windup:null,combo:0,nextSkill:0,dash:null,pose:null};
-   e.combat=new FieldCombat((hp)=>{e.hp=hp;if(hp===0){e.windup=null;e.dash=null;e.moving=false;this.onDefeat(e);}},s.hp);
+   e.combat=new FieldCombat((hp)=>{e.hp=hp;if(hp===0){e.windup=null;e.dash=null;e.moving=false;this.onDefeat(e);}},s.hp,{onHit:hit=>this.onHit({...hit,target:e.id})});
    e.combat.enable();return e;
   });
  }
@@ -51,10 +52,13 @@ export class FieldEnemies{
   }
   return true;
  }
- setActive(value){this.active=!!value;if(!this.active)for(const e of this.enemies){e.windup=null;e.dash=null;e.combat.effects=[];}}
- receive(detail){
-  if(!this.active||!attackPacket(detail))return false;
-  for(const e of this.enemies)if(e.hp>0)e.combat.receive(detail);
+ setActive(value){this.active=!!value;if(!this.active)this.fires=[];if(!this.active)for(const e of this.enemies){e.windup=null;e.dash=null;e.combat.effects=[];}}
+ receive(detail,{source='',seq=0}={}){
+  const a=attackPacket(detail);if(!this.active||!a)return false;
+  if(a.index===0){
+   if(this.fires.length>=120)this.fires.shift();
+   this.fires.push({...a,x:a.x+a.dx*24,y:a.y+a.dy*24,life:1.25,source,seq,hit:false});
+  }else for(const e of this.enemies)if(e.hp>0)e.combat.receive(detail,{source,seq});
   return true;
  }
  cast(e,index,aim,combo=1){
@@ -74,6 +78,8 @@ export class FieldEnemies{
   if(!this.active)return;
   const alive=party.filter(p=>p.hp>0&&Number.isFinite(p.x)&&Number.isFinite(p.y));
   dt=Math.max(0,Math.min(.05,Number(dt)||0));
+  for(const fire of this.fires){if(fire.life<=0)continue;const hit=stepEnemyFire(fire,dt,world,this.enemies);if(hit)hit.combat.damage(fire,hit);}
+  this.fires=this.fires.filter(e=>e.life>0);
   for(const e of this.enemies){
    if(e.hp<=0)continue;
    e.combat.tick(dt,world,e);
