@@ -1,0 +1,54 @@
+/* Multiplayer UI v0.6 — isolated; original field and action CSS remain unchanged. */
+.game-actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+#room-toggle{white-space:nowrap;min-width:75px}
+.room-summary{position:absolute;top:55px;right:16px;z-index:4;
+  border:1px solid #799a9b;background:#111c2ce8;color:#d2f7e3;
+  font:600 10px system-ui,sans-serif;padding:5px 8px;border-radius:6px;pointer-events:none;
+  max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-panel[hidden]{display:none!important}
+.room-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:25;overflow:auto;max-height:min(95%,650px);
+  width:min(430px,calc(100% - 24px));background:linear-gradient(145deg,#142031f7,#202b38fa);
+  border:1px solid #bba67e;box-shadow:0 12px 65px #000d, inset 0 0 0 2px #344454;
+  padding:17px;border-radius:12px;color:#f6edda;font:13px system-ui,sans-serif;
+  overscroll-behavior:contain;touch-action:pan-y}
+.room-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.room-panel h2{font:700 19px Georgia,"Yu Mincho",serif;letter-spacing:.08em;margin:0}
+.room-panel-close{border:1px solid #9aa5aa;background:#182638;color:#fff;border-radius:6px;
+  height:40px;width:40px;font-size:19px;cursor:pointer}
+.room-panel p{line-height:1.6;margin:8px 0 12px;color:#c9d3df}
+.room-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.room-fields label,.room-code-row label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#d5dce0}
+.room-fields input,.room-fields select,.room-code-row input{
+  font:15px system-ui,sans-serif;background:#0a1725;border:1px solid #7e929b;
+  border-radius:6px;color:#f4ead4;min-height:44px;width:100%;padding:8px 10px;
+  outline-offset:2px;touch-action:manipulation}
+.room-code-row{display:flex;gap:10px;align-items:end;margin-top:10px}
+.room-code-row label{flex:1}
+.room-code-row input{letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.room-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.room-buttons button{min-height:44px;cursor:pointer;border:1px solid #819a9d;border-radius:7px;
+  background:#304856;color:#f7f0da;font-weight:700;touch-action:manipulation}
+.room-buttons button.primary{border-color:#ceab66;background:#84603a}
+.room-buttons button:disabled{cursor:not-allowed;opacity:.45}
+.room-status{background:#0c1726;padding:9px;border-left:3px solid #657789;
+  margin-top:11px;line-height:1.6;font-size:12px;min-height:40px;overflow-wrap:anywhere}
+.room-status[data-state="online"]{border-left-color:#69d79b}
+.room-status[data-state="error"]{border-left-color:#e2a45f}
+.room-hint{font-size:11px!important;color:#b9c2c9!important}
+@media(max-width:740px){
+ .room-summary{top:38px;right:6px;max-width:120px;font-size:9px;padding:3px 5px}
+ .game-actions{gap:3px}
+ #room-toggle{min-width:53px}
+ .game-actions button{padding:6px 5px!important;font-size:9px!important}
+ .room-panel{padding:12px;max-height:94%;width:min(400px,calc(100% - 12px))}
+ .room-panel h2{font-size:17px}
+}
+@media(max-height:430px){
+ .room-panel{top:51%;padding:8px;max-height:96%}
+ .room-panel p{margin:3px 0 5px}
+ .room-fields input,.room-fields select,.room-code-row input{min-height:38px}
+ .room-buttons button{min-height:40px}
+ .room-panel h2{font-size:15px}
+ .room-status{padding:4px;min-height:30px}
+}

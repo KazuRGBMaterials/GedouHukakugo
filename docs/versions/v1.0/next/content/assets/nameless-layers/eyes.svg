@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112" viewBox="0 0 160 112" shape-rendering="crispEdges">
+<title>ネームレス eyes 8方向 40×56</title>
+<g transform="translate(0 0)"><path d="M14 19 L26 19 L28 24 L13 25Z" fill="#121421" /><rect x="17" y="22" width="3" height="2" fill="#ff414b"/><rect x="18" y="22" width="1" height="1" fill="#fff3e0"/><rect x="24" y="22" width="3" height="2" fill="#ff414b"/><rect x="25" y="22" width="1" height="1" fill="#fff3e0"/></g>
+<g transform="translate(40 0)"><path d="M14 19 L26 19 L28 24 L13 25Z" fill="#121421" /><rect x="23" y="21" width="4" height="2" fill="#ff414b"/><rect x="24" y="21" width="1" height="1" fill="#fff3e0"/></g>
+<g transform="translate(80 0)"><path d="M14 19 L26 19 L28 24 L13 25Z" fill="#121421" /><rect x="26" y="21" width="4" height="2" fill="#ff414b"/><rect x="27" y="21" width="1" height="1" fill="#fff3e0"/></g>
+<g transform="translate(120 0)"><path d="M13 18 L27 19 L27 23 L13 24 Z" fill="#231b38"/></g>
+<g transform="translate(0 56)"><path d="M13 18 L27 19 L27 23 L13 24 Z" fill="#231b38"/></g>
+<g transform="translate(40 56)"><path d="M13 18 L27 19 L27 23 L13 24 Z" fill="#231b38"/></g>
+<g transform="translate(80 56)"><path d="M14 19 L26 19 L28 24 L13 25Z" fill="#121421" /><rect x="13" y="21" width="4" height="2" fill="#ff414b"/><rect x="14" y="21" width="1" height="1" fill="#fff3e0"/></g>
+<g transform="translate(120 56)"><path d="M14 19 L26 19 L28 24 L13 25Z" fill="#121421" /><rect x="16" y="21" width="4" height="2" fill="#ff414b"/><rect x="17" y="21" width="1" height="1" fill="#fff3e0"/></g>
+</svg>
