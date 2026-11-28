@@ -6,6 +6,7 @@ import {fileURLToPath} from "node:url";
 import { nextContent, graphicsForBattle, fieldMapFor, objectDefinitionFor, createNextContent } from "../content/index.js";
 import { createLayeredCanvas } from "../../shared/modkit/layered-canvas.js";
 import { createFieldVisualPort, installFieldLayeredRenderers, FIELD_AVATAR_SIZE } from "../runtime/field-visual.js";
+import { lobby,prepareBattle,applyIntent,beginBattle,tickBattle,ownedSide } from "../battle/online/belt-engine.js";
 import { FieldCombat, attackPacket } from "../runtime/field-combat.js";
 import { summarizeFieldStatus } from "../runtime/field-status.js";
 import { createDefinitionRegistry } from "../../shared/modkit/definition-registry.js";
@@ -547,7 +548,7 @@ console.log("NEXT regression checks completed");
 run("FIELD NEXT invite URL remains selectable when clipboard fails",()=>{
  const html=text("index.html"),source=text("cloud/multiplayer-room-next.js");
  assert(html.includes('id="room-invite-url" type="url" readonly'));
- assert(html.includes("multiplayer-room-next.js?v=6"));
+ assert(html.includes("multiplayer-room-next.js?v=7"));
  assert(source.includes('url.hash="room="+code'));
  assert(source.includes('navigator.clipboard.writeText(address)'));
  assert(source.includes('ui.invite.select()'));
@@ -588,4 +589,37 @@ run("FIELD remote attacks hit once, respect obstacle and reset HP",()=>{
  assert.equal(attackPacket({index:0,x:100,y:100,dx:100,dy:0}).dx,1);
  const rules=JSON.parse(text("../firebase/database.rules.json"));
  assert(rules.rules.fieldCombat.$room.$connection.attack.$other[".validate"]===false);
+});
+
+run("ONLINE BELT uses the existing core: cooperative players own distinct slots and enemies remain AI",()=>{
+ const state=lobby("coop"),members={a:{label:"A",joinedAt:1},b:{label:"B",joinedAt:2}};
+ assert(prepareBattle(state,members,"a",{enemies:2,size:7}));
+ assert.equal(ownedSide(state,"a"),"player");assert.equal(ownedSide(state,"b"),"ally");
+ assert(applyIntent(state,"a",{kind:"reserve",command:"wait"}));
+ assert(applyIntent(state,"b",{kind:"reserve",command:"wait"}));
+ assert(!applyIntent(state,"outsider",{kind:"reserve",command:"quick"}));
+ assert.equal(state.battle.player.actions[0].commandId,"wait");
+ assert.equal(state.battle.ally.actions[0].commandId,"wait");
+ assert(beginBattle(state));assert(tickBattle(state));assert.equal(state.battle.tick,1);
+ assert(state.battle.enemy.actions.length>0);
+});
+run("ONLINE BELT PvP assigns both teams, no enemy AI, and applies real opposing damage",()=>{
+ const state=lobby("versus"),members={a:{label:"A",joinedAt:1},b:{label:"B",joinedAt:2}};
+ assert(prepareBattle(state,members,"a",{size:5}));
+ assert.equal(ownedSide(state,"a"),"player");assert.equal(ownedSide(state,"b"),"enemy");
+ assert.equal(state.battle.enemy.actions.length,0);
+ assert(applyIntent(state,"a",{kind:"reserve",command:"quick",target:"enemy"}));
+ assert(applyIntent(state,"b",{kind:"reserve",command:"quick",target:"player"}));
+ assert(beginBattle(state));assert(tickBattle(state));
+ assert(state.battle.player.hp<100&&state.battle.enemy.hp<100);
+ const many=Object.fromEntries(Array.from({length:8},(_,i)=>["p"+i,{label:"P"+i,joinedAt:i}]));
+ const full=lobby("versus");assert(prepareBattle(full,many,"p0",{size:7}));
+ assert.equal(Object.keys(full.roster).length,8);
+ assert.equal(full.battle.grid.manualEnemySides.length,4);
+ assert(JSON.parse(text("../firebase/database.rules.json")).rules.beltRooms.$room.inputs);
+});
+run("ONLINE BELT entry and transport parse and remain accessible from field and battle",()=>{
+ assert(text("index.html").includes("./next/battle/online/"));
+ assert(text("battle/index.html").includes("./online/"));
+ for(const file of ["belt-engine.js","belt-room.js","belt-online.js"])new vm.SourceTextModule(text("battle/online/"+file));
 });
