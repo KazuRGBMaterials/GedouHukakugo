@@ -21,8 +21,7 @@
  grid-template-columns:repeat(3,var(--field-face));
  grid-template-rows:repeat(3,var(--field-face));
  gap:var(--field-face-gap);
- width:calc(3 * var(--field-face) + 2 * var(--field-face-gap));
- height:calc(3 * var(--field-face) + 2 * var(--field-face-gap))!important;
+ width:max-content!important;height:max-content!important;
  max-width:none;align-self:center;justify-content:center;align-content:center;
 }
 .game-frame .action-panel .diamond .face-btn{
@@ -71,7 +70,7 @@
   padding:5px 3px!important;font-size:9px!important;
   white-space:normal;line-height:1.15;
  }
- .game-frame .room-summary{top:77px;right:7px;}
+ .game-frame .room-summary{top:112px;right:7px;}
 }
 @media (max-height:600px){
  .game-frame .action-panel{
@@ -88,6 +87,19 @@
  .game-frame .game-actions{top:5px;}
  /* Not a button: hide the room summary only in extremely short landscapes. */
  .game-frame .room-summary{display:none;}
+}
+@media (max-height:360px){
+ /* Even a short landscape can keep every action accessible on a single row. */
+ .game-frame .character-hud{display:none;}
+ .game-frame .game-actions{display:flex;width:auto;gap:2px;right:4px;top:4px;}
+ .game-frame .game-actions button{
+  min-height:26px;padding:3px 4px!important;font-size:8px!important;white-space:nowrap;
+ }
+ .game-frame .action-panel{
+  --field-face:36px;--field-face-gap:4px;width:140px;gap:3px;
+ }
+ .game-frame .action-panel .shoulder-btn{height:28px;min-height:26px;}
+ .game-frame .joystick{width:78px;height:78px;}
 }
 @media (max-width:340px){
  .game-frame .action-panel{--field-face:42px;--field-face-gap:5px;width:150px;right:4px;}
