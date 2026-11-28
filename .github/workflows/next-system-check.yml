@@ -5,6 +5,8 @@ on:
     paths:
       - 'docs/next/**'
       - 'docs/battle/rules.js'
+      - 'docs/battle/grid-ui.js'
+      - 'docs/battle/grid-rules.js'
       - 'docs/assets/firebase-config.js'
       - 'docs/firebase/database.rules.json'
       - 'docs/firebase/firestore.rules'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'docs/next/**'
       - 'docs/battle/rules.js'
+      - 'docs/battle/grid-ui.js'
+      - 'docs/battle/grid-rules.js'
       - 'docs/assets/firebase-config.js'
       - 'docs/firebase/database.rules.json'
       - 'docs/firebase/firestore.rules'
